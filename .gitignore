@@ -8,6 +8,8 @@ dist/
 build/
 .next/
 out/
+.pages-deploy-staging/
+pages-config.json
 
 # Environment files
 .env
