@@ -1,17 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import FundCard from "@/components/funds/FundCard";
-import { Badge } from "@/components/ui/Badge";
-import {
-  Satellite,
-  TrendingUp,
-  BarChart3,
-  Target,
-  ArrowRight,
-} from "lucide-react";
-import Link from "next/link";
+import { Satellite } from "lucide-react";
 
 const DEMO_FUNDS = [
   {
@@ -100,6 +93,7 @@ const DEMO_FUNDS = [
 ];
 
 export default function FundsPage() {
+  const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"return" | "aum" | "min">("return");
 
@@ -250,7 +244,7 @@ export default function FundsPage() {
               <h3 className="font-black text-white text-sm mb-3">Sort by</h3>
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
+                onChange={(e) => setSortBy(e.target.value as "return" | "aum" | "min")}
                 className="bg-xc-card border border-xc-border rounded-lg px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-xc-purple"
               >
                 <option value="return">Highest Return</option>
@@ -264,7 +258,16 @@ export default function FundsPage() {
         {/* Funds Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {sortedFunds.map((fund) => (
-            <FundCard key={fund.id} fund={fund} />
+            <FundCard
+              key={fund.id}
+              fund={fund}
+              onInvest={() => {
+                const isStarlink =
+                  fund.name.toLowerCase().includes("starlink") ||
+                  fund.name.toLowerCase().includes("xlink");
+                router.push(isStarlink ? "/trading" : "/wallet");
+              }}
+            />
           ))}
         </div>
       </div>

@@ -23,20 +23,30 @@ const ASSET_TYPES = [
 ];
 
 interface AssetListProps {
+  assets?: Asset[];
+  selectedAsset?: Asset;
+  onSelectAsset?: (asset: Asset) => void;
+  // backward-compat (older call sites)
   onSelect?: (asset: Asset) => void;
   selectedSymbol?: string;
 }
 
 export default function AssetList({
+  assets: providedAssets,
+  selectedAsset,
+  onSelectAsset,
   onSelect,
   selectedSymbol,
 }: AssetListProps) {
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [assets, setAssets] = useState<Asset[]>(providedAssets ?? []);
+  const [loading, setLoading] = useState(!providedAssets);
   const [search, setSearch] = useState("");
   const [activeType, setActiveType] = useState("ALL");
 
   useEffect(() => {
+    // If assets are provided, don't fetch/override them.
+    if (providedAssets) return;
+
     const load = async () => {
       setLoading(true);
       try {
@@ -49,7 +59,7 @@ export default function AssetList({
       }
     };
     load();
-  }, []);
+  }, [providedAssets]);
 
   const { prices: livePrices } = useMarketPrices({ refreshInterval: 30_000 });
 
@@ -164,12 +174,16 @@ export default function AssetList({
               return (
                 <button
                   key={asset.symbol}
-                  onClick={() => onSelect?.(asset)}
+                  onClick={() => onSelectAsset?.(asset) ?? onSelect?.(asset)}
                   className={cn(
                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left",
-                    selectedSymbol === asset.symbol
-                      ? "bg-xc-purple/20 border border-xc-purple/40"
-                      : "hover:bg-white/[0.04] border border-transparent",
+                    selectedAsset?.symbol
+                      ? selectedAsset.symbol === asset.symbol
+                        ? "bg-xc-purple/20 border border-xc-purple/40"
+                        : "hover:bg-white/[0.04] border border-transparent"
+                      : selectedSymbol === asset.symbol
+                        ? "bg-xc-purple/20 border border-xc-purple/40"
+                        : "hover:bg-white/[0.04] border border-transparent",
                     isHot && change > 0 && "bg-emerald-950/10",
                     isHot && change < 0 && "bg-red-950/10",
                   )}

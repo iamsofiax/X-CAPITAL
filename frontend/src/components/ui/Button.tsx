@@ -63,19 +63,20 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const isDisabled = disabled || loading;
 
     return (
-      <button
-        ref={ref}
-        disabled={isDisabled}
-        className={cn(
-          "inline-flex items-center justify-center font-semibold transition-all duration-200 cursor-pointer select-none",
-          VARIANT_CLASSES[variant],
-          SIZE_CLASSES[size],
-          fullWidth && "w-full",
-          isDisabled && "opacity-50 cursor-not-allowed pointer-events-none",
-          className,
-        )}
-        {...props}
-      >
+        <button
+          ref={ref}
+          disabled={isDisabled}
+          className={cn(
+            "inline-flex items-center justify-center font-semibold transition-all duration-200 cursor-pointer select-none",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-xc-purple/70 focus-visible:ring-offset-2 focus-visible:ring-offset-xc-dark",
+            VARIANT_CLASSES[variant],
+            SIZE_CLASSES[size],
+            fullWidth && "w-full",
+            isDisabled && "opacity-50 cursor-not-allowed pointer-events-none",
+            className,
+          )}
+          {...props}
+        >
         {loading ? (
           <>
             <Loader2 className="animate-spin w-4 h-4 shrink-0" />

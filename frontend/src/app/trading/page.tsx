@@ -5,86 +5,88 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import AssetList from "@/components/trading/AssetList";
 import OrderForm from "@/components/trading/OrderForm";
 import { Badge } from "@/components/ui/Badge";
-import {
-  BarChart,
-  Bar,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from "recharts";
-import {
-  Satellite,
-  TrendingUp,
-  BarChart3,
-  Activity,
-  Flame,
-  Radio,
-  DollarSign,
-} from "lucide-react";
+import { BarChart, Bar, ResponsiveContainer, Cell } from "recharts";
+import { Satellite, BarChart3, Activity, Flame } from "lucide-react";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
-import { formatCurrency, formatPercent, cn } from "@/lib/utils";
+import { formatPercent, cn } from "@/lib/utils";
+import {
+  FOUNDER_HOT_SIGNALS,
+  FOUNDER_SIGNAL_ATTRIBUTION,
+} from "@/lib/founderSignals";
+import type { Asset } from "@/types";
 
-const DEMO_ASSETS = [
+const DEMO_ASSETS: Asset[] = [
   {
+    id: "aapl",
     symbol: "AAPL",
     name: "Apple Inc.",
     type: "STOCK",
     price: 245.5,
     priceChange24h: 2.3,
+    isTradable: true,
   },
   {
+    id: "tsla",
     symbol: "TSLA",
     name: "Tesla Inc.",
     type: "STOCK",
     price: 387.2,
     priceChange24h: 1.8,
+    isTradable: true,
   },
   {
+    id: "nvda",
     symbol: "NVDA",
     name: "NVIDIA Corp.",
     type: "STOCK",
     price: 1204.85,
     priceChange24h: 4.2,
+    isTradable: true,
   },
   {
+    id: "btc",
     symbol: "BTC",
     name: "Bitcoin",
     type: "CRYPTO",
     price: 89420,
     priceChange24h: 3.1,
+    isTradable: true,
   },
   {
+    id: "eth",
     symbol: "ETH",
     name: "Ethereum",
     type: "CRYPTO",
     price: 4282,
     priceChange24h: 2.8,
+    isTradable: true,
   },
   {
+    id: "gld",
     symbol: "GLD",
     name: "SPDR Gold Shares",
     type: "ETF",
     price: 198.75,
     priceChange24h: 0.9,
+    isTradable: true,
   },
   {
+    id: "qqq",
     symbol: "QQQ",
     name: "Invesco QQQ Trust",
     type: "ETF",
     price: 543.2,
     priceChange24h: 3.5,
+    isTradable: true,
   },
   {
+    id: "xlink",
     symbol: "XLINK",
     name: "Starlink Growth Token",
     type: "TOKEN",
     price: 95.24,
     priceChange24h: 12.4,
+    isTradable: true,
   },
 ];
 
@@ -109,7 +111,7 @@ const orderBookData = [
 ];
 
 export default function TradingPage() {
-  const [selectedAsset, setSelectedAsset] = useState(DEMO_ASSETS[7]); // XLINK
+  const [selectedAsset, setSelectedAsset] = useState<Asset>(DEMO_ASSETS[7]); // XLINK
   const { prices: livePrices } = useMarketPrices({ refreshInterval: 30000 });
 
   const assetWithLivePrice = useMemo(() => {
@@ -165,7 +167,7 @@ export default function TradingPage() {
                   )}
                 >
                   {isPositive ? "↑" : "↓"}{" "}
-                  {formatPercent(assetWithLivePrice.priceChange24h)} 24h
+                  {formatPercent(Number(assetWithLivePrice.priceChange24h ?? 0))} 24h
                 </p>
               </div>
               <div className="bg-white/5 border border-emerald-500/30 rounded-xl p-4">
@@ -286,29 +288,10 @@ export default function TradingPage() {
               <Flame className="w-5 h-5 text-orange-400" />
               <h3 className="font-black text-white">Hot Signals</h3>
             </div>
-            <Badge variant="default">AI Generated</Badge>
+            <Badge variant="default">{FOUNDER_SIGNAL_ATTRIBUTION}</Badge>
           </div>
           <div className="space-y-3">
-            {[
-              {
-                symbol: "XLINK",
-                signal: "BUY",
-                strength: 85,
-                reason: "Bullish momentum + satellite demand surge",
-              },
-              {
-                symbol: "NVDA",
-                signal: "BUY",
-                strength: 72,
-                reason: "AI infrastructure build-out accelerating",
-              },
-              {
-                symbol: "TSLA",
-                signal: "HOLD",
-                strength: 58,
-                reason: "Consolidation phase before earnings",
-              },
-            ].map((item, i) => (
+            {FOUNDER_HOT_SIGNALS.map((item, i) => (
               <div
                 key={i}
                 className="flex items-center justify-between bg-white/[0.02] border border-white/[0.05] rounded-xl p-3"

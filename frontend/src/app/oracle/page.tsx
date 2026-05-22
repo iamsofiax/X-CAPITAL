@@ -7,6 +7,7 @@ import { StatCard } from "@/components/ui/Card";
 import { oracleAPI, tradingAPI } from "@/lib/api";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { formatCurrency, cn } from "@/lib/utils";
+import { getXlinkFounderSpotlight } from "@/lib/founderSignals";
 import {
   AreaChart,
   Area,
@@ -499,21 +500,22 @@ export default function OraclePage() {
                     <div className="flex items-center gap-3 mb-3">
                       <Radio className="w-6 h-6 text-emerald-400 animate-pulse" />
                       <span className="text-xs font-black text-emerald-400 uppercase tracking-widest">
-                        AI Oracle Top Signal
+                        Founder Signal · XLINK
                       </span>
                     </div>
                     <h3 className="text-2xl lg:text-3xl font-black text-white mb-2">
                       {xlinkForecast.symbol} — $
                       {xlinkForecast.currentPrice.toFixed(2)}
                     </h3>
-                    <p className="text-base text-emerald-50 max-w-xl mb-4">
-                      {xlinkForecast.symbol} shows exceptional bullish momentum
-                      with {xlinkForecast.confidence}% model confidence.
-                      Predicted price: $
-                      {xlinkForecast.predictedPrice.toFixed(2)} in{" "}
-                      {xlinkForecast.horizon}.
+                    <p className="text-base text-emerald-50 max-w-xl mb-4 italic leading-relaxed">
+                      &ldquo;
+                      {getXlinkFounderSpotlight(
+                        xlinkForecast.confidence,
+                        xlinkForecast.horizon,
+                        xlinkForecast.predictedPrice,
+                      )}
+                      &rdquo;
                     </p>
-                    \n{" "}
                     <div className="flex flex-wrap gap-3">
                       <div className="bg-emerald-500/20 border border-emerald-500/40 rounded-lg px-4 py-2">
                         <p className="text-xs text-xc-muted">Signal</p>

@@ -17,29 +17,45 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Auto-refresh on 401
+// Auto-refresh on 401 (hardened: backend may be down during early deploy)
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
-    const original = error.config;
-    if (error.response?.status === 401 && !original._retry) {
+    // axios errors can happen before we have a config (ex: network error)
+    const original = error?.config as (typeof error.config & {
+      _retry?: boolean;
+    }) | undefined;
+
+    if (!original) return Promise.reject(error);
+
+    if (error?.response?.status === 401 && !original._retry) {
       original._retry = true;
       try {
+        if (typeof window === 'undefined') return Promise.reject(error);
+
         const refreshToken = localStorage.getItem('xc_refresh_token');
-        if (refreshToken) {
-          const { data } = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
-          const { accessToken, refreshToken: newRefresh } = data.data;
-          localStorage.setItem('xc_access_token', accessToken);
-          localStorage.setItem('xc_refresh_token', newRefresh);
-          original.headers.Authorization = `Bearer ${accessToken}`;
-          return api(original);
-        }
+        if (!refreshToken) return Promise.reject(error);
+
+        const { data } = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
+        const { accessToken, refreshToken: newRefresh } = data.data;
+
+        localStorage.setItem('xc_access_token', accessToken);
+        localStorage.setItem('xc_refresh_token', newRefresh);
+
+        original.headers = original.headers ?? {};
+        original.headers.Authorization = `Bearer ${accessToken}`;
+
+        return api(original);
       } catch {
-        localStorage.removeItem('xc_access_token');
-        localStorage.removeItem('xc_refresh_token');
-        window.location.href = '/auth/login';
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('xc_access_token');
+          localStorage.removeItem('xc_refresh_token');
+          window.location.href = '/auth/login';
+        }
+        return Promise.reject(error);
       }
     }
+
     return Promise.reject(error);
   }
 );
