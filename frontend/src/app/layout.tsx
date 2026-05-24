@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import CrispChat from "@/components/support/CrispChat";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://xcapital.investments"),
@@ -207,6 +208,7 @@ export default function RootLayout({
           }}
         />
         {children}
+        <CrispChat />
       </body>
     </html>
   );

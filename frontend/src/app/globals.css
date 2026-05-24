@@ -1404,3 +1404,9 @@ img[data-loaded="true"] {
     transform: rotate(360deg);
   }
 }
+
+/* Crisp live chat — bottom-right, above app chrome */
+#crisp-chatbox,
+.crisp-client {
+  z-index: 100000 !important;
+}

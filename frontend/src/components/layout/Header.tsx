@@ -33,39 +33,6 @@ export default function Header({ title, subtitle }: HeaderProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
 
-  useEffect(() => {
-    // Initialize Tawk.to with X-CAPITAL professional branding
-    (window as any).Tawk_API = (window as any).Tawk_API || {};
-    (window as any).Tawk_LoadStart = new Date();
-
-    const tawkScript = document.createElement("script");
-    tawkScript.src = "https://embed.tawk.to/YOUR_PROPERTY_ID/1h9v7p3b1";
-    tawkScript.async = true;
-    tawkScript.charset = "UTF-8";
-    tawkScript.setAttribute("crossorigin", "*");
-    document.body.appendChild(tawkScript);
-
-    // Configure Tawk.to to match X-CAPITAL dark theme with emerald accents
-    const configureWidget = () => {
-      if ((window as any).Tawk_API?.setAttributes) {
-        (window as any).Tawk_API.setAttributes({
-          name: user?.firstName || "Investor",
-          email: user?.email || "",
-        });
-      }
-    };
-
-    const configTimeout = setTimeout(configureWidget, 800);
-    (window as any).Tawk_API.onLoad = configureWidget;
-
-    return () => {
-      clearTimeout(configTimeout);
-      if (document.body.contains(tawkScript)) {
-        document.body.removeChild(tawkScript);
-      }
-    };
-  }, [user?.firstName, user?.email]);
-
   return (
     <>
       <header className="h-16 md:h-[72px] flex items-center justify-between px-5 md:px-8 border-b border-white/[0.08] bg-xc-dark/80 backdrop-blur-xl sticky top-0 z-30">
