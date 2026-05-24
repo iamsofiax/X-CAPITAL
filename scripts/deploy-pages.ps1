@@ -28,10 +28,9 @@ if ($LASTEXITCODE -ne 0) { throw "gh-pages publish failed" }
 Set-Location $Root
 Write-Host "Switching GitHub Pages to gh-pages branch..." -ForegroundColor Cyan
 $jsonFile = Join-Path $Root "pages-config.json"
-@'
-{"build_type":"legacy","source":{"branch":"gh-pages","path":"/"}}
-'@ | Out-File -FilePath $jsonFile -Encoding ascii -NoNewline
-gh api -X PUT "repos/$RepoSlug/pages" --input $jsonFile
+$pagesJson = '{"build_type":"legacy","source":{"branch":"gh-pages","path":"/"},"cname":"xcapital.investments"}'
+[System.IO.File]::WriteAllText($jsonFile, $pagesJson, [System.Text.UTF8Encoding]::new($false))
+gh api -X PUT "repos/$RepoSlug/pages" --input $jsonFile 2>$null
 
 Write-Host ""
 Write-Host "Done. Check https://xcapital.investments in 1-3 minutes." -ForegroundColor Green
