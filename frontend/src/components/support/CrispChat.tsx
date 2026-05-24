@@ -47,11 +47,11 @@ export default function CrispChat() {
     if (typeof window === "undefined" || !window.$crisp) return;
 
     if (user?.email) {
-      pushCrisp(["set", "user:email", [user.email]);
+      pushCrisp(["set", "user:email", [user.email]]);
     }
     const nickname = [user?.firstName, user?.lastName].filter(Boolean).join(" ");
     if (nickname) {
-      pushCrisp(["set", "user:nickname", [nickname]);
+      pushCrisp(["set", "user:nickname", [nickname]]);
     }
   }, [user?.email, user?.firstName, user?.lastName]);
 
