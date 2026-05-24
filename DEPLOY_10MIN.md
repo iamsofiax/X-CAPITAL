@@ -1,5 +1,7 @@
 # X-CAPITAL — Deploy in 10 Minutes (Production Frontend)
 
+**Repository:** https://github.com/iamsofiax/X-CAPITAL
+
 **Live URL:** https://xcapital.investments
 
 GitHub Actions is **blocked** (billing lock). Use **local deploy** — it works every time.

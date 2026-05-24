@@ -53,7 +53,7 @@
 ### 1. Clone & configure
 
 ```bash
-git clone https://github.com/your-org/x-capital.git
+git clone https://github.com/iamsofiax/X-CAPITAL.git
 cd x-capital
 cp backend/.env.example backend/.env
 # Fill in the required secrets in backend/.env

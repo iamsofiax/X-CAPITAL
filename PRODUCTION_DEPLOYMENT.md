@@ -62,7 +62,7 @@ docker compose --version
 
 ```bash
 # Clone X-CAPITAL repo
-git clone https://github.com/xsugax/X-CAPITAL.git
+git clone https://github.com/iamsofiax/X-CAPITAL.git
 cd X-CAPITAL
 
 # Switch to production branch if applicable

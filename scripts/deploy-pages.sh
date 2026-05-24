@@ -2,6 +2,11 @@
 # Deploy frontend to GitHub Pages without GitHub Actions (billing-safe path).
 set -euo pipefail
 
+OWNER="iamsofiax"
+REPO="X-CAPITAL"
+REPO_SLUG="${OWNER}/${REPO}"
+REPO_URL="https://github.com/${REPO_SLUG}.git"
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT/frontend"
 
@@ -23,10 +28,10 @@ git add -A
 git commit -m "Deploy $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
 
 echo "Pushing to gh-pages..."
-git push -f https://github.com/xsugax/X-CAPITAL.git HEAD:gh-pages
+git push -f "$REPO_URL" HEAD:gh-pages
 
 echo "Configuring Pages source..."
-gh api -X PUT repos/xsugax/X-CAPITAL/pages \
+gh api -X PUT "repos/${REPO_SLUG}/pages" \
   --input - <<'EOF'
 {"build_type":"legacy","source":{"branch":"gh-pages","path":"/"}}
 EOF

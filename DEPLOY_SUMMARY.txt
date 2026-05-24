@@ -56,7 +56,7 @@ STEP 1: Have Your Server Ready
 
 STEP 2: Clone X-CAPITAL to Your Server
    ssh root@your_server_ip
-   git clone https://github.com/xsugax/X-CAPITAL.git
+   git clone https://github.com/iamsofiax/X-CAPITAL.git
    cd X-CAPITAL
 
 STEP 3: Configure SSL Certificate (1 minute)
@@ -217,7 +217,7 @@ Database backup:        docker compose -f docker-compose.prod.yml exec postgres 
 
 Actually, you only need to git clone:
 
-git clone https://github.com/xsugax/X-CAPITAL.git
+git clone https://github.com/iamsofiax/X-CAPITAL.git
 
 That brings:
 ✓ All frontend code (Next.js, 18 pages)

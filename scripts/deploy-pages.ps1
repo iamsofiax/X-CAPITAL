@@ -3,6 +3,10 @@
 
 $ErrorActionPreference = "Stop"
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$Owner = "iamsofiax"
+$Repo = "X-CAPITAL"
+$RepoSlug = "$Owner/$Repo"
+$RepoUrl = "https://github.com/$RepoSlug.git"
 Set-Location (Join-Path $Root "frontend")
 
 Write-Host "Building static export..." -ForegroundColor Cyan
@@ -18,7 +22,7 @@ if (Test-Path $CnameSrc) { Copy-Item $CnameSrc $CnameDst -Force }
 
 Write-Host "Publishing to gh-pages via gh-pages..." -ForegroundColor Cyan
 gh auth setup-git 2>$null | Out-Null
-npx --yes gh-pages@6 -d $Out -b gh-pages -r "https://github.com/xsugax/X-CAPITAL.git" -m "Deploy $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+npx --yes gh-pages@6 -d $Out -b gh-pages -r $RepoUrl -m "Deploy $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
 if ($LASTEXITCODE -ne 0) { throw "gh-pages publish failed" }
 
 Set-Location $Root
@@ -27,7 +31,7 @@ $jsonFile = Join-Path $Root "pages-config.json"
 @'
 {"build_type":"legacy","source":{"branch":"gh-pages","path":"/"}}
 '@ | Set-Content -Path $jsonFile -Encoding UTF8
-gh api -X PUT repos/xsugax/X-CAPITAL/pages --input $jsonFile
+gh api -X PUT "repos/$RepoSlug/pages" --input $jsonFile
 
 Write-Host ""
 Write-Host "Done. Check https://xcapital.investments in 1-3 minutes." -ForegroundColor Green

@@ -10,7 +10,7 @@
 
 Your server terminal:
 
-    git clone https://github.com/xsugax/X-CAPITAL.git
+    git clone https://github.com/iamsofiax/X-CAPITAL.git
     cd X-CAPITAL
     sudo certbot certonly --standalone -d xcapital.investments
     sudo cp /etc/letsencrypt/live/xcapital.investments/fullchain.pem ssl/xcapital.investments.crt
@@ -111,7 +111,7 @@ STEP 1: SSH to your server
         cd /tmp
 
 STEP 2: Clone X-CAPITAL
-        git clone https://github.com/xsugax/X-CAPITAL.git
+        git clone https://github.com/iamsofiax/X-CAPITAL.git
         cd X-CAPITAL
 
 STEP 3: Get SSL certificate (1 minute)
