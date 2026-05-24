@@ -30,7 +30,7 @@ Write-Host "Switching GitHub Pages to gh-pages branch..." -ForegroundColor Cyan
 $jsonFile = Join-Path $Root "pages-config.json"
 @'
 {"build_type":"legacy","source":{"branch":"gh-pages","path":"/"}}
-'@ | Set-Content -Path $jsonFile -Encoding UTF8
+'@ | Out-File -FilePath $jsonFile -Encoding ascii -NoNewline
 gh api -X PUT "repos/$RepoSlug/pages" --input $jsonFile
 
 Write-Host ""

@@ -22,7 +22,7 @@ Write-Host "Deploying frontend to gh-pages..." -ForegroundColor Cyan
 
 Write-Host ""
 Write-Host "Migration complete on iamsofiax." -ForegroundColor Green
-Write-Host "Optional — remove old repo (requires xsugax login):" -ForegroundColor Yellow
+Write-Host "Optional - remove old repo (log in as xsugax first):" -ForegroundColor Yellow
 Write-Host "  gh auth login   # as xsugax"
 Write-Host "  gh repo delete xsugax/X-CAPITAL --yes"
 Write-Host ""
