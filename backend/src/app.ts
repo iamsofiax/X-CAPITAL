@@ -10,10 +10,18 @@ import routes from './routes';
 
 const app = express();
 
+const corsOrigins = [
+  env.FRONTEND_URL,
+  'https://xcapital.investments',
+  'https://xcapital-web.onrender.com',
+  'http://localhost:3000',
+  ...env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean),
+].filter((o, i, arr) => o && arr.indexOf(o) === i);
+
 // ─── Security ────────────────────────────────────────────────────────────────
 app.use(helmet());
 app.use(cors({
-  origin: env.FRONTEND_URL,
+  origin: corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],

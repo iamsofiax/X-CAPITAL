@@ -16,6 +16,8 @@ export const env = {
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
 
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',
+  /** Comma-separated extra CORS origins (e.g. https://xcapital-web.onrender.com) */
+  CORS_ORIGINS: process.env.CORS_ORIGINS || '',
 
   ALPACA_API_KEY: process.env.ALPACA_API_KEY || '',
   ALPACA_SECRET_KEY: process.env.ALPACA_SECRET_KEY || '',

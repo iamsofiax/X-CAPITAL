@@ -41,10 +41,13 @@ services:
         fromDatabase:
           name: xcapital-db
           property: connectionString
+      # Set in Render dashboard — copy from backend/.env (see RENDER_ENV_SETUP.md)
       - key: JWT_SECRET
-        generateValue: true
+        sync: false
       - key: FRONTEND_URL
         value: https://xcapital.investments
+      - key: CORS_ORIGINS
+        value: https://xcapital-web.onrender.com
       - key: AI_ORACLE_URL
         fromService:
           type: web
