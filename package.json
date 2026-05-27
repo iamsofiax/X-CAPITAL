@@ -2,12 +2,9 @@
   "name": "x-capital-root",
   "version": "1.0.0",
   "private": true,
+  "description": "Monorepo root — do NOT deploy this folder on Render. Use render.yaml (Blueprint) or set Root Directory to frontend or backend.",
   "scripts": {
-    "postinstall": "cd frontend && npm install",
-    "build": "cd frontend && npm run build"
-  },
-  "devDependencies": {
-    "@prisma/client": "^5.10.2",
-    "prisma": "^5.10.2"
+    "build:frontend": "cd frontend && npm ci && npm run build",
+    "build:backend": "cd backend && npm ci && npx prisma generate && npm run build"
   }
 }
