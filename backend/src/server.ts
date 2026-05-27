@@ -5,11 +5,19 @@ import { connectDatabase, disconnectDatabase } from './config/database';
 import { logger } from './utils/logger';
 
 async function bootstrap(): Promise<void> {
-  await connectDatabase();
-
+  // Listen first so Render health checks pass while DB connects
   const server = app.listen(env.PORT, () => {
-    logger.info(`X-CAPITAL API running on port ${env.PORT} [${env.NODE_ENV}]`);
+    logger.info(`X-CAPITAL API listening on port ${env.PORT} [${env.NODE_ENV}]`);
   });
+
+  connectDatabase()
+    .then(() => logger.info('Database ready'))
+    .catch((err) => {
+      logger.error('Database connection failed — retrying in 15s:', err);
+      setTimeout(() => {
+        connectDatabase().catch((e) => logger.error('Database retry failed:', e));
+      }, 15000);
+    });
 
   const shutdown = async (signal: string) => {
     logger.info(`${signal} received — shutting down gracefully`);

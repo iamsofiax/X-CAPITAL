@@ -1,0 +1,2 @@
+*.sh text eol=lf
+backend/scripts/render-start.sh text eol=lf

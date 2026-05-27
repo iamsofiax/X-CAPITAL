@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import { errorHandler } from './middleware/errorHandler';
 import { apiRateLimit } from './middleware/rateLimit';
 import { env } from './config/env';
+import { prisma } from './config/database';
 import routes from './routes';
 
 const app = express();
@@ -41,9 +42,17 @@ if (env.NODE_ENV !== 'test') {
 app.use('/api/', apiRateLimit);
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
-app.get('/health', (_req, res) => {
-  res.json({
-    status: 'healthy',
+app.get('/health', async (_req, res) => {
+  let db = false;
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    db = true;
+  } catch {
+    db = false;
+  }
+  res.status(200).json({
+    status: db ? 'healthy' : 'starting',
+    database: db,
     service: 'X-CAPITAL API',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
