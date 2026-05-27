@@ -54,10 +54,18 @@
 
 ```bash
 git clone https://github.com/iamsofiax/X-CAPITAL.git
-cd x-capital
+cd X-CAPITAL
 cp backend/.env.example backend/.env
 # Fill in the required secrets in backend/.env
 ```
+
+## Production hosting (Render)
+
+Deploy the full stack (frontend + API + database) on **Render** with custom domain **xcapital.investments**:
+
+See **[RENDER_DEPLOY.md](./RENDER_DEPLOY.md)** and use the included **`render.yaml`** blueprint.
+
+For GitHub Pages–only frontend deploy, see **DEPLOY_10MIN.md**.
 
 ### 2. Start all services
 

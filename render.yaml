@@ -1,0 +1,82 @@
+# X-CAPITAL on Render — Blueprint
+# Connect repo: https://github.com/iamsofiax/X-CAPITAL
+# Dashboard: New → Blueprint → select this repo
+
+databases:
+  - name: xcapital-db
+    databaseName: xcapital_db
+    user: xcapital
+    plan: free
+
+services:
+  # ─── AI Oracle (Python) ─────────────────────────────────────────────────────
+  - type: web
+    name: xcapital-oracle
+    runtime: python
+    rootDir: ai-oracle
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: ENV
+        value: production
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: ALLOWED_ORIGINS
+        fromService:
+          type: web
+          name: xcapital-api
+          envVarKey: RENDER_EXTERNAL_URL
+
+  # ─── Backend API (Node) ─────────────────────────────────────────────────────
+  - type: web
+    name: xcapital-api
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 20
+      - key: DATABASE_URL
+        fromDatabase:
+          name: xcapital-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        value: https://xcapital.investments
+      - key: AI_ORACLE_URL
+        fromService:
+          type: web
+          name: xcapital-oracle
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: ALPACA_API_KEY
+        sync: false
+      - key: ALPACA_SECRET_KEY
+        sync: false
+      - key: ALPACA_BASE_URL
+        value: https://paper-api.alpaca.markets
+      - key: ALPACA_DATA_URL
+        value: https://data.alpaca.markets
+
+  # ─── Frontend (static export) — custom domain: xcapital.investments ─────────
+  - type: web
+    name: xcapital-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: out
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      # Set after api custom domain is live, or use onrender.com URL first:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://xcapital-api.onrender.com/api/v1
+      - key: NEXT_PUBLIC_WS_URL
+        value: wss://xcapital-api.onrender.com
