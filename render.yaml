@@ -1,5 +1,5 @@
-# X-CAPITAL — Render Blueprint (iamsofiax/X-CAPITAL)
-# Dashboard: New → Blueprint → connect repo → Apply
+# X-CAPITAL — Render Blueprint
+# New → Blueprint → iamsofiax/X-CAPITAL → Apply
 
 databases:
   - name: xcapital-db
@@ -22,10 +22,7 @@ services:
       - key: PYTHON_VERSION
         value: 3.12.0
       - key: ALLOWED_ORIGINS
-        fromService:
-          type: web
-          name: xcapital-api
-          envVarKey: RENDER_EXTERNAL_URL
+        value: https://xcapital-api.onrender.com,https://xcapital.investments,http://localhost:4000
 
   - type: web
     name: xcapital-api
@@ -33,7 +30,7 @@ services:
     rootDir: backend
     plan: free
     buildCommand: npm ci && npx prisma generate && npm run build
-    startCommand: npx prisma db push && npm start
+    startCommand: npm run start:render
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
@@ -54,9 +51,9 @@ services:
           name: xcapital-oracle
           envVarKey: RENDER_EXTERNAL_URL
       - key: ALPACA_API_KEY
-        sync: false
+        value: ""
       - key: ALPACA_SECRET_KEY
-        sync: false
+        value: ""
       - key: ALPACA_BASE_URL
         value: https://paper-api.alpaca.markets
       - key: ALPACA_DATA_URL
@@ -68,7 +65,6 @@ services:
     rootDir: frontend
     buildCommand: npm ci && npm run build
     staticPublishPath: ./out
-    pullRequestPreviewsEnabled: false
     envVars:
       - key: NODE_VERSION
         value: "20"

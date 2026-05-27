@@ -1,11 +1,24 @@
-# Render — fixed settings (copy-paste)
+# Render — exit status 1 fix (applied in repo)
 
-If you created services manually, **delete them** and use **Blueprint** instead:
-**New → Blueprint → `iamsofiax/X-CAPITAL` → Apply**
+**Cause:** API crashed on start — Postgres SSL + `prisma db push` failing.
+
+**Fix pushed:** `backend/scripts/render-start.sh` + SSL in `database.ts`.
 
 ---
 
-## Or fix each service manually
+## If a service still fails — update these 3 fields only
+
+### xcapital-api (Web Service)
+
+| Field | Value |
+|-------|--------|
+| Root Directory | `backend` |
+| Build Command | `npm ci && npx prisma generate && npm run build` |
+| Start Command | `npm run start:render` |
+
+Must have **DATABASE_URL** (linked Postgres) and **JWT_SECRET** (any long random string).
+
+---
 
 ### xcapital-web (Static Site)
 
@@ -16,50 +29,23 @@ If you created services manually, **delete them** and use **Blueprint** instead:
 | Publish Directory | `out` |
 | Start Command | *(empty)* |
 
-Environment:
-```
-NEXT_PUBLIC_API_URL=https://xcapital-api.onrender.com/api/v1
-NEXT_PUBLIC_WS_URL=wss://xcapital-api.onrender.com
-```
-
 ---
 
-### xcapital-api (Web Service)
+### xcapital-oracle
 
-| Field | Value |
-|-------|--------|
-| Root Directory | `backend` |
-| Build Command | `npm ci && npx prisma generate && npm run build` |
-| Start Command | `npx prisma db push && npm start` |
-
-Link Postgres database `xcapital-db` → `DATABASE_URL` auto-fills.
-
----
-
-### xcapital-oracle (Web Service)
-
-| Field | Value |
-|-------|--------|
-| Root Directory | `ai-oracle` |
-| Build Command | `pip install -r requirements.txt` |
 | Start Command | `uvicorn main:app --host 0.0.0.0 --port $PORT` |
 
 ---
 
-## Do NOT use repo root for frontend
+## Redeploy
 
-Wrong (causes `@/store` errors):
-- Root Directory: `.` or empty
-- Build: `npm run build` (root package.json)
+Render Dashboard → **xcapital-api** → **Manual Deploy** → **Clear build cache & deploy**
 
-Right:
-- Root Directory: **`frontend`**
+Wait for **Live** (green). Then redeploy **xcapital-web**.
 
 ---
 
-## Custom domain
+## Site URLs
 
-1. **xcapital-web** → `xcapital.investments`
-2. **xcapital-api** → `api.xcapital.investments`
-3. Redeploy **xcapital-web** with:
-   `NEXT_PUBLIC_API_URL=https://api.xcapital.investments/api/v1`
+- Frontend: https://xcapital-web.onrender.com (or custom domain)
+- API health: https://xcapital-api.onrender.com/health
