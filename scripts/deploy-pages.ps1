@@ -16,6 +16,10 @@ if ($LASTEXITCODE -ne 0) { throw "npm run build failed" }
 $Out = Join-Path (Get-Location) "out"
 if (-not (Test-Path $Out)) { throw "Build output not found at $Out" }
 
+# GitHub Pages runs Jekyll by default and skips folders like _next/ — breaks CSS/JS
+$NoJekyll = Join-Path $Out ".nojekyll"
+if (-not (Test-Path $NoJekyll)) { New-Item -Path $NoJekyll -ItemType File -Force | Out-Null }
+
 $CnameSrc = Join-Path $Root "frontend\public\CNAME"
 $CnameDst = Join-Path $Out "CNAME"
 if (Test-Path $CnameSrc) { Copy-Item $CnameSrc $CnameDst -Force }
