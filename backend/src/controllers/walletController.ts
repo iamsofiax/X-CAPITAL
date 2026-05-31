@@ -94,6 +94,17 @@ export const depositFunds = async (
       },
     });
 
+    await prisma.adminAlert.create({
+      data: {
+        type: "DEPOSIT",
+        userId,
+        amount,
+        method: paymentMethodId ?? "wire",
+        transactionId: transaction.id,
+        metadata: { paymentMethodId },
+      },
+    });
+
     res.json({
       success: true,
       message:

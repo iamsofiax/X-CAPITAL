@@ -14,6 +14,13 @@ const config: Config = {
         "xc-dark": "#0a0a0a",
         "xc-card": "#111111",
         "xc-border": "#222222",
+        // Node Engine — thick orbital palette
+        "node-bg": "#050505",
+        "node-panel": "#0c0c0c",
+        "node-panel-up": "#111111",
+        "node-border": "#1a1a1a",
+        "node-signal": "#10b981",
+        "node-locked": "#d97706",
         "xc-purple": "#e7e9ea",
         "xc-purple-light": "#d4d4d4",
         "xc-gold": "#d97706",

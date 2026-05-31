@@ -30,6 +30,7 @@ import {
   Satellite,
   Rocket,
 } from "lucide-react";
+import { OrbitalHero, CapitalTrajectory } from "@/components/node-engine";
 
 const stats = [
   { label: "Instruments Available", value: "50,000+" },
@@ -804,6 +805,9 @@ export default function LandingPage() {
               7,200+ active satellites. Sub-25ms latency. Orbital-grade
               redundancy. Your trades never touch terrestrial bottlenecks.
             </p>
+            <div className="mt-8 max-w-xl mx-auto">
+              <CapitalTrajectory />
+            </div>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
@@ -915,72 +919,8 @@ export default function LandingPage() {
             </div>
 
             {/* Right: Orbital Visual */}
-            <div className="flex items-center justify-center order-1 lg:order-2">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-[220px] h-[220px] md:w-[300px] md:h-[300px] rounded-full border border-emerald-500/10 animate-pulse" />
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-[180px] h-[180px] md:w-[240px] md:h-[240px] rounded-full border border-emerald-500/5" />
-                </div>
-
-                {/* Import and use the orbital component */}
-                <div className="relative z-10">
-                  <div className="w-[280px] h-[280px] md:w-[360px] md:h-[360px] flex items-center justify-center">
-                    <div className="constellation-mesh absolute inset-0 rounded-full opacity-40" />
-                    <div className="orbit-core" />
-                    <div
-                      className="orbit-signal"
-                      style={{ animationDelay: "0s", width: 40, height: 40 }}
-                    />
-                    <div
-                      className="orbit-signal"
-                      style={{
-                        animationDelay: "1.3s",
-                        width: 40,
-                        height: 40,
-                        background:
-                          "radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%)",
-                      }}
-                    />
-
-                    {/* Orbital rings */}
-                    {[
-                      { size: 100, speed: "orbit-1" },
-                      { size: 160, speed: "orbit-3" },
-                      { size: 220, speed: "orbit-5" },
-                    ].map((ring, i) => (
-                      <div
-                        key={i}
-                        className={`orbit-ring orbit-ring-enhanced ${ring.speed}`}
-                        style={{ width: ring.size, height: ring.size }}
-                      >
-                        <div className="orbit-satellite" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Floating data points */}
-                <div className="absolute -top-2 right-0 md:right-4 bg-black/70 border border-white/10 rounded-lg px-2 py-1 backdrop-blur-sm">
-                  <div className="data-stream">7,200+ SATs</div>
-                </div>
-                <div className="absolute top-1/3 -left-2 md:-left-4 bg-black/70 border border-white/10 rounded-lg px-2 py-1 backdrop-blur-sm">
-                  <div className="data-stream">{"<"}25ms</div>
-                </div>
-                <div className="absolute bottom-8 right-0 md:right-2 bg-black/70 border border-emerald-500/20 rounded-lg px-3 py-2 backdrop-blur-sm">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
-                      XLINK Live
-                    </div>
-                  </div>
-                  <div className="text-lg font-black text-white font-mono profit-number">
-                    $95.25{" "}
-                    <span className="text-emerald-400 text-sm">+4.22%</span>
-                  </div>
-                </div>
-              </div>
+            <div className="flex items-center justify-center order-1 lg:order-2 w-full">
+              <OrbitalHero dense showStats className="w-full max-w-lg border-emerald-500/20" />
             </div>
           </div>
         </div>

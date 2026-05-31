@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -14,7 +14,9 @@ import {
   ArrowUpRight,
   Info,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useStore } from "@/store/useStore";
+import type { UserNotification } from "@/store/useStore";
+import { cn, formatRelativeTime } from "@/lib/utils";
 
 type NotifType =
   | "trade"
@@ -24,7 +26,7 @@ type NotifType =
   | "commerce"
   | "system";
 
-interface Notification {
+interface DisplayNotification {
   id: string;
   type: NotifType;
   title: string;
@@ -64,79 +66,23 @@ const NOTIF_STYLES: Record<
   },
 };
 
-const INITIAL_NOTIFICATIONS: Notification[] = [
-  {
-    id: "1",
-    type: "trade",
-    title: "Trade Executed",
-    message: "Bought 5 shares of TSLA at $248.50",
-    time: "2 min ago",
-    read: false,
-    href: "/portfolio",
-  },
-  {
-    id: "2",
-    type: "ai",
-    title: "AI Oracle Signal",
-    message: "Strong BUY signal detected for NVDA — 94% confidence",
-    time: "15 min ago",
-    read: false,
-    href: "/oracle",
-  },
-  {
-    id: "3",
-    type: "deposit",
-    title: "Deposit Confirmed",
-    message: "$10,000.00 has been credited to your wallet",
-    time: "1 hr ago",
-    read: false,
-    href: "/wallet",
-  },
-  {
-    id: "4",
-    type: "commerce",
-    title: "Order Shipped",
-    message: "Tesla Model Y AWD — tracking available",
-    time: "3 hrs ago",
-    read: true,
-    href: "/commerce",
-  },
-  {
-    id: "5",
-    type: "security",
-    title: "New Login Detected",
-    message: "Login from Chrome on Windows — New York, US",
-    time: "5 hrs ago",
-    read: true,
-    href: "/settings",
-  },
-  {
-    id: "6",
-    type: "system",
-    title: "Platform Update",
-    message: "X-CAPITAL v2.1 — New commerce rail features",
-    time: "1 day ago",
-    read: true,
-  },
-  {
-    id: "7",
-    type: "trade",
-    title: "Dividend Received",
-    message: "AAPL quarterly dividend — $4.25 credited",
-    time: "2 days ago",
-    read: true,
-    href: "/wallet",
-  },
-  {
-    id: "8",
-    type: "ai",
-    title: "Portfolio Alert",
-    message: "Your portfolio is up 3.2% this week",
-    time: "3 days ago",
-    read: true,
-    href: "/portfolio",
-  },
-];
+function mapStoreType(type: UserNotification["type"]): NotifType {
+  if (type === "transaction") return "deposit";
+  if (type === "congratulations" || type === "reward") return "trade";
+  return "system";
+}
+
+function toDisplayNotification(n: UserNotification): DisplayNotification {
+  return {
+    id: n.id,
+    type: mapStoreType(n.type),
+    title: n.title,
+    message: n.message,
+    time: formatRelativeTime(n.createdAt),
+    read: n.read,
+    href: n.externalLink,
+  };
+}
 
 interface NotificationsPanelProps {
   open: boolean;
@@ -149,13 +95,21 @@ export default function NotificationsPanel({
   onClose,
   anchorRef,
 }: NotificationsPanelProps) {
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
+  const { user, notifications, markNotificationRead, deleteNotification } =
+    useStore();
   const panelRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const displayNotifications = useMemo(
+    () =>
+      notifications
+        .filter((n) => n.userId === user?.id)
+        .map(toDisplayNotification),
+    [notifications, user?.id],
+  );
 
-  // Close on outside click
+  const unreadCount = displayNotifications.filter((n) => !n.read).length;
+
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
@@ -172,7 +126,6 @@ export default function NotificationsPanel({
     return () => document.removeEventListener("mousedown", handler);
   }, [open, onClose, anchorRef]);
 
-  // Close on Escape
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
@@ -183,13 +136,13 @@ export default function NotificationsPanel({
   }, [open, onClose]);
 
   const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    displayNotifications
+      .filter((n) => !n.read)
+      .forEach((n) => markNotificationRead(n.id));
   };
 
-  const handleClick = (notif: Notification) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n)),
-    );
+  const handleClick = (notif: DisplayNotification) => {
+    markNotificationRead(notif.id);
     if (notif.href) {
       onClose();
       router.push(notif.href);
@@ -198,7 +151,7 @@ export default function NotificationsPanel({
 
   const dismiss = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    deleteNotification(id);
   };
 
   if (!open) return null;
@@ -206,14 +159,13 @@ export default function NotificationsPanel({
   return (
     <div
       ref={panelRef}
-      className="absolute top-full right-0 mt-2 w-[360px] max-w-[calc(100vw-2rem)] bg-xc-card border border-white/[0.08] rounded-2xl shadow-2xl shadow-black/60 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+      className="absolute top-full right-0 mt-2 w-[360px] max-w-[calc(100vw-2rem)] bg-node-panel border-2 border-node-border rounded-2xl shadow-2xl shadow-black/60 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150"
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-node-border/60">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-bold text-white">Notifications</h3>
+          <h3 className="text-sm font-bold text-white">Node signals</h3>
           {unreadCount > 0 && (
-            <span className="text-[10px] font-bold bg-xc-purple/20 text-white/70 px-1.5 py-0.5 rounded-full">
+            <span className="text-[10px] font-bold bg-node-signal/20 text-node-signal px-1.5 py-0.5 rounded-full">
               {unreadCount} new
             </span>
           )}
@@ -231,15 +183,14 @@ export default function NotificationsPanel({
         </div>
       </div>
 
-      {/* List */}
       <div className="max-h-[60vh] overflow-y-auto">
-        {notifications.length === 0 ? (
+        {displayNotifications.length === 0 ? (
           <div className="px-4 py-10 text-center text-sm text-xc-muted">
             <Bell className="w-8 h-8 mx-auto mb-2 opacity-30" />
-            No notifications
+            No signals routed yet
           </div>
         ) : (
-          notifications.map((notif) => {
+          displayNotifications.map((notif) => {
             const style = NOTIF_STYLES[notif.type];
             return (
               <button
@@ -272,7 +223,7 @@ export default function NotificationsPanel({
                       {notif.title}
                     </span>
                     {!notif.read && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-xc-purple flex-shrink-0" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-node-signal flex-shrink-0" />
                     )}
                   </div>
                   <p className="text-xs text-xc-muted mt-0.5 line-clamp-2">
@@ -300,9 +251,4 @@ export default function NotificationsPanel({
       </div>
     </div>
   );
-}
-
-export function useUnreadCount() {
-  // This returns the initial unread count for the badge in Header
-  return INITIAL_NOTIFICATIONS.filter((n) => !n.read).length;
 }

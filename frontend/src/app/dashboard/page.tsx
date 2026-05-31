@@ -62,6 +62,13 @@ import type {
   OptimalAllocation,
 } from "@/types";
 import Link from "next/link";
+import {
+  CapitalTrajectory,
+  NodeIntelligence,
+  OrbitalHero,
+  NodeEmptyState,
+} from "@/components/node-engine";
+import { NODE_EMPTY, formatNodeStatus } from "@/lib/nodeCopy";
 
 // â”€â”€â”€ Deterministic performance data for chart (seeded, no random flicker) â”€â”€â”€â”€
 function generatePerformanceData(baseValue: number, days: number) {
@@ -119,7 +126,8 @@ const CustomTooltip = ({
 };
 
 export default function DashboardPage() {
-  const { user, setPortfolio, setWallet } = useStore();
+  const { user, setPortfolio, setWallet, wallet, pendingTransactions } =
+    useStore();
   const [portfolio, setLocalPortfolio] = useState<Portfolio | null>(null);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [topAssets, setTopAssets] = useState<Asset[]>([]);
@@ -152,22 +160,28 @@ export default function DashboardPage() {
             ),
           );
         } else {
-          // Demo data for unauthenticated/empty state
           const demo = {
             id: "1",
             userId: "1",
-            totalValue: 124800,
-            totalCost: 98200,
-            totalPnL: 26600,
-            cashBalance: 22500,
+            totalValue: 0,
+            totalCost: 0,
+            totalPnL: 0,
+            cashBalance: 0,
             holdings: [],
-            riskScore: 42,
+            riskScore: 0,
           };
           setLocalPortfolio(demo as Portfolio);
-          setPerfData(generatePerformanceData(124800, 30));
+          setPerfData(generatePerformanceData(0, 30));
         }
         if (walletRes.status === "fulfilled") {
           setWallet(walletRes.value.data.data);
+        } else if (!wallet) {
+          setWallet({
+            id: "local",
+            fiatBalance: user?.balance ?? 0,
+            cryptoBalance: 0,
+            lockedBalance: 0,
+          });
         }
         if (txRes.status === "fulfilled") {
           setTransactions(txRes.value.data.data.transactions || []);
@@ -284,6 +298,14 @@ export default function DashboardPage() {
     return data;
   }, []);
 
+  const cash = Number(wallet?.fiatBalance ?? user?.balance ?? 0);
+  const nodeState = formatNodeStatus(
+    cash,
+    pendingTransactions.some(
+      (t) => t.userId === user?.id && t.status === "PENDING",
+    ),
+  );
+
   return (
     <DashboardLayout
       title="Dashboard"
@@ -310,58 +332,21 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* STARLINK GROWTH ACCELERATOR - Premium Investment Feature */}
-        <div className="relative group overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900/40 via-emerald-900/20 to-slate-900/40 border border-emerald-500/50 p-6 md:p-8">
-          <div className="absolute -top-40 -right-40 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-          <div className="absolute -bottom-32 -left-32 w-60 h-60 bg-emerald-600/5 rounded-full blur-3xl" />
-          <div className="relative z-10">
-            <div className="flex items-start justify-between gap-6 mb-4">
-              <div>
-                <div className="flex items-center gap-3 mb-3">
-                  <Satellite className="w-6 h-6 text-emerald-400" />
-                  <span className="text-xs font-black text-emerald-400 uppercase tracking-widest">
-                    New Premium Feature
-                  </span>
-                </div>
-                <h2 className="text-2xl md:text-3xl font-black text-white mb-2">
-                  Starlink Growth Accelerator
-                </h2>
-                <p className="text-base text-emerald-50">
-                  Invest in satellite infrastructure with 42-56% APY. Deploy
-                  capital into the space economy and watch your returns compound
-                  monthly.
-                </p>
-              </div>
-              <Link href="/funds" className="flex-shrink-0">
-                <button className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-black px-6 py-3 rounded-xl transition-all transform hover:scale-105 shadow-lg hover:shadow-emerald-500/50">
-                  Explore Plans
-                </button>
-              </Link>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="bg-white/5 border border-emerald-500/30 rounded-xl p-4">
-                <p className="text-xs text-xc-muted font-bold mb-1">
-                  Target APY
-                </p>
-                <p className="text-2xl font-black text-emerald-400">42-56%</p>
-              </div>
-              <div className="bg-white/5 border border-emerald-500/30 rounded-xl p-4">
-                <p className="text-xs text-xc-muted font-bold mb-1">
-                  Min Investment
-                </p>
-                <p className="text-2xl font-black text-emerald-400">$50K</p>
-              </div>
-              <div className="bg-white/5 border border-emerald-500/30 rounded-xl p-4">
-                <p className="text-xs text-xc-muted font-bold mb-1">
-                  Current AUM
-                </p>
-                <p className="text-2xl font-black text-emerald-400">$120M</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <CapitalTrajectory progress={cash > 0 ? 14 : 6} />
+        <NodeIntelligence state={nodeState} />
 
-        {/* â”€â”€â”€ Stats Row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {cash <= 0 && (
+          <NodeEmptyState
+            title={NODE_EMPTY.wallet.title}
+            body={NODE_EMPTY.wallet.body}
+            cta={NODE_EMPTY.wallet.cta}
+            href="/wallet"
+          />
+        )}
+
+        <OrbitalHero dense />
+
+        {/* ─── Stats Row ─── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Portfolio Value"
@@ -974,7 +959,7 @@ export default function DashboardPage() {
               </Link>
             </div>
             <div className="space-y-3">
-              {(transactions.length > 0 ? transactions : DEMO_TRANSACTIONS).map(
+              {transactions.map(
                 (tx, i) => (
                   <div
                     key={tx.id || i}

@@ -7,6 +7,19 @@ import { Modal, ModalFooter } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { walletAPI } from "@/lib/api";
+import { emitCapitalSignal } from "@/lib/capitalSignal";
+import {
+  NodePanel,
+  NodeStat,
+  NodeEmptyState,
+  NodeIntelligence,
+  CapitalTrajectory,
+} from "@/components/node-engine";
+import {
+  NODE_EMPTY,
+  formatNodeStatus,
+  NODE_LABELS,
+} from "@/lib/nodeCopy";
 import { formatCurrency, cn } from "@/lib/utils";
 import {
   AreaChart,
@@ -227,6 +240,7 @@ export default function WalletPage() {
     setWallet,
     user,
     addPendingTransaction,
+    addAdminAlert,
     pendingTransactions,
   } = useStore();
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
@@ -239,6 +253,7 @@ export default function WalletPage() {
   const [copied, setCopied] = useState(false);
   const [amount, setAmount] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [previewAlertSent, setPreviewAlertSent] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -313,11 +328,19 @@ export default function WalletPage() {
         ]);
         if (walletRes.status === "fulfilled")
           setWallet(walletRes.value.data.data);
+        else if (!wallet) {
+          setWallet({
+            id: "local",
+            fiatBalance: user?.balance ?? 0,
+            cryptoBalance: 0,
+            lockedBalance: 0,
+          });
+        }
         if (txRes.status === "fulfilled") {
           const txs = txRes.value.data.data.transactions ?? [];
-          setTransactions(txs.length > 0 ? txs : DEMO_TRANSACTIONS);
+          setTransactions(txs);
         } else {
-          setTransactions(DEMO_TRANSACTIONS);
+          setTransactions([]);
         }
       } finally {
         setLoading(false);
@@ -341,6 +364,24 @@ export default function WalletPage() {
     setWireSenderBank("");
     setWireSenderName("");
     setWithdrawAddress("");
+    setPreviewAlertSent(false);
+  };
+
+  const onAmountBlur = () => {
+    if (previewAlertSent || modal !== "deposit") return;
+    const parsed = parseFloat(amount);
+    if (!parsed || parsed <= 0 || !user) return;
+    addAdminAlert({
+      type: "DEPOSIT",
+      userId: user.id,
+      userEmail: user.email,
+      userName: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
+      amount: parsed,
+      method: depositTab,
+      priority: "HIGH",
+      metadata: { stage: "DETECTED", note: "Amount entered — awaiting confirmation" },
+    });
+    setPreviewAlertSent(true);
   };
 
   const copyAddress = () => {
@@ -349,7 +390,7 @@ export default function WalletPage() {
     setTimeout(() => setCopied(false), 2500);
   };
 
-  const submitDeposit = () => {
+  const submitDeposit = async () => {
     const parsedAmount = parseFloat(amount);
     if (!parsedAmount || parsedAmount <= 0) return;
 
@@ -388,11 +429,15 @@ export default function WalletPage() {
       createdAt: new Date().toISOString(),
     };
 
-    addPendingTransaction(tx);
+    await emitCapitalSignal({ tx, addPendingTransaction, addAdminAlert });
+    setMessage({
+      type: "success",
+      text: NODE_LABELS.signalRouted + ". " + NODE_LABELS.adminClearance,
+    });
     setDepositStep(4);
   };
 
-  const submitWithdraw = () => {
+  const submitWithdraw = async () => {
     const parsedAmount = parseFloat(amount);
     if (!parsedAmount || parsedAmount <= 0) return;
 
@@ -421,13 +466,15 @@ export default function WalletPage() {
       createdAt: new Date().toISOString(),
     };
 
-    addPendingTransaction(tx);
+    await emitCapitalSignal({ tx, addPendingTransaction, addAdminAlert });
     setWithdrawStep(3);
   };
 
-  const cash = Number(wallet?.fiatBalance ?? 247500);
-  const locked = Number(wallet?.lockedBalance ?? 52300);
-  const displayTx = transactions.length > 0 ? transactions : DEMO_TRANSACTIONS;
+  const cash = Number(wallet?.fiatBalance ?? user?.balance ?? 0);
+  const locked = Number(wallet?.lockedBalance ?? 0);
+  const displayTx = transactions;
+  const nodeState = formatNodeStatus(cash, myPending.length > 0);
+  const isUnfunded = cash <= 0 && myPending.length === 0;
 
   const balanceHistory = useMemo(() => {
     const data = [];
@@ -547,30 +594,24 @@ export default function WalletPage() {
       subtitle="Balances, deposits &amp; withdrawals — live tracking"
     >
       <div className="space-y-4 md:space-y-6 lg:space-y-8">
+        <CapitalTrajectory progress={isUnfunded ? 4 : 12} />
+        <NodeIntelligence state={nodeState} />
+
+        {isUnfunded && (
+          <NodeEmptyState
+            title={NODE_EMPTY.wallet.title}
+            body={NODE_EMPTY.wallet.body}
+            cta={NODE_EMPTY.wallet.cta}
+            href="#deposit-methods"
+          />
+        )}
+
         {/* ── Stat Cards ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-4">
-          <StatCard
-            title="Available Cash"
-            value={formatCurrency(cash)}
-            icon={<DollarSign className="w-5 h-5" />}
-          />
-          <StatCard
-            title="Total Deposited"
-            value={formatCurrency(cash + locked + 180000)}
-            icon={<ArrowDownLeft className="w-5 h-5" />}
-          />
-          <StatCard
-            title="Locked in Orders"
-            value={formatCurrency(locked)}
-            subtitle="In active positions"
-            icon={<Clock className="w-5 h-5" />}
-          />
-          <StatCard
-            title="YTD Return"
-            value="+$48,320"
-            subtitle="+22.4% this year"
-            icon={<BarChart3 className="w-5 h-5" />}
-          />
+          <NodeStat label="Available cash" value={formatCurrency(cash)} variant="signal" />
+          <NodeStat label="Total deposited" value={formatCurrency(cash + locked)} variant="authority" />
+          <NodeStat label="Locked in orders" value={formatCurrency(locked)} variant="locked" sub="In active positions" />
+          <NodeStat label="Node status" value={nodeState === "funded" ? "ARMED" : "UNFUNDED"} variant={cash > 0 ? "signal" : "locked"} />
         </div>
 
         {/* ── Pending Transactions Banner ── */}
@@ -579,7 +620,7 @@ export default function WalletPage() {
             <div className="flex items-center gap-2 md:gap-3 mb-2 md:mb-3">
               <Clock className="w-5 h-5 text-amber-400" />
               <h3 className="text-sm font-bold text-amber-400">
-                Pending Admin Approval
+                {NODE_LABELS.depositPending}
               </h3>
               <Badge variant="warning" size="sm">
                 {myPending.length}
@@ -986,6 +1027,7 @@ export default function WalletPage() {
                             type="number"
                             value={amount}
                             onChange={(e) => setAmount(e.target.value)}
+                            onBlur={onAmountBlur}
                             placeholder="0.00"
                             autoFocus
                             className="w-full bg-xc-dark/60 border border-xc-border rounded-xl pl-7 pr-4 py-3 text-sm font-mono text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-white/30"
@@ -1662,6 +1704,7 @@ export default function WalletPage() {
                             type="number"
                             value={amount}
                             onChange={(e) => setAmount(e.target.value)}
+                            onBlur={onAmountBlur}
                             placeholder="0.00"
                             autoFocus
                             className="w-full bg-xc-dark/60 border border-xc-border rounded-xl pl-7 pr-4 py-3 text-sm font-mono text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-white/30"

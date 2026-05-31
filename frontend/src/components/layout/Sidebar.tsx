@@ -53,7 +53,7 @@ export default function Sidebar() {
       {/* Sidebar — slide drawer on mobile, fixed rail on desktop */}
       <aside
         className={cn(
-          "fixed top-0 bottom-0 left-0 z-50 flex flex-col bg-xc-dark/95 backdrop-blur-xl border-r border-white/[0.08] transition-transform duration-300 ease-in-out",
+          "fixed top-0 bottom-0 left-0 z-50 flex flex-col bg-node-bg/98 backdrop-blur-xl border-r-2 border-node-border transition-transform duration-300 ease-in-out",
           // Mobile: 260px drawer, slides in/out
           "w-[260px]",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
@@ -62,7 +62,7 @@ export default function Sidebar() {
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-3 py-4 border-b border-white/[0.08]">
+        <div className="flex items-center justify-between px-3 py-4 border-b-2 border-node-border">
           <Link
             href="/dashboard"
             className="flex items-center gap-3"
@@ -93,10 +93,10 @@ export default function Sidebar() {
                 href={href}
                 onClick={() => setSidebarOpen(false)}
                 className={cn(
-                  "flex items-center gap-2.5 px-3 py-2.5 rounded-full text-[13px] font-medium transition-all md:justify-center lg:justify-start",
+                  "flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-semibold transition-all md:justify-center lg:justify-start border-2 border-transparent",
                   active
-                    ? "font-bold text-white bg-white/[0.08]"
-                    : "text-slate-300 hover:text-white hover:bg-white/[0.06]",
+                    ? "font-bold text-white bg-node-panel border-node-border"
+                    : "text-slate-300 hover:text-white hover:bg-node-panel/60 hover:border-node-border/40",
                 )}
               >
                 <Icon

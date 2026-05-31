@@ -4,6 +4,13 @@ import { useState, useEffect, useMemo } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AIOracle from "@/components/oracle/AIOracle";
 import { StatCard } from "@/components/ui/Card";
+import {
+  CapitalTrajectory,
+  NodeIntelligence,
+  NodePanel,
+} from "@/components/node-engine";
+import { formatNodeStatus } from "@/lib/nodeCopy";
+import { useStore } from "@/store/useStore";
 import { oracleAPI, tradingAPI } from "@/lib/api";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -81,6 +88,7 @@ function generateSentimentTimeline(symbol: string) {
 }
 
 export default function OraclePage() {
+  const { user, wallet, pendingTransactions } = useStore();
   const [allocation, setAllocation] = useState<Record<string, number>>({});
   const [forecasts, setForecasts] = useState<
     Array<{
@@ -137,7 +145,7 @@ export default function OraclePage() {
         )
         .filter(Boolean);
       if (fcasts.length > 0) setForecasts(fcasts as typeof forecasts);
-      else setForecasts(DEMO_FORECASTS);
+      else setForecasts([]);
     } catch {
       setAllocation({
         AI: 40,
@@ -146,7 +154,7 @@ export default function OraclePage() {
         PrivateEquity: 15,
         Cash: 10,
       });
-      setForecasts(DEMO_FORECASTS);
+      setForecasts([]);
     } finally {
       setLoading(false);
     }
@@ -261,12 +269,35 @@ export default function OraclePage() {
     [forecasts],
   );
 
+  const cash = Number(wallet?.fiatBalance ?? user?.balance ?? 0);
+  const nodeState = formatNodeStatus(
+    cash,
+    pendingTransactions.some(
+      (t) => t.userId === user?.id && t.status === "PENDING",
+    ),
+  );
+
   return (
     <DashboardLayout
       title="AI Oracle"
       subtitle="LSTM · Monte Carlo · Sentiment Analysis · Live Intelligence"
     >
       <div className="space-y-4 md:space-y-6 lg:space-y-8">
+        <CapitalTrajectory compact />
+        <NodeIntelligence state={nodeState} />
+        <NodePanel
+          title="Inference telemetry"
+          subtitle="Model outputs · sentiment rails · live signal routing"
+          headerRight={
+            <span className="node-telemetry text-node-signal text-[10px]">
+              NOMINAL
+            </span>
+          }
+        >
+          <p className="text-xs text-node-muted">
+            Execution layer nominal. Latency within orbital tolerance.
+          </p>
+        </NodePanel>
         {/* ── Stats ── */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3 lg:gap-4">
           <StatCard

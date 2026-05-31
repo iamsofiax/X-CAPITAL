@@ -4,6 +4,7 @@ import { useState, useRef, ChangeEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { NodePanel } from "@/components/node-engine";
 import {
   Camera,
   User,
@@ -121,8 +122,7 @@ export default function SettingsPage() {
     <DashboardLayout title="Settings" subtitle="Manage your account">
       <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
         {/* Profile Picture */}
-        <section className="bg-xc-card border border-white/[0.08] rounded-2xl p-4 md:p-6">
-          <h2 className="text-base font-bold text-white mb-5">Profile</h2>
+        <NodePanel title="Profile" scanLine={false}>
           <div className="flex flex-col sm:flex-row items-center gap-5">
             <div className="relative group">
               <div className="w-20 h-20 rounded-full bg-gradient-to-br from-white/20 to-white/5 flex items-center justify-center overflow-hidden ring-2 ring-white/10">
@@ -171,7 +171,7 @@ export default function SettingsPage() {
               </span>
             </div>
           </div>
-        </section>
+        </NodePanel>
 
         {/* Personal Info */}
         <section className="bg-xc-card border border-white/[0.08] rounded-2xl p-4 md:p-6">

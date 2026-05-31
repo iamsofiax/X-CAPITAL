@@ -76,43 +76,32 @@ export const investInFund = async (req: AuthRequest, res: Response, next: NextFu
       return;
     }
 
-    const maturesAt = new Date();
-    maturesAt.setDate(maturesAt.getDate() + fund.lockPeriodDays);
+    const transaction = await prisma.transaction.create({
+      data: {
+        userId,
+        walletId: wallet.id,
+        amount,
+        type: 'FUND_INVESTMENT',
+        status: 'PENDING',
+        metadata: { fundName: fund.name, fundId: investmentId },
+      },
+    });
 
-    const userInvestment = await prisma.$transaction(async (tx) => {
-      const inv = await tx.userInvestment.create({
-        data: { userId, investmentId, amount, maturesAt },
-      });
-
-      await tx.wallet.update({
-        where: { userId },
-        data: { fiatBalance: { decrement: amount } },
-      });
-
-      await tx.investment.update({
-        where: { id: investmentId },
-        data: { currentAUM: { increment: amount } },
-      });
-
-      await tx.transaction.create({
-        data: {
-          userId,
-          walletId: wallet.id,
-          amount,
-          type: 'FUND_INVESTMENT',
-          status: 'COMPLETED',
-          reference: inv.id,
-          metadata: { fundName: fund.name },
-        },
-      });
-
-      return inv;
+    await prisma.adminAlert.create({
+      data: {
+        type: 'FUND_INVEST',
+        userId,
+        amount,
+        method: 'fund',
+        transactionId: transaction.id,
+        metadata: { fundId: investmentId, fundName: fund.name },
+      },
     });
 
     res.status(201).json({
       success: true,
-      message: `Successfully invested $${amount} in ${fund.name}`,
-      data: userInvestment,
+      message: `Investment signal $${amount} in ${fund.name} sent for admin clearance`,
+      data: { pending: true, transactionId: transaction.id },
     });
   } catch (error) {
     next(error);

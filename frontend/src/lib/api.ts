@@ -129,3 +129,11 @@ export const oracleAPI = {
   getSentiment: (symbol: string) => api.get(`/oracle/sentiment/${symbol}`),
   getPortfolioRisk: () => api.get('/oracle/risk'),
 };
+
+export const adminAPI = {
+  getAlerts: (status?: string) =>
+    api.get('/admin/alerts', { params: status ? { status } : {} }),
+  approveAlert: (id: string) => api.post(`/admin/alerts/${id}/approve`),
+  rejectAlert: (id: string, reason?: string) =>
+    api.post(`/admin/alerts/${id}/reject`, { reason }),
+};

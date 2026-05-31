@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { StructuralBlock, CapitalTrajectory } from "@/components/node-engine";
 import { cn } from "@/lib/utils";
 import {
   Car,
@@ -273,6 +274,7 @@ export default function EnginePage() {
       subtitle="Turn any liability into a revenue node"
     >
       <div className="space-y-0">
+        <CapitalTrajectory compact className="mb-8" />
         {/* ── HERO: AI COMPUTE + BANDWIDTH ──────────────────────────── */}
         <section className="border-b border-white/[0.08] pb-10 md:pb-16 mb-10 md:mb-16">
           <div className="max-w-3xl">
@@ -723,31 +725,7 @@ export default function EnginePage() {
             Structural architecture.
           </h2>
 
-          <div className="space-y-0 border border-white/[0.08] rounded-2xl overflow-hidden">
-            {ARCHITECTURE.map((item, i) => (
-              <div
-                key={item.num}
-                className={cn(
-                  "p-8 md:p-10",
-                  i < ARCHITECTURE.length - 1 && "border-b border-white/[0.08]",
-                )}
-              >
-                <div className="flex gap-6 md:gap-10">
-                  <span className="text-4xl font-black font-mono text-white/[0.06] shrink-0 leading-none">
-                    {item.num}
-                  </span>
-                  <div>
-                    <h3 className="text-lg font-bold text-white mb-3">
-                      {item.title}
-                    </h3>
-                    <p className="text-[13px] text-white/35 leading-relaxed max-w-2xl">
-                      {item.body}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <StructuralBlock />
         </section>
 
         {/* ── TRUST RATINGS ─────────────────────────────────────────── */}

@@ -5,6 +5,14 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/ui/Card";
 import PortfolioChart from "@/components/portfolio/PortfolioChart";
 import HoldingsList from "@/components/portfolio/HoldingsList";
+import {
+  NodePanel,
+  NodeIntelligence,
+  NodeEmptyState,
+  CapitalTrajectory,
+} from "@/components/node-engine";
+import { formatNodeStatus } from "@/lib/nodeCopy";
+import { useStore } from "@/store/useStore";
 import { portfolioAPI } from "@/lib/api";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { formatCurrency, formatPercent, cn } from "@/lib/utils";
@@ -108,6 +116,7 @@ function generateMonthlyReturns() {
 }
 
 export default function PortfolioPage() {
+  const { user, wallet, pendingTransactions } = useStore();
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [perfData, setPerfData] = useState<
     Array<{ date: string; value: number }>
@@ -131,20 +140,20 @@ export default function PortfolioPage() {
           generateDrawdownData(res.data.data.totalValue || 10000),
         );
       } catch {
-        const demo: Portfolio = {
-          id: "1",
-          userId: "1",
-          totalValue: 287450,
-          totalCost: 198200,
-          totalPnL: 89250,
-          cashBalance: 42500,
-          riskScore: 48,
-          performanceYTD: 34.2,
-          holdings: DEMO_HOLDINGS,
+        const empty: Portfolio = {
+          id: "local",
+          userId: user?.id ?? "1",
+          totalValue: 0,
+          totalCost: 0,
+          totalPnL: 0,
+          cashBalance: Number(wallet?.fiatBalance ?? user?.balance ?? 0),
+          riskScore: 0,
+          performanceYTD: 0,
+          holdings: [],
         };
-        setPortfolio(demo);
-        setPerfData(generatePerfData(287450));
-        setDrawdownData(generateDrawdownData(287450));
+        setPortfolio(empty);
+        setPerfData(generatePerfData(0));
+        setDrawdownData(generateDrawdownData(0));
       } finally {
         setLoading(false);
       }
@@ -227,7 +236,16 @@ export default function PortfolioPage() {
         name: h.asset?.symbol ?? "Unknown",
         value: Math.round(Number(h.currentValue)),
       }))
-    : DEMO_ALLOCATION;
+    : [];
+
+  const cash = Number(wallet?.fiatBalance ?? user?.balance ?? 0);
+  const nodeState = formatNodeStatus(
+    cash,
+    pendingTransactions.some(
+      (t) => t.userId === user?.id && t.status === "PENDING",
+    ),
+  );
+  const unfunded = (portfolio?.totalValue ?? 0) === 0 && !portfolio?.holdings?.length;
 
   const holdingsPnl =
     portfolio?.holdings?.map((h) => ({
@@ -245,6 +263,16 @@ export default function PortfolioPage() {
       subtitle="Performance, holdings &amp; allocation — live data"
     >
       <div className="space-y-5">
+        <CapitalTrajectory compact />
+        <NodeIntelligence state={nodeState} />
+        {unfunded && (
+          <NodeEmptyState
+            title="Portfolio node: UNFUNDED"
+            body="No holdings detected. Initiate a capital signal to arm execution rails."
+            cta="Initiate capital signal"
+            href="/wallet"
+          />
+        )}
         {/* ── Stats Row ── */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3 lg:gap-4">
           <StatCard

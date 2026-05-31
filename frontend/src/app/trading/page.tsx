@@ -2,6 +2,9 @@
 
 import { useState, useMemo } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { NodePanel, NodeIntelligence, CapitalTrajectory } from "@/components/node-engine";
+import { formatNodeStatus } from "@/lib/nodeCopy";
+import { useStore } from "@/store/useStore";
 import AssetList from "@/components/trading/AssetList";
 import OrderForm from "@/components/trading/OrderForm";
 import { Badge } from "@/components/ui/Badge";
@@ -111,8 +114,17 @@ const orderBookData = [
 ];
 
 export default function TradingPage() {
+  const { user, wallet, pendingTransactions } = useStore();
   const [selectedAsset, setSelectedAsset] = useState<Asset>(DEMO_ASSETS[7]); // XLINK
   const { prices: livePrices } = useMarketPrices({ refreshInterval: 30000 });
+
+  const cash = Number(wallet?.fiatBalance ?? user?.balance ?? 0);
+  const nodeState = formatNodeStatus(
+    cash,
+    pendingTransactions.some(
+      (t) => t.userId === user?.id && t.status === "PENDING",
+    ),
+  );
 
   const assetWithLivePrice = useMemo(() => {
     const live = livePrices[selectedAsset?.symbol ?? ""];
@@ -133,65 +145,43 @@ export default function TradingPage() {
       subtitle="Real-time execution across all asset classes"
     >
       <div className="space-y-6">
-        {/* ═════════════════════════════════════════════════════════════════════════════════
-            STARLINK TRADING SPOTLIGHT - XLINK Token
-            ═════════════════════════════════════════════════════════════════════════════════ */}
-        <div className="relative group overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900/40 via-emerald-900/20 to-slate-900/40 border border-emerald-500/50 p-6 md:p-8">
-          <div className="absolute -top-40 -right-40 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <Satellite className="w-6 h-6 text-emerald-400" />
-                <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest">
-                  Trading Spotlight
-                </h3>
-              </div>
-              <div className="flex gap-2">
-                <Badge variant="default">42% Target APY</Badge>
-                <Badge variant="success">Real-time Tracking</Badge>
-                <Badge variant="default">Live Now</Badge>
-              </div>
+        <CapitalTrajectory compact />
+        <NodePanel
+          title="XLINK execution rail"
+          subtitle="Orbital infrastructure token · live market feed"
+          headerRight={
+            <span className="node-telemetry text-node-signal text-[10px]">
+              LIVE
+            </span>
+          }
+        >
+          <div className="grid md:grid-cols-3 gap-6 items-start">
+            <div>
+              <p className="text-xs text-xc-muted font-bold mb-1">XLINK</p>
+              <p className="text-3xl font-black text-white mb-1">
+                ${assetWithLivePrice.price.toFixed(2)}
+              </p>
+              <p
+                className={cn(
+                  "text-sm font-bold flex items-center gap-1",
+                  isPositive ? "text-emerald-400" : "text-red-400",
+                )}
+              >
+                {isPositive ? "↑" : "↓"}{" "}
+                {formatPercent(Number(assetWithLivePrice.priceChange24h ?? 0))} 24h
+              </p>
             </div>
-            <div className="grid md:grid-cols-3 gap-6 items-start">
-              <div>
-                <p className="text-xs text-xc-muted font-bold mb-1">
-                  XLINK Token
-                </p>
-                <p className="text-3xl font-black text-white mb-1">
-                  ${assetWithLivePrice.price.toFixed(2)}
-                </p>
-                <p
-                  className={cn(
-                    "text-sm font-bold flex items-center gap-1",
-                    isPositive ? "text-emerald-400" : "text-red-400",
-                  )}
-                >
-                  {isPositive ? "↑" : "↓"}{" "}
-                  {formatPercent(Number(assetWithLivePrice.priceChange24h ?? 0))} 24h
-                </p>
-              </div>
-              <div className="bg-white/5 border border-emerald-500/30 rounded-xl p-4">
-                <p className="text-xs text-xc-muted font-bold mb-2">
-                  24h Volume
-                </p>
-                <p className="text-2xl font-black text-emerald-400">$285.4M</p>
-                <p className="text-xs text-xc-muted mt-1">
-                  +18% from yesterday
-                </p>
-              </div>
-              <div className="bg-white/5 border border-emerald-500/30 rounded-xl p-4">
-                <p className="text-xs text-xc-muted font-bold mb-2">
-                  Market Cap
-                </p>
-                <p className="text-2xl font-black text-emerald-400">$4.2B</p>
-                <p className="text-xs text-xc-muted mt-1">52w High: $142.80</p>
-              </div>
+            <div className="node-panel-inset p-4">
+              <p className="text-xs text-xc-muted font-bold mb-2">24h volume</p>
+              <p className="text-2xl font-black text-emerald-400">$285.4M</p>
             </div>
-            <button className="mt-4 w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-black px-6 py-3 rounded-lg transition-all transform hover:scale-105">
-              Start Trading XLINK
-            </button>
+            <div className="node-panel-inset p-4">
+              <p className="text-xs text-xc-muted font-bold mb-2">Network cap</p>
+              <p className="text-2xl font-black text-emerald-400">$4.2B</p>
+            </div>
           </div>
-        </div>
+        </NodePanel>
+        <NodeIntelligence state={nodeState} />
 
         {/* Main Trading Layout */}
         <div className="grid lg:grid-cols-3 gap-4">

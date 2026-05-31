@@ -1,5 +1,9 @@
 name: Deploy to GitHub Pages
 
+# Billing lock? GitHub won't start runners. Deploy locally instead:
+#   Windows: .\scripts\deploy-pages.ps1
+#   Linux/Mac: ./scripts/deploy-pages.sh
+
 on:
   push:
     branches: [main]
@@ -35,6 +39,9 @@ jobs:
       - name: Build
         working-directory: frontend
         run: npm run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

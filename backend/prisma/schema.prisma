@@ -82,6 +82,18 @@ enum TransactionStatus {
   CANCELLED
 }
 
+enum AdminAlertType {
+  DEPOSIT
+  FUND_INVEST
+  WITHDRAW
+}
+
+enum AdminAlertStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum InvestmentCategory {
   SPACE_ECONOMY
   AI_INFRASTRUCTURE
@@ -117,6 +129,7 @@ model User {
   transactions   Transaction[]
   investments    UserInvestment[]
   refreshTokens  RefreshToken[]
+  adminAlerts    AdminAlert[]
 
   @@map("users")
 }
@@ -305,4 +318,21 @@ model MarketData {
 
   @@unique([symbol, timestamp])
   @@map("market_data")
+}
+
+model AdminAlert {
+  id            String           @id @default(cuid())
+  type          AdminAlertType
+  userId        String
+  amount        Decimal          @db.Decimal(18, 2)
+  status        AdminAlertStatus @default(PENDING)
+  method        String?
+  metadata      Json?
+  transactionId String?
+  createdAt     DateTime         @default(now())
+  resolvedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("admin_alerts")
 }

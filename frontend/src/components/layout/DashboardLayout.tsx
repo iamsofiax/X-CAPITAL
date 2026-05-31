@@ -6,6 +6,7 @@ import Link from "next/link";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import MarketTicker from "./MarketTicker";
+import { NodeShell } from "@/components/node-engine";
 import { useStore } from "@/store/useStore";
 import { BarChart3, ArrowDownLeft, Wallet } from "lucide-react";
 
@@ -44,13 +45,13 @@ export default function DashboardLayout({
   if (!mounted || !isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen bg-xc-black">
+    <div className="min-h-screen bg-node-bg node-mesh-bg">
       <Sidebar />
       <div className="flex-1 flex flex-col min-h-screen transition-all duration-300 md:ml-[60px] lg:ml-[200px]">
         <MarketTicker />
         <Header title={title} subtitle={subtitle} />
         <main className="flex-1 p-3 md:p-5 lg:p-6 pb-28 md:pb-6 overflow-x-hidden">
-          {children}
+          <NodeShell>{children}</NodeShell>
         </main>
       </div>
 

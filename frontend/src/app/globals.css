@@ -24,6 +24,32 @@
   --red: #ef4444;
   --text: #f5f5f5;
   --muted: #525252;
+
+  /* Node Engine — thick orbital design tokens */
+  --node-bg: #050505;
+  --node-panel: #0c0c0c;
+  --node-panel-elevated: #111111;
+  --node-border: #1a1a1a;
+  --node-border-subtle: #141414;
+  --node-signal: #10b981;
+  --node-signal-dim: rgba(16, 185, 129, 0.15);
+  --node-locked: #d97706;
+  --node-locked-dim: rgba(217, 119, 6, 0.12);
+  --node-authority: #f5f5f5;
+  --node-muted: #737373;
+  --node-mesh: radial-gradient(
+      ellipse 80% 50% at 50% -20%,
+      rgba(16, 185, 129, 0.06) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 100% 50%,
+      rgba(255, 255, 255, 0.02) 0%,
+      transparent 50%
+    );
+  --node-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5);
+  --node-shadow: 0 8px 32px rgba(0, 0, 0, 0.85);
 }
 
 /* Light theme */
@@ -1409,4 +1435,70 @@ img[data-loaded="true"] {
 #crisp-chatbox,
 .crisp-client {
   z-index: 100000 !important;
+}
+
+/* ─── Node Engine utilities ─────────────────────────────────────────────── */
+.node-mesh-bg {
+  background: var(--node-bg);
+  background-image: var(--node-mesh);
+}
+
+.node-panel {
+  background: var(--node-panel);
+  border: 2px solid var(--node-border);
+  box-shadow: var(--node-inset), var(--node-shadow);
+}
+
+.node-panel-inset {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--node-border-subtle);
+  border-radius: 0.5rem;
+}
+
+.node-panel-header {
+  border-bottom: 1px solid var(--node-border-subtle);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    transparent 100%
+  );
+}
+
+.node-telemetry {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--node-muted);
+}
+
+.node-scan-line::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--node-signal),
+    transparent
+  );
+  animation: starlinkScan 3s ease-in-out infinite;
+}
+
+.node-page-enter {
+  animation: nodePageEnter 0.5s ease-out forwards;
+}
+
+@keyframes nodePageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

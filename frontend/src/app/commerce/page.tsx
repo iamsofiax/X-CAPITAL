@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { CapitalTrajectory } from "@/components/node-engine";
 import ProductCard, { type Product } from "@/components/commerce/ProductCard";
 import { Modal, ModalFooter } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -128,7 +129,8 @@ export default function CommercePage() {
       subtitle="Buy world-class products Â· Invest in the companies behind them"
     >
       <div className="space-y-4 md:space-y-6 lg:space-y-8">
-        {/* â”€â”€ Hero Banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        <CapitalTrajectory compact />
+        {/* ── Hero Banner ── */}
         <div className="relative overflow-hidden rounded-2xl border border-xc-border min-h-[200px]">
           {/* background image */}
           <div className="absolute inset-0">

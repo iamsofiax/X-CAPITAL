@@ -5,6 +5,8 @@ import Image from "next/image";
 import { Bell, Menu, Search } from "lucide-react";
 import { useStore } from "@/store/useStore";
 import { formatCurrency } from "@/lib/utils";
+import { NodeSignal } from "@/components/node-engine";
+import { formatNodeStatus } from "@/lib/nodeCopy";
 import SearchModal from "./SearchModal";
 import NotificationsPanel from "./NotificationsPanel";
 
@@ -14,11 +16,27 @@ interface HeaderProps {
 }
 
 export default function Header({ title, subtitle }: HeaderProps) {
-  const { user, wallet, setSidebarOpen } = useStore();
+  const { user, wallet, setSidebarOpen, pendingTransactions, notifications } =
+    useStore();
   const [searchOpen, setSearchOpen] = useState(false);
   const [notifsOpen, setNotifsOpen] = useState(false);
   const bellRef = useRef<HTMLButtonElement>(null);
-  const [unread, setUnread] = useState(3);
+
+  const cash = Number(wallet?.fiatBalance ?? user?.balance ?? 0);
+  const hasPending = pendingTransactions.some(
+    (t) => t.userId === user?.id && t.status === "PENDING",
+  );
+  const nodeState = formatNodeStatus(cash, hasPending);
+  const signalState =
+    nodeState === "pending_deposit"
+      ? "PENDING"
+      : nodeState === "funded"
+        ? "FUNDED"
+        : "UNFUNDED";
+
+  const unread = notifications.filter(
+    (n) => n.userId === user?.id && !n.read,
+  ).length;
 
   // Ctrl/Cmd+K shortcut to open search
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -35,7 +53,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
 
   return (
     <>
-      <header className="h-16 md:h-[72px] flex items-center justify-between px-5 md:px-8 border-b border-white/[0.08] bg-xc-dark/80 backdrop-blur-xl sticky top-0 z-30">
+      <header className="h-16 md:h-[72px] flex items-center justify-between px-5 md:px-8 border-b-2 border-node-border bg-node-panel/95 backdrop-blur-xl sticky top-0 z-30">
         <div className="flex items-center gap-3">
           {/* Mobile hamburger */}
           <button
@@ -53,12 +71,13 @@ export default function Header({ title, subtitle }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-2 md:gap-4">
+          <NodeSignal state={signalState} className="hidden sm:inline-flex" />
           {/* Balance pill */}
-          {wallet && (
-            <div className="hidden md:flex items-center gap-2 glass border border-white/5 rounded-full px-4 py-1.5 text-sm">
-              <span className="text-xc-muted text-xs">Balance</span>
-              <span className="font-mono font-bold text-xc-green">
-                {formatCurrency(Number(wallet.fiatBalance))}
+          {wallet !== undefined && (
+            <div className="hidden md:flex items-center gap-2 node-panel rounded-full px-4 py-1.5 text-sm border-2">
+              <span className="node-telemetry text-node-muted">Node balance</span>
+              <span className="font-mono font-bold text-node-signal">
+                {formatCurrency(cash)}
               </span>
             </div>
           )}
@@ -89,10 +108,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
             </button>
             <NotificationsPanel
               open={notifsOpen}
-              onClose={() => {
-                setNotifsOpen(false);
-                setUnread(0);
-              }}
+              onClose={() => setNotifsOpen(false)}
               anchorRef={bellRef}
             />
           </div>

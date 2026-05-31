@@ -1,10 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import FundCard from "@/components/funds/FundCard";
-import { Satellite } from "lucide-react";
+import {
+  OrbitalHero,
+  CapitalTrajectory,
+  NodeIntelligence,
+  NodeEmptyState,
+  NodePanel,
+} from "@/components/node-engine";
+import { useStore } from "@/store/useStore";
+import { emitCapitalSignal } from "@/lib/capitalSignal";
+import type { PendingTransaction } from "@/store/useStore";
+import { NODE_EMPTY, formatNodeStatus, NODE_LABELS } from "@/lib/nodeCopy";
+import { formatCurrency } from "@/lib/utils";
 
 const DEMO_FUNDS = [
   {
@@ -93,9 +103,26 @@ const DEMO_FUNDS = [
 ];
 
 export default function FundsPage() {
-  const router = useRouter();
+  const {
+    user,
+    wallet,
+    addPendingTransaction,
+    addAdminAlert,
+    pendingTransactions,
+  } = useStore();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"return" | "aum" | "min">("return");
+  const [investModal, setInvestModal] = useState<(typeof DEMO_FUNDS)[0] | null>(
+    null,
+  );
+  const [investAmount, setInvestAmount] = useState("");
+  const [investMsg, setInvestMsg] = useState<string | null>(null);
+
+  const cash = Number(wallet?.fiatBalance ?? user?.balance ?? 0);
+  const hasPending = pendingTransactions.some(
+    (t) => t.userId === user?.id && t.status === "PENDING",
+  );
+  const nodeState = formatNodeStatus(cash, hasPending);
 
   const filteredFunds = selectedCategory
     ? DEMO_FUNDS.filter((f) => f.category === selectedCategory)
@@ -107,102 +134,70 @@ export default function FundsPage() {
     return a.minInvestment - b.minInvestment;
   });
 
+  const handleInvest = async (fund: (typeof DEMO_FUNDS)[0]) => {
+    if (cash <= 0) {
+      setInvestModal(null);
+      return;
+    }
+    setInvestModal(fund);
+    setInvestAmount(String(fund.minInvestment));
+    setInvestMsg(null);
+  };
+
+  const submitFundInvest = async () => {
+    if (!investModal || !user) return;
+    const amount = parseFloat(investAmount);
+    if (!amount || amount < investModal.minInvestment) {
+      setInvestMsg(`Minimum ${formatCurrency(investModal.minInvestment)}`);
+      return;
+    }
+    if (amount > cash) {
+      setInvestMsg("Insufficient node balance");
+      return;
+    }
+
+    const tx: PendingTransaction = {
+      id: `ptx-fund-${Date.now()}`,
+      userId: user.id,
+      userEmail: user.email,
+      userName: `${user.firstName} ${user.lastName}`.trim(),
+      type: "FUND_INVEST",
+      method: "fund",
+      amount,
+      currency: "USD",
+      details: { fundId: investModal.id, fundName: investModal.name },
+      status: "PENDING",
+      createdAt: new Date().toISOString(),
+      fundId: investModal.id,
+      fundName: investModal.name,
+    };
+
+    await emitCapitalSignal({ tx, addPendingTransaction, addAdminAlert });
+    setInvestMsg(NODE_LABELS.signalRouted + ". Admin clearance required.");
+    setTimeout(() => setInvestModal(null), 2000);
+  };
+
   return (
     <DashboardLayout
       title="Investment Funds"
       subtitle="Diversified fund access across all capital rails"
     >
       <div className="space-y-6">
-        {/* ═════════════════════════════════════════════════════════════════════════════════
-            STARLINK GROWTH ACCELERATOR - Premium Investment Feature
-            ═════════════════════════════════════════════════════════════════════════════════ */}
-        <div className="relative group overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900/40 via-emerald-900/20 to-slate-900/40 border border-emerald-500/50 p-6 md:p-8">
-          <div className="absolute -top-40 -right-40 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-          <div className="absolute -bottom-32 -left-32 w-60 h-60 bg-emerald-600/5 rounded-full blur-3xl" />
-          <div className="relative z-10">
-            <div className="flex items-start justify-between gap-6 mb-6">
-              <div>
-                <div className="flex items-center gap-3 mb-3">
-                  <Satellite className="w-6 h-6 text-emerald-400" />
-                  <span className="text-xs font-black text-emerald-400 uppercase tracking-widest">
-                    Premium Feature
-                  </span>
-                </div>
-                <h2 className="text-2xl md:text-3xl font-black text-white mb-2">
-                  Starlink Growth Accelerator
-                </h2>
-                <p className="text-base text-emerald-50 max-w-2xl">
-                  Invest in satellite infrastructure and the space economy. Our
-                  three complementary strategies deliver 42-56% APY with monthly
-                  compounding returns. Deploy capital into orbital networks with
-                  institutional-grade risk management.
-                </p>
-              </div>
-            </div>
-            <div className="grid md:grid-cols-3 gap-4">
-              <div className="bg-white/5 border border-emerald-500/30 rounded-xl p-5 hover:bg-white/10 transition-colors">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs text-xc-muted font-bold uppercase">
-                    Momentum Plan
-                  </p>
-                  <span className="bg-emerald-500/20 text-emerald-300 text-xs font-bold px-2 py-1 rounded">
-                    Popular
-                  </span>
-                </div>
-                <p className="text-2xl font-black text-emerald-400 mb-1">
-                  42% APY
-                </p>
-                <p className="text-xs text-xc-muted mb-3">
-                  High-frequency rebalancing
-                </p>
-                <button className="w-full bg-gradient-to-r from-emerald-600/50 to-emerald-500/50 hover:from-emerald-600 hover:to-emerald-500 text-white text-xs font-black py-2 rounded-lg transition-all">
-                  Invest Now
-                </button>
-              </div>
-              <div className="bg-white/5 border border-emerald-500/30 rounded-xl p-5 hover:bg-white/10 transition-colors ring-2 ring-emerald-500/50">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs text-xc-muted font-bold uppercase">
-                    Compounding Plan
-                  </p>
-                  <span className="bg-emerald-500 text-white text-xs font-black px-2 py-1 rounded">
-                    Best Return
-                  </span>
-                </div>
-                <p className="text-2xl font-black text-emerald-300 mb-1">
-                  56% APY
-                </p>
-                <p className="text-xs text-xc-muted mb-3">
-                  Monthly dividend reinvestment
-                </p>
-                <button className="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-xs font-black py-2 rounded-lg transition-all shadow-lg hover:shadow-emerald-500/50">
-                  Invest Now
-                </button>
-              </div>
-              <div className="bg-white/5 border border-emerald-500/30 rounded-xl p-5 hover:bg-white/10 transition-colors">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs text-xc-muted font-bold uppercase">
-                    Precision Plan
-                  </p>
-                  <span className="bg-emerald-500/20 text-emerald-300 text-xs font-black px-2 py-1 rounded">
-                    Balanced
-                  </span>
-                </div>
-                <p className="text-2xl font-black text-emerald-400 mb-1">
-                  48% APY
-                </p>
-                <p className="text-xs text-xc-muted mb-3">
-                  AI-optimized allocation
-                </p>
-                <button className="w-full bg-gradient-to-r from-emerald-600/50 to-emerald-500/50 hover:from-emerald-600 hover:to-emerald-500 text-white text-xs font-black py-2 rounded-lg transition-all">
-                  Invest Now
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <CapitalTrajectory />
+        <NodeIntelligence state={nodeState} />
+        <OrbitalHero dense showStats />
+
+        {cash <= 0 && (
+          <NodeEmptyState
+            title={NODE_EMPTY.funds.title}
+            body={NODE_EMPTY.funds.body}
+            cta={NODE_EMPTY.funds.cta}
+            href="/wallet"
+          />
+        )}
 
         {/* Filters & Sorting */}
-        <div className="bg-xc-card border border-xc-border rounded-2xl p-4">
+        <NodePanel title="Fund routing matrix" subtitle="Filter deployment targets">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <h3 className="font-black text-white text-sm mb-3">
@@ -253,7 +248,7 @@ export default function FundsPage() {
               </select>
             </div>
           </div>
-        </div>
+        </NodePanel>
 
         {/* Funds Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -261,15 +256,46 @@ export default function FundsPage() {
             <FundCard
               key={fund.id}
               fund={fund}
-              onInvest={() => {
-                const isStarlink =
-                  fund.name.toLowerCase().includes("starlink") ||
-                  fund.name.toLowerCase().includes("xlink");
-                router.push(isStarlink ? "/trading" : "/wallet");
-              }}
+              onInvest={() => handleInvest(fund)}
             />
           ))}
         </div>
+
+        {investModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+            <NodePanel
+              title={`Route capital — ${investModal.name}`}
+              subtitle="Admin clearance required before allocation"
+              className="max-w-md w-full"
+            >
+              <input
+                type="number"
+                value={investAmount}
+                onChange={(e) => setInvestAmount(e.target.value)}
+                className="w-full bg-node-bg border-2 border-node-border rounded-lg px-4 py-3 text-white font-mono mb-4"
+              />
+              {investMsg && (
+                <p className="text-sm text-node-signal mb-4">{investMsg}</p>
+              )}
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setInvestModal(null)}
+                  className="flex-1 py-2 rounded-lg border-2 border-node-border text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={submitFundInvest}
+                  className="flex-1 py-2 rounded-lg bg-white text-black font-bold"
+                >
+                  Send signal
+                </button>
+              </div>
+            </NodePanel>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

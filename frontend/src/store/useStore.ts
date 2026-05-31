@@ -92,8 +92,8 @@ export interface PendingTransaction {
   userId: string;
   userEmail: string;
   userName: string;
-  type: "DEPOSIT" | "WITHDRAWAL";
-  method: "wire" | "crypto" | "card";
+  type: "DEPOSIT" | "WITHDRAWAL" | "FUND_INVEST";
+  method: "wire" | "crypto" | "card" | "fund";
   amount: number;
   currency: string;
   details: Record<string, string>;
@@ -102,6 +102,25 @@ export interface PendingTransaction {
   resolvedAt?: string;
   resolvedBy?: string;
   rejectionReason?: string;
+  fundId?: string;
+  fundName?: string;
+}
+
+export interface AdminAlert {
+  id: string;
+  type: "DEPOSIT" | "FUND_INVEST" | "WITHDRAW";
+  userId: string;
+  userEmail: string;
+  userName: string;
+  amount: number;
+  method: string;
+  priority: "HIGH" | "NORMAL";
+  read: boolean;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  pendingTxId?: string;
+  metadata?: Record<string, string>;
+  createdAt: string;
+  resolvedAt?: string;
 }
 
 export interface UserNotification {
@@ -125,6 +144,14 @@ interface PendingTxState {
     adminEmail: string,
     reason: string,
   ) => void;
+}
+
+interface AdminAlertState {
+  adminAlerts: AdminAlert[];
+  addAdminAlert: (alert: Omit<AdminAlert, "id" | "createdAt" | "read" | "status">) => string;
+  markAdminAlertRead: (id: string) => void;
+  resolveAdminAlert: (id: string, status: "APPROVED" | "REJECTED") => void;
+  getUnreadAdminAlertCount: () => number;
 }
 
 interface NotificationState {
@@ -197,6 +224,7 @@ type Store = AuthState &
   UIState &
   DataState &
   PendingTxState &
+  AdminAlertState &
   NotificationState &
   KYCState &
   AdminContentState;
@@ -583,34 +611,239 @@ export const useStore = create<Store>()(
         }));
       },
       approvePendingTransaction: (txId, adminEmail) => {
-        set((state) => ({
-          pendingTransactions: state.pendingTransactions.map((tx) =>
-            tx.id === txId
+        const state = get();
+        const tx = state.pendingTransactions.find((t) => t.id === txId);
+        if (!tx || tx.status !== "PENDING") return;
+
+        const creditUser = (userId: string, amount: number) => {
+          const updatedUsers = state.registeredUsers.map((u) =>
+            u.id === userId
+              ? { ...u, balance: (u.balance ?? 0) + amount }
+              : u,
+          );
+          const updatedUser =
+            state.user?.id === userId
+              ? { ...state.user, balance: (state.user.balance ?? 0) + amount }
+              : state.user;
+          let updatedWallet = state.wallet;
+          if (state.user?.id === userId && state.wallet) {
+            updatedWallet = {
+              ...state.wallet,
+              fiatBalance:
+                Number(state.wallet.fiatBalance ?? 0) + amount,
+            };
+          }
+          return { updatedUsers, updatedUser, updatedWallet };
+        };
+
+        const debitUser = (userId: string, amount: number) => {
+          const updatedUsers = state.registeredUsers.map((u) =>
+            u.id === userId
+              ? { ...u, balance: Math.max(0, (u.balance ?? 0) - amount) }
+              : u,
+          );
+          const updatedUser =
+            state.user?.id === userId
               ? {
-                  ...tx,
+                  ...state.user,
+                  balance: Math.max(0, (state.user.balance ?? 0) - amount),
+                }
+              : state.user;
+          let updatedWallet = state.wallet;
+          if (state.user?.id === userId && state.wallet) {
+            updatedWallet = {
+              ...state.wallet,
+              fiatBalance: Math.max(
+                0,
+                Number(state.wallet.fiatBalance ?? 0) - amount,
+              ),
+            };
+          }
+          return { updatedUsers, updatedUser, updatedWallet };
+        };
+
+        let patch: Partial<Store> = {
+          pendingTransactions: state.pendingTransactions.map((t) =>
+            t.id === txId
+              ? {
+                  ...t,
                   status: "APPROVED" as const,
                   resolvedAt: new Date().toISOString(),
                   resolvedBy: adminEmail,
                 }
-              : tx,
+              : t,
           ),
-        }));
+          adminAlerts: state.adminAlerts.map((a) =>
+            a.pendingTxId === txId
+              ? {
+                  ...a,
+                  status: "APPROVED" as const,
+                  read: true,
+                  resolvedAt: new Date().toISOString(),
+                }
+              : a,
+          ),
+        };
+
+        if (tx.type === "DEPOSIT") {
+          const { updatedUsers, updatedUser, updatedWallet } = creditUser(
+            tx.userId,
+            tx.amount,
+          );
+          patch = {
+            ...patch,
+            registeredUsers: updatedUsers,
+            user: updatedUser,
+            wallet: updatedWallet,
+          };
+          if (state.user?.id === tx.userId) {
+            patch.notifications = [
+              {
+                id: `notif-${Date.now()}`,
+                userId: tx.userId,
+                title: "Capital signal confirmed",
+                message: `$${tx.amount.toLocaleString()} has been credited to your node.`,
+                type: "transaction",
+                read: false,
+                createdAt: new Date().toISOString(),
+              },
+              ...state.notifications,
+            ];
+          }
+        } else if (tx.type === "FUND_INVEST" || tx.type === "WITHDRAWAL") {
+          const { updatedUsers, updatedUser, updatedWallet } = debitUser(
+            tx.userId,
+            tx.amount,
+          );
+          patch = {
+            ...patch,
+            registeredUsers: updatedUsers,
+            user: updatedUser,
+            wallet: updatedWallet,
+          };
+          if (state.user?.id === tx.userId) {
+            patch.notifications = [
+              {
+                id: `notif-${Date.now()}`,
+                userId: tx.userId,
+                title:
+                  tx.type === "FUND_INVEST"
+                    ? "Fund allocation cleared"
+                    : "Withdrawal cleared",
+                message:
+                  tx.type === "FUND_INVEST"
+                    ? `$${tx.amount.toLocaleString()} routed to ${tx.fundName ?? "fund"}.`
+                    : `$${tx.amount.toLocaleString()} withdrawal approved.`,
+                type: "transaction",
+                read: false,
+                createdAt: new Date().toISOString(),
+              },
+              ...state.notifications,
+            ];
+          }
+        }
+
+        set(patch as Store);
+        state.addAuditEntry({
+          id: `audit-${Date.now()}`,
+          time: new Date().toISOString(),
+          actor: adminEmail,
+          action: "APPROVE_TX",
+          target: `${tx.type} $${tx.amount} — ${tx.userEmail}`,
+          level: "success",
+        });
       },
       rejectPendingTransaction: (txId, adminEmail, reason) => {
-        set((state) => ({
-          pendingTransactions: state.pendingTransactions.map((tx) =>
-            tx.id === txId
+        const state = get();
+        const tx = state.pendingTransactions.find((t) => t.id === txId);
+        set({
+          pendingTransactions: state.pendingTransactions.map((t) =>
+            t.id === txId
               ? {
-                  ...tx,
+                  ...t,
                   status: "REJECTED" as const,
                   resolvedAt: new Date().toISOString(),
                   resolvedBy: adminEmail,
                   rejectionReason: reason,
                 }
-              : tx,
+              : t,
+          ),
+          adminAlerts: state.adminAlerts.map((a) =>
+            a.pendingTxId === txId
+              ? {
+                  ...a,
+                  status: "REJECTED" as const,
+                  read: true,
+                  resolvedAt: new Date().toISOString(),
+                }
+              : a,
+          ),
+          notifications:
+            tx && state.user?.id === tx.userId
+              ? [
+                  {
+                    id: `notif-${Date.now()}`,
+                    userId: tx.userId,
+                    title: "Signal denied",
+                    message: reason || "Admin clearance was not granted.",
+                    type: "system",
+                    read: false,
+                    createdAt: new Date().toISOString(),
+                  },
+                  ...state.notifications,
+                ]
+              : state.notifications,
+        });
+      },
+
+      // ─── Admin Alerts (instant capital detection) ─────────────────────────
+      adminAlerts: [],
+      addAdminAlert: (alert) => {
+        const id = `alert-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+        const full: AdminAlert = {
+          ...alert,
+          id,
+          read: false,
+          status: "PENDING",
+          createdAt: new Date().toISOString(),
+        };
+        set((state) => ({
+          adminAlerts: [full, ...state.adminAlerts].slice(0, 100),
+        }));
+        if (typeof window !== "undefined" && "Notification" in window) {
+          if (Notification.permission === "granted") {
+            new Notification("X-CAPITAL — Inbound capital signal", {
+              body: `${alert.userEmail}: $${alert.amount.toLocaleString()} ${alert.type}`,
+            });
+          }
+        }
+        return id;
+      },
+      markAdminAlertRead: (id) => {
+        set((state) => ({
+          adminAlerts: state.adminAlerts.map((a) =>
+            a.id === id ? { ...a, read: true } : a,
           ),
         }));
       },
+      resolveAdminAlert: (id, status) => {
+        set((state) => ({
+          adminAlerts: state.adminAlerts.map((a) =>
+            a.id === id
+              ? {
+                  ...a,
+                  status,
+                  read: true,
+                  resolvedAt: new Date().toISOString(),
+                }
+              : a,
+          ),
+        }));
+      },
+      getUnreadAdminAlertCount: () =>
+        get().adminAlerts.filter(
+          (a) => !a.read && a.status === "PENDING",
+        ).length,
 
       // ─── Notifications ────────────────────────────────────────────────────
       notifications: [],
@@ -713,6 +946,7 @@ export const useStore = create<Store>()(
         registeredUsers: state.registeredUsers,
         auditLog: state.auditLog,
         pendingTransactions: state.pendingTransactions,
+        adminAlerts: state.adminAlerts,
         notifications: state.notifications,
         kycSubmissions: state.kycSubmissions,
         termsOfService: state.termsOfService,

@@ -6,6 +6,7 @@ import fundsRoutes from './funds';
 import walletRoutes from './wallet';
 import commerceRoutes from './commerce';
 import oracleRoutes from './oracle';
+import adminRoutes from './admin';
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use('/funds', fundsRoutes);
 router.use('/wallet', walletRoutes);
 router.use('/commerce', commerceRoutes);
 router.use('/oracle', oracleRoutes);
+router.use('/admin', adminRoutes);
 
 export default router;

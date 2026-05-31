@@ -180,6 +180,9 @@ export default function AdminPage() {
     pendingTransactions,
     approvePendingTransaction,
     rejectPendingTransaction,
+    adminAlerts,
+    markAdminAlertRead,
+    getUnreadAdminAlertCount,
     notifications,
     addNotification,
     deleteNotification,
@@ -292,6 +295,8 @@ export default function AdminPage() {
     () => pendingTransactions.filter((t) => t.status === "PENDING").length,
     [pendingTransactions],
   );
+
+  const unreadAlerts = getUnreadAdminAlertCount();
 
   const stats = useMemo(() => {
     const users = registeredUsers || [];
@@ -807,6 +812,50 @@ export default function AdminPage() {
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === "transactions" && (
           <div className="space-y-4">
+            {/* Inbound Capital Signals */}
+            {adminAlerts.filter((a) => a.status === "PENDING").length > 0 && (
+              <div className="bg-amber-500/10 border-2 border-amber-500/40 rounded-xl p-4">
+                <h3 className="text-sm font-bold text-amber-400 mb-3 flex items-center gap-2">
+                  Inbound Capital Signals
+                  {unreadAlerts > 0 && (
+                    <span className="px-2 py-0.5 bg-amber-500 text-black text-xs rounded-full">
+                      {unreadAlerts}
+                    </span>
+                  )}
+                </h3>
+                <div className="space-y-2">
+                  {adminAlerts
+                    .filter((a) => a.status === "PENDING")
+                    .slice(0, 8)
+                    .map((alert) => (
+                      <div
+                        key={alert.id}
+                        className="flex flex-wrap items-center justify-between gap-2 bg-black/30 rounded-lg px-3 py-2 text-sm"
+                      >
+                        <div>
+                          <span className="text-white font-medium">
+                            {alert.userEmail}
+                          </span>
+                          <span className="text-gray-500 ml-2 node-telemetry">
+                            {alert.type} · {alert.method}
+                          </span>
+                        </div>
+                        <span className="font-mono text-emerald-400 font-bold">
+                          ${alert.amount.toLocaleString()}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => markAdminAlertRead(alert.id)}
+                          className="text-xs text-gray-500 hover:text-white"
+                        >
+                          Mark read
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
             <h3 className="text-sm font-semibold text-white mb-4">
               Transaction Approval Queue
             </h3>
