@@ -26,7 +26,7 @@ if (Test-Path $CnameSrc) { Copy-Item $CnameSrc $CnameDst -Force }
 
 Write-Host "Publishing to gh-pages via gh-pages..." -ForegroundColor Cyan
 gh auth setup-git 2>$null | Out-Null
-npx --yes gh-pages@6 -d $Out -b gh-pages -r $RepoUrl -m "Deploy $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+npx --yes gh-pages@6 -d $Out -b gh-pages -r $RepoUrl --nojekyll --dotfiles -m "Deploy $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
 if ($LASTEXITCODE -ne 0) { throw "gh-pages publish failed" }
 
 Set-Location $Root
