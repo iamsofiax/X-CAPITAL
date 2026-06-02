@@ -1553,3 +1553,202 @@ img[data-loaded="true"] {
     transform: translateY(0);
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════ */
+/* ═══ INSTITUTIONAL PREMIUM LAYER ═══════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════ */
+
+/* Sidebar scan line — subtle top-to-bottom CRT sweep */
+.sidebar-scanline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 120px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(255, 255, 255, 0.018) 50%,
+    transparent 100%
+  );
+  animation: sidebarScan 8s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes sidebarScan {
+  0%   { top: -120px; }
+  100% { top: 100%; }
+}
+
+/* Premium card — institutional lift on hover */
+.inst-card {
+  background: rgba(255, 255, 255, 0.018);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.2s ease,
+              background 0.2s ease;
+}
+
+.inst-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55),
+              0 1px 0 rgba(255, 255, 255, 0.05) inset;
+  border-color: rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.028);
+}
+
+/* Tabular mono numbers — prevent width jitter */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Data row — alternating micro-contrast for tables */
+.data-row:nth-child(even) {
+  background: rgba(255, 255, 255, 0.008);
+}
+
+.data-row:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+/* Emerald signal dot with halo */
+.signal-live {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+.signal-live::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.25) 0%, transparent 70%);
+  animation: signalHalo 2s ease-in-out infinite;
+}
+
+@keyframes signalHalo {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50%       { transform: scale(1.4); opacity: 0.3; }
+}
+
+/* Precision border — 0.5px hairline for surgical UI */
+.border-hairline {
+  border: 0.5px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Gradient separator — horizontal rule that feels alive */
+.sep-gradient {
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 255, 255, 0.08) 30%,
+    rgba(255, 255, 255, 0.08) 70%,
+    transparent
+  );
+}
+
+/* Number counter — flash when value changes */
+@keyframes valueFlash {
+  0%   { color: #10b981; }
+  60%  { color: #10b981; }
+  100% { color: inherit; }
+}
+
+.value-flash {
+  animation: valueFlash 0.6s ease-out forwards;
+}
+
+/* Premium button — institutional press feel */
+.btn-inst {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.15s ease;
+}
+
+.btn-inst:active {
+  transform: scale(0.985);
+}
+
+.btn-inst::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.btn-inst:hover::after {
+  opacity: 1;
+}
+
+/* Constellation mesh v2 — tighter, crisper dots */
+.constellation-mesh-v2 {
+  background-image:
+    radial-gradient(1px 1px at 20% 30%, rgba(16,185,129,0.25) 0%, transparent 100%),
+    radial-gradient(1px 1px at 80% 15%, rgba(255,255,255,0.1) 0%, transparent 100%),
+    radial-gradient(1px 1px at 50% 70%, rgba(16,185,129,0.15) 0%, transparent 100%),
+    radial-gradient(1px 1px at 10% 80%, rgba(255,255,255,0.08) 0%, transparent 100%),
+    radial-gradient(1px 1px at 90% 60%, rgba(16,185,129,0.12) 0%, transparent 100%);
+  background-size: 300px 300px;
+  animation: meshShift 20s linear infinite;
+}
+
+@keyframes meshShift {
+  0%   { background-position: 0 0; }
+  100% { background-position: 300px 300px; }
+}
+
+/* Section divider — live pulse bar */
+.pulse-divider {
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(16, 185, 129, 0.3) 40%,
+    rgba(16, 185, 129, 0.5) 50%,
+    rgba(16, 185, 129, 0.3) 60%,
+    transparent
+  );
+  background-size: 200% 100%;
+  animation: dividerPulse 3s ease-in-out infinite;
+}
+
+@keyframes dividerPulse {
+  0%, 100% { background-position: 200% center; opacity: 0.5; }
+  50%       { background-position: -200% center; opacity: 1; }
+}
+
+/* Engine mono text — tighter tracking for terminal readouts */
+.engine-readout {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  font-feature-settings: "tnum", "zero";
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Profit number — green glow with tabular alignment */
+.profit-readout {
+  font-family: "JetBrains Mono", monospace;
+  color: #10b981;
+  text-shadow: 0 0 12px rgba(16, 185, 129, 0.35);
+  font-feature-settings: "tnum";
+}
+
+/* Loss number */
+.loss-readout {
+  font-family: "JetBrains Mono", monospace;
+  color: #ef4444;
+  text-shadow: 0 0 12px rgba(239, 68, 68, 0.3);
+  font-feature-settings: "tnum";
+}
+

@@ -30,6 +30,7 @@ import {
   Satellite,
 } from "lucide-react";
 import { OrbitalHero, CapitalTrajectory } from "@/components/node-engine";
+import { cn } from "@/lib/utils";
 
 const stats = [
   { label: "Instruments Available", value: "50,000+" },
@@ -599,9 +600,9 @@ export default function LandingPage() {
             </Link>
             <Link
               href="/auth/register"
-              className="text-sm bg-gradient-to-r from-xc-purple to-white/5 hover:from-white/10 hover:to-white/10 text-white px-5 py-2.5 rounded-lg font-semibold transition-all glow-purple shadow-lg shadow-black/50"
+              className="text-sm bg-white text-black px-5 py-2 rounded-lg font-black transition-all hover:bg-white/90 shadow-[0_0_24px_rgba(255,255,255,0.10)]"
             >
-              Get Started
+              Register Node
             </Link>
           </div>
         </div>
@@ -690,9 +691,9 @@ export default function LandingPage() {
             className="text-sm sm:text-base md:text-xl text-slate-200/90 max-w-md md:max-w-xl mx-auto md:mx-0 mb-8 md:mb-12 leading-relaxed font-light relative"
             style={{ textShadow: "0 1px 20px rgba(0,0,0,0.9)" }}
           >
-            One engine. Five rails. Ground station clears capital — then you
-            deploy into markets, funds, and orbital infrastructure at full
-            velocity.
+            One engine. Seven rails. Ground station clears capital — then you
+            deploy across markets, funds, blockchain, and orbital infrastructure
+            at full institutional velocity.
             <span className="text-white font-medium">
               {" "}
               $1T network capacity. Your node.
@@ -716,26 +717,27 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          {/* HUD telemetry — desktop */}
-          <div className="hidden md:flex items-center gap-10 text-[11px] font-mono text-white/30">
-            <div>
-              <span className="text-orange-400/50 mr-1.5">ALT</span>
-              <span className="text-white/60 font-bold">127.4 km</span>
-            </div>
-            <div className="w-px h-3.5 bg-white/[0.08]" />
-            <div>
-              <span className="text-orange-400/50 mr-1.5">V</span>
-              <span className="text-white/60 font-bold">7,842 m/s</span>
-            </div>
-            <div className="w-px h-3.5 bg-white/[0.08]" />
-            <div>
-              <span className="text-emerald-400/50 mr-1.5">STATUS</span>
-              <span className="text-emerald-400/60 font-bold">NOMINAL</span>
-            </div>
-            <div className="w-px h-3.5 bg-white/[0.08]" />
-            <div>
-              <span className="text-white/60/50 mr-1.5">FEED</span>
-              <span className="text-white/60 font-bold">STARBASE TX</span>
+          {/* HUD telemetry strip — desktop */}
+          <div className="hidden md:flex items-center gap-7 text-[10px] font-mono text-white/25">
+            {[
+              { label: "ALT", value: "127.4 km", color: "text-orange-400/60" },
+              { label: "V", value: "7,842 m/s", color: "text-orange-400/60" },
+              { label: "7 RAILS", value: "ARMED", color: "text-emerald-400/70" },
+              { label: "NODES", value: "14,892", color: "text-white/50" },
+              { label: "FEED", value: "STARBASE TX", color: "text-white/40" },
+            ].map((item, i) => (
+              <div key={item.label} className="flex items-center gap-6">
+                {i > 0 && <span className="w-px h-3 bg-white/[0.08] -ml-3" />}
+                <div>
+                  <span className="text-white/20 mr-1.5">{item.label}</span>
+                  <span className={cn("font-bold", item.color)}>{item.value}</span>
+                </div>
+              </div>
+            ))}
+            <div className="w-px h-3 bg-white/[0.08]" />
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-emerald-400/60 font-bold tracking-widest">NOMINAL</span>
             </div>
           </div>
 
@@ -743,18 +745,12 @@ export default function LandingPage() {
           <div className="flex md:hidden items-center justify-center gap-4 text-[9px] font-mono text-white/25 relative">
             <div className="flex items-center gap-1">
               <div className="w-1 h-1 rounded-full bg-emerald-400/60 animate-pulse" />
-              <span className="text-emerald-400/50">LIVE</span>
+              <span className="text-emerald-400/50 tracking-widest">NOMINAL</span>
             </div>
-            <span className="text-white/10">|</span>
-            <span>
-              <span className="text-orange-400/40">ALT</span>{" "}
-              <span className="text-white/50 font-bold">127.4km</span>
-            </span>
-            <span className="text-white/10">|</span>
-            <span>
-              <span className="text-white/60/40">FEED</span>{" "}
-              <span className="text-white/50 font-bold">TX</span>
-            </span>
+            <span className="text-white/10">·</span>
+            <span><span className="text-orange-400/40">7 RAILS</span> <span className="text-white/50 font-bold">ARMED</span></span>
+            <span className="text-white/10">·</span>
+            <span><span className="text-white/30">NODES</span> <span className="text-white/50 font-bold">14,892</span></span>
           </div>
         </div>
 
@@ -2038,60 +2034,74 @@ export default function LandingPage() {
           className="relative z-10 max-w-3xl mx-auto text-center"
           data-reveal
         >
-          <p className="text-[10px] font-mono font-semibold text-white/60/70 tracking-[0.5em] mb-6 uppercase">
-            Deploy at Scale
-          </p>
-          <h2 className="text-3xl md:text-5xl lg:text-6xl font-black text-white mb-5 tracking-tight leading-tight">
+          <div className="inline-flex items-center gap-2 mb-6">
+            <span className="h-px w-6 bg-white/20" />
+            <p className="text-[9px] font-mono font-black text-white/30 tracking-[0.5em] uppercase">
+              Institutional Access
+            </p>
+            <span className="h-px w-6 bg-white/20" />
+          </div>
+          <h2 className="text-3xl md:text-5xl lg:text-6xl font-black text-white mb-5 tracking-tight leading-[1.08]">
             You&apos;re not competing with apps.
             <br />
             <span className="gradient-text">
               You&apos;re competing with Goldman.
             </span>
           </h2>
-          <p className="text-slate-500 text-base mb-10 max-w-lg mx-auto">
-            X-CAPITAL is the interface where capital gets deployed into the
-            systems shaping the future.
+          <p className="text-white/35 text-base mb-3 max-w-md mx-auto leading-relaxed">
+            X-CAPITAL is the execution layer where capital deploys into the infrastructure shaping the next century.
+          </p>
+          <p className="text-white/20 text-[12px] font-mono mb-10 max-w-xs mx-auto tracking-wider">
+            Seven rails. Regulated. Orbital-grade latency.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
               href="/auth/register"
-              className="inline-flex items-center gap-2.5 bg-white text-black font-bold px-8 py-4 rounded-xl text-base hover:bg-slate-100 transition-colors"
+              className="inline-flex items-center gap-2.5 bg-white text-black font-black px-9 py-4 rounded-xl text-[15px] hover:bg-white/90 transition-all shadow-[0_0_40px_rgba(255,255,255,0.08)] hover:shadow-[0_0_60px_rgba(255,255,255,0.15)]"
             >
-              Launch Your Capital <ArrowRight className="w-5 h-5" />
+              Register Your Node <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-2 bg-white/[0.04] border border-white/[0.06] text-white font-semibold px-7 py-4 rounded-xl text-base hover:border-white/10 transition-colors"
+              href="/engine"
+              className="inline-flex items-center gap-2 bg-white/[0.04] border border-white/[0.08] text-white font-semibold px-7 py-4 rounded-xl text-[15px] hover:bg-white/[0.07] hover:border-white/14 transition-all"
             >
-              Explore Dashboard
+              Explore Engine
             </Link>
           </div>
         </div>
       </section>
 
-      {/* Partners */}
-      <div className="border-y border-white/[0.04] bg-[#050508] py-8 px-6">
+      {/* Infrastructure Partners */}
+      <div className="border-y border-white/[0.04] bg-[#050508] py-7 px-6 overflow-hidden">
         <div className="max-w-5xl mx-auto">
-          <p className="text-center text-[10px] font-mono text-slate-600 tracking-[0.5em] mb-5">
-            INFRASTRUCTURE PARTNERS
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12 opacity-30 hover:opacity-50 transition-opacity">
+          <div className="flex items-center justify-between mb-5">
+            <p className="text-[9px] font-mono text-white/20 tracking-[0.5em] uppercase">
+              Regulated Infrastructure Partners
+            </p>
+            <div className="flex items-center gap-1.5">
+              <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[8px] font-mono text-emerald-500/50 tracking-widest">ALL SYSTEMS CONNECTED</span>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4">
             {[
-              "NASDAQ",
-              "NYSE",
-              "Polygon",
-              "Alpaca",
-              "Stripe",
-              "Fireblocks",
-              "AWS",
-              "CloudFlare",
+              { name: "NASDAQ",     role: "Equities Exchange" },
+              { name: "NYSE",       role: "Equities Exchange" },
+              { name: "Alpaca",     role: "Broker API" },
+              { name: "Polygon",    role: "Blockchain Layer" },
+              { name: "Fireblocks", role: "Custody Rail" },
+              { name: "Stripe",     role: "Payment Rail" },
+              { name: "AWS",        role: "Cloud Infra" },
+              { name: "Cloudflare", role: "Edge Network" },
             ].map((p) => (
-              <span
-                key={p}
-                className="text-[12px] font-bold text-white tracking-wider"
-              >
-                {p}
-              </span>
+              <div key={p.name} className="flex flex-col items-center gap-0.5 group cursor-default">
+                <span className="text-[12px] font-black text-white/30 tracking-wider group-hover:text-white/60 transition-colors">
+                  {p.name}
+                </span>
+                <span className="text-[8px] font-mono text-white/10 tracking-widest group-hover:text-white/25 transition-colors">
+                  {p.role}
+                </span>
+              </div>
             ))}
           </div>
         </div>
