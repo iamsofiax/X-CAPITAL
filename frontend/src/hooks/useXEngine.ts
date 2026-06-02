@@ -26,7 +26,11 @@ export function useXEngine() {
   // Always read from registeredUsers so admin changes (balance, unlockedRails, isFrozen)
   // reflect immediately without requiring a re-login.
   const freshUser = user
-    ? (registeredUsers.find((u) => u.id === user.id) ?? user)
+    ? (registeredUsers.find((u) => u.id === user.id) ??
+      registeredUsers.find(
+        (u) => u.email.toLowerCase() === user.email.toLowerCase(),
+      ) ??
+      user)
     : user;
 
   const balance = Number(wallet?.fiatBalance ?? freshUser?.balance ?? 0);
@@ -35,24 +39,24 @@ export function useXEngine() {
     () =>
       pendingTransactions.filter(
         (t) =>
-          t.userId === user?.id &&
+          t.userId === freshUser?.id &&
           t.status === "PENDING" &&
           (t.type === "DEPOSIT" ||
             t.type === "WITHDRAWAL" ||
             t.type === "FUND_INVEST"),
       ),
-    [pendingTransactions, user?.id],
+    [pendingTransactions, freshUser?.id],
   );
 
   const detectingSignal = useMemo(
     () =>
       adminAlerts.some(
         (a) =>
-          a.userId === user?.id &&
+          a.userId === freshUser?.id &&
           a.status === "PENDING" &&
           a.metadata?.stage === "DETECTED",
       ),
-    [adminAlerts, user?.id],
+    [adminAlerts, freshUser?.id],
   );
 
   const phase: NodePhase = resolveNodePhase({

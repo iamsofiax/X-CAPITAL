@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
-import CrispChat from "@/components/support/CrispChat";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://xcapital.investments"),
@@ -77,6 +77,9 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const tawkDirectChatUrl =
+    "https://tawk.to/chat/6a1e7b25dd90311c2ffb110c/1jq3h23fh";
+
   return (
     <html lang="en" className="dark">
       <head>
@@ -148,6 +151,18 @@ export default function RootLayout({
             }),
           }}
         />
+        <Script id="tawk-to-script" strategy="afterInteractive">
+          {`var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+Tawk_API.customDirectChatUrl='${tawkDirectChatUrl}';
+(function(){
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+s1.async=true;
+s1.src='https://embed.tawk.to/6a1e7b25dd90311c2ffb110c/1jq3h23fh';
+s1.charset='UTF-8';
+s1.setAttribute('crossorigin','*');
+s0.parentNode.insertBefore(s1,s0);
+})();`}
+        </Script>
       </head>
       <body className="bg-xc-black text-xc-text antialiased min-h-screen">
         {/* ═══ FUTURISTIC SPLASH SCREEN ═══ */}
@@ -208,7 +223,15 @@ export default function RootLayout({
           }}
         />
         {children}
-        <CrispChat />
+        <noscript>
+          <a
+            href={tawkDirectChatUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Open live support chat
+          </a>
+        </noscript>
       </body>
     </html>
   );

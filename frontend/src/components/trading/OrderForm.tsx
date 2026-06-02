@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { tradingAPI, walletAPI } from "@/lib/api";
+import { tradingAPI } from "@/lib/api";
+import { emitCapitalSignal } from "@/lib/capitalSignal";
 import { formatCurrency, cn } from "@/lib/utils";
-import { Button } from "@/components/ui/Button";
 import {
   TrendingUp,
   TrendingDown,
@@ -15,7 +15,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import type { Asset } from "@/types";
-import { useStore } from "@/store/useStore";
+import { useStore, type PendingTransaction } from "@/store/useStore";
 
 type OrderSide = "buy" | "sell";
 
@@ -24,7 +24,7 @@ interface OrderFormProps {
 }
 
 export default function OrderForm({ asset }: OrderFormProps) {
-  const { wallet } = useStore();
+  const { wallet, user, addPendingTransaction, addAdminAlert } = useStore();
   const [side, setSide] = useState<OrderSide>("buy");
   const [amount, setAmount] = useState("");
   const [qty, setQty] = useState("");
@@ -67,14 +67,37 @@ export default function OrderForm({ asset }: OrderFormProps) {
     setMessage(null);
     try {
       if (side === "buy") {
-        await tradingAPI.buy(asset.id, estimatedCost);
+        const tx: PendingTransaction = {
+          id: `ptx-trade-${Date.now()}`,
+          userId: user?.id || "unknown",
+          userEmail: user?.email || "unknown",
+          userName: `${user?.firstName || ""} ${user?.lastName || ""}`.trim(),
+          type: "FUND_INVEST",
+          method: "fund",
+          amount: estimatedCost,
+          currency: "USD",
+          details: {
+            assetId: asset.id,
+            symbol: asset.symbol,
+            assetName: asset.name,
+            qty: estimatedQty.toFixed(6),
+            side: "BUY",
+            note: "Trading buy order awaiting admin clearance",
+          },
+          status: "PENDING",
+          createdAt: new Date().toISOString(),
+        };
+        await emitCapitalSignal({ tx, addPendingTransaction, addAdminAlert });
       } else {
         await tradingAPI.sell(asset.id, estimatedQty);
       }
       setShowCelebration(true);
       setMessage({
         type: "success",
-        text: `${side === "buy" ? "Buy" : "Sell"} order placed for ${estimatedQty.toFixed(4)} ${asset.symbol}`,
+        text:
+          side === "buy"
+            ? `Buy signal queued for admin approval (${estimatedQty.toFixed(4)} ${asset.symbol})`
+            : `Sell order placed for ${estimatedQty.toFixed(4)} ${asset.symbol}`,
       });
       setAmount("");
       setQty("");
@@ -322,7 +345,9 @@ export default function OrderForm({ asset }: OrderFormProps) {
           <div>
             <div className="font-bold">{message.text}</div>
             <div className="text-[10px] text-emerald-400/70 mt-0.5">
-              Position added to your portfolio
+              {side === "buy"
+                ? "Awaiting admin clearance before balance routing"
+                : "Position updated in your portfolio"}
             </div>
           </div>
         </div>

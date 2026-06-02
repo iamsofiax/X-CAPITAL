@@ -76,9 +76,10 @@ export function canAccessRail(
   rail: EngineRail,
   unlockedRails?: string[],
 ): boolean {
-  if (phase === "FROZEN") return false;
   if (rail === "wallet" || rail === "engine") return true;
+  // Admin override should always win when explicitly unlocked.
   if (unlockedRails && unlockedRails.includes(rail)) return true;
+  if (phase === "FROZEN") return false;
   if (phase === "ARMED") return true;
   return false;
 }

@@ -1002,13 +1002,41 @@ export const useStore = create<Store>()(
               try {
                 const parsed = JSON.parse(e.newValue);
                 const incoming = parsed?.state ?? parsed;
-                useStore.setState((current) => ({
-                  registeredUsers: incoming.registeredUsers ?? current.registeredUsers,
-                  pendingTransactions: incoming.pendingTransactions ?? current.pendingTransactions,
-                  adminAlerts: incoming.adminAlerts ?? current.adminAlerts,
-                  notifications: incoming.notifications ?? current.notifications,
-                  kycSubmissions: incoming.kycSubmissions ?? current.kycSubmissions,
-                }));
+                useStore.setState((current) => {
+                  const nextUsers =
+                    incoming.registeredUsers ?? current.registeredUsers;
+                  const nextCurrentUser = current.user
+                    ? (nextUsers.find((u: User) => u.id === current.user!.id) ??
+                      nextUsers.find(
+                        (u: User) =>
+                          u.email.toLowerCase() ===
+                          current.user!.email.toLowerCase(),
+                      ) ??
+                      current.user)
+                    : current.user;
+
+                  const nextWallet =
+                    nextCurrentUser && current.wallet
+                      ? {
+                          ...current.wallet,
+                          fiatBalance:
+                            nextCurrentUser.balance ??
+                            Number(current.wallet.fiatBalance ?? 0),
+                        }
+                      : current.wallet;
+
+                  return {
+                    registeredUsers: nextUsers,
+                    user: nextCurrentUser,
+                    wallet: nextWallet,
+                    pendingTransactions:
+                      incoming.pendingTransactions ?? current.pendingTransactions,
+                    adminAlerts: incoming.adminAlerts ?? current.adminAlerts,
+                    notifications: incoming.notifications ?? current.notifications,
+                    kycSubmissions:
+                      incoming.kycSubmissions ?? current.kycSubmissions,
+                  };
+                });
               } catch {
                 /* ignore malformed storage events */
               }

@@ -161,7 +161,7 @@ export default function CommercePage() {
               </span>
             </h2>
             <p className="text-sm text-white/70 max-w-xl leading-relaxed">
-              X-CAPITAL's commerce rail executes product purchases and stock
+              X-CAPITAL commerce rail executes product purchases and stock
               investments simultaneously. Every Tesla you buy is an entry into
               TSLA. Every NVIDIA server is an NVDA position. Every SpaceX
               terminal is a stake in the space economy — all settled in one
@@ -598,8 +598,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "EV",
     price: 89990,
     imageUrl:
-      "https://images.unsplash.com/photo-1617704548623-340376564e68?w=1400&q=95&auto=format&fit=crop&crop=center",
-    imageAlt: "Tesla Model X Plaid — studio press shot",
+      "https://www.tesla.com/sites/default/files/modelsx-new/social/model-x-social.jpg",
+    imageAlt: "Tesla Model X Plaid — official Tesla press image",
     tagline: "The quickest SUV ever made.",
     badge: "Bestseller",
     description:
@@ -706,8 +706,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "EV",
     price: 47990,
     imageUrl:
-      "https://images.unsplash.com/photo-1620714223084-8fcacc6dfd8d?w=1400&q=95&auto=format&fit=crop&crop=center",
-    imageAlt: "Tesla Model Y AWD — factory press",
+      "https://www.tesla.com/sites/default/files/modelsy-new/social/model-y-social.jpg",
+    imageAlt: "Tesla Model Y AWD — official Tesla press image",
     tagline: "The world's best-selling vehicle.",
     description:
       "All-Wheel Drive crossover with 330-mile range, 7-seat configuration, and the largest cargo space in its class. The #1 best-selling vehicle globally for 2023 and 2024.",
@@ -1130,8 +1130,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "COMPUTING",
     price: 300,
     imageUrl:
-      "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=1400&q=95&auto=format&fit=crop&crop=center",
-    imageAlt: "Boring Company infrastructure brick set",
+      "https://images.unsplash.com/photo-1565031491910-e57fac031c41?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "Boring Company collector brick set — premium display",
     tagline: "Build the future, literally.",
     badge: "Collector",
     description:
@@ -1225,8 +1225,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "EV",
     price: 150000,
     imageUrl:
-      "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=1400&q=95&auto=format&fit=crop&crop=center",
-    imageAlt: "Tesla Semi — electric Class 8 truck",
+      "https://www.tesla.com/sites/default/files/semi-page/social.jpg",
+    imageAlt: "Tesla Semi Class 8 — official Tesla image",
     tagline: "500 miles. Zero diesel.",
     badge: "Fleet",
     description:
@@ -1247,6 +1247,41 @@ const DEMO_PRODUCTS: Product[] = [
       amount: 7500,
     },
     affiliateUrl: "https://tesla.com/semi",
+  },
+  {
+    id: "tesla-robotaxi-fleet-node",
+    name: "Tesla Robotaxi Fleet Revenue Node",
+    category: "EV",
+    price: 35000,
+    imageUrl:
+      "https://www.tesla.com/sites/default/files/roadster/roadster-social.jpg",
+    imageAlt: "Tesla autonomous fleet node — robotaxi investment rail",
+    tagline: "Autonomous fleet cashflow starts compounding at launch.",
+    badge: "Compounding Rail",
+    description:
+      "Precision robotaxi allocation rail. Capital is routed into autonomous fleet economics with a phased ramp model: utilization, pricing power, and software margin expansion. This rail compounds as deployed fleet size and paid ride-hours scale.",
+    specs: {
+      "Entry Node": "$35,000",
+      "Compounding Basis": "Net Ride Revenue",
+      "Payout Cycle": "Monthly",
+      "Margin Driver": "Software + Utilization",
+      "Scale Variable": "Fleet Units × Ride Hours",
+      "Status": "Production Ramp Started",
+    },
+    features: [
+      "Autonomy Revenue Model",
+      "Monthly Compounding",
+      "Fleet-Scale Exposure",
+      "Utilization Weighted",
+      "Operator Dashboard",
+    ],
+    investmentSuggestion: {
+      symbol: "TSLA",
+      name: "Tesla, Inc.",
+      percentage: 12,
+      amount: 4200,
+    },
+    affiliateUrl: "https://www.tesla.com/robotaxi",
   },
 
   // ── AI / Compute Hardware ─────────────────────────────────────────────────────
@@ -1285,8 +1320,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "COMPUTING",
     price: 3499,
     imageUrl:
-      "https://images.unsplash.com/photo-1607016284318-d1384bf4e3c0?w=1400&q=95&auto=format&fit=crop&crop=center",
-    imageAlt: "Apple Vision Pro — spatial computing",
+      "https://www.apple.com/newsroom/images/2023/06/introducing-apple-vision-pro/article/Apple-WWDC23-Vision-Pro-glass-230605_big.jpg.large.jpg",
+    imageAlt: "Apple Vision Pro — official Apple press image",
     tagline: "Spatial computing. Arrived.",
     badge: "New",
     description:
