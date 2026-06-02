@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { useStore } from "@/store/useStore";
+import { mergeUserFromRegistry } from "@/lib/mergeSessionUser";
 import {
   resolveNodePhase,
   canAccessRail,
@@ -23,15 +24,10 @@ export function useXEngine() {
     adminAlerts,
   } = useStore();
 
-  // Always read from registeredUsers so admin changes (balance, unlockedRails, isFrozen)
-  // reflect immediately without requiring a re-login.
-  const freshUser = user
-    ? (registeredUsers.find((u) => u.id === user.id) ??
-      registeredUsers.find(
-        (u) => u.email.toLowerCase() === user.email.toLowerCase(),
-      ) ??
-      user)
-    : user;
+  const freshUser = useMemo(
+    () => mergeUserFromRegistry(user, registeredUsers),
+    [user, registeredUsers],
+  );
 
   const balance = Number(wallet?.fiatBalance ?? freshUser?.balance ?? 0);
 
@@ -67,6 +63,17 @@ export function useXEngine() {
   });
 
   const lastPending = pendingCapital[0];
+  const unlockedRails = freshUser?.unlockedRails;
+
+  const canAccess = useCallback(
+    (rail: EngineRail) => canAccessRail(phase, rail, unlockedRails),
+    [phase, unlockedRails],
+  );
+
+  const lockReason = useCallback(
+    (rail: EngineRail) => railLockReason(phase, rail, unlockedRails),
+    [phase, unlockedRails],
+  );
 
   return {
     phase,
@@ -76,8 +83,9 @@ export function useXEngine() {
     nodeId: nodeIdFromToken(accessToken),
     pendingCapital,
     lastPending,
-    canAccess: (rail: EngineRail) => canAccessRail(phase, rail, freshUser?.unlockedRails),
-    lockReason: (rail: EngineRail) => railLockReason(phase, rail),
+    unlockedRails,
+    canAccess,
+    lockReason,
     isArmed: phase === "ARMED",
     isOnHold: phase === "PENDING" || phase === "DETECTING",
   };

@@ -593,7 +593,7 @@ export default function WalletPage() {
       <div className="space-y-8">
         {isUnfunded && (
           <MissionPanel title={ENGINE_COPY.nodeCold} code="UPL-00">
-            <p className="text-sm text-white/50 mb-6">{ENGINE_COPY.groundHold}</p>
+            <p className="text-sm text-white/55 mb-6 leading-relaxed max-w-xl">{ENGINE_COPY.groundHold}</p>
             <a
               href="#deposit-methods"
               className="inline-flex px-6 py-3 bg-white text-black text-sm font-bold rounded-full"

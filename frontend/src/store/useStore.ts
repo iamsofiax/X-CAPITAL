@@ -1,6 +1,15 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { User, Wallet, Portfolio } from "@/types";
+import { mergeUserFromRegistry } from "@/lib/mergeSessionUser";
+import { authAPI, adminAPI } from "@/lib/api";
+import {
+  hasApiToken,
+  mapAuthLoginUser,
+  mapMeToUser,
+  mergeUsersFromServer,
+  type ApiUserRow,
+} from "@/lib/apiUser";
 
 // Simple hash for client-side password storage (not bcrypt, but acceptable for client-only demo)
 async function hashPassword(password: string): Promise<string> {
@@ -75,6 +84,8 @@ interface AuthState {
     currentPassword: string,
     newPassword: string,
   ) => Promise<{ success: boolean; error?: string }>;
+  syncSessionFromApi: () => Promise<void>;
+  loadAdminUsersFromApi: () => Promise<boolean>;
   addAuditEntry: (entry: AuditEntry) => void;
   auditLog: AuditEntry[];
 }
@@ -291,6 +302,10 @@ export const useStore = create<Store>()(
         })),
 
       logout: () => {
+        const refreshToken = get().refreshToken;
+        if (refreshToken && hasApiToken()) {
+          void authAPI.logout(refreshToken).catch(() => undefined);
+        }
         if (typeof window !== "undefined") {
           localStorage.removeItem("xc_access_token");
           localStorage.removeItem("xc_refresh_token");
@@ -307,7 +322,132 @@ export const useStore = create<Store>()(
         });
       },
 
+      syncSessionFromApi: async () => {
+        if (!hasApiToken()) return;
+        try {
+          const { data: meRes } = await authAPI.getMe();
+          const me = meRes.data;
+          if (!me?.id) return;
+
+          const mapped = mapMeToUser(me);
+          const balance = Number(me.wallet?.fiatBalance ?? mapped.balance ?? 0);
+
+          set((state) => {
+            const emailKey = mapped.email.toLowerCase();
+            const hasRegistry = state.registeredUsers.some(
+              (u) =>
+                u.id === mapped.id || u.email.toLowerCase() === emailKey,
+            );
+            const registeredUsers = hasRegistry
+              ? state.registeredUsers.map((u) =>
+                  u.id === mapped.id || u.email.toLowerCase() === emailKey
+                    ? { ...u, ...mapped, balance }
+                    : u,
+                )
+              : [...state.registeredUsers, { ...mapped, balance }];
+
+            const sessionMatches =
+              state.user &&
+              (state.user.id === mapped.id ||
+                state.user.email.toLowerCase() === emailKey);
+
+            const user = sessionMatches
+              ? { ...mergeUserFromRegistry(state.user, registeredUsers)!, balance }
+              : state.user;
+
+            const wallet =
+              sessionMatches && state.wallet
+                ? { ...state.wallet, fiatBalance: balance }
+                : sessionMatches
+                  ? {
+                      id: me.wallet?.id ?? "wallet",
+                      fiatBalance: balance,
+                      cryptoBalance: Number(me.wallet?.cryptoBalance ?? 0),
+                      lockedBalance: 0,
+                    }
+                  : state.wallet;
+
+            return { registeredUsers, user, wallet };
+          });
+        } catch {
+          /* API offline — keep local state */
+        }
+      },
+
+      loadAdminUsersFromApi: async () => {
+        if (!hasApiToken()) return false;
+        try {
+          const { data: res } = await adminAPI.listUsers();
+          const rows = (res.data ?? []) as ApiUserRow[];
+          const adminEmail = get().user?.email;
+          set((state) => ({
+            registeredUsers: mergeUsersFromServer(
+              state.registeredUsers,
+              rows,
+              adminEmail,
+            ),
+          }));
+          return true;
+        } catch {
+          return false;
+        }
+      },
+
       registerUser: async ({ firstName, lastName, email, password }) => {
+        try {
+          const { data: regRes } = await authAPI.register({
+            email,
+            password,
+            firstName,
+            lastName,
+          });
+          const payload = regRes.data;
+          const { accessToken, refreshToken, user: apiUser } = payload;
+
+          let balance = 0;
+          try {
+            const { data: meRes } = await authAPI.getMe();
+            balance = Number(meRes.data?.wallet?.fiatBalance ?? 0);
+          } catch {
+            /* use zero balance */
+          }
+
+          const user = mapAuthLoginUser(apiUser, balance);
+          const state = get();
+          const emailKey = user.email.toLowerCase();
+          const registeredUsers = state.registeredUsers.some(
+            (u) => u.email.toLowerCase() === emailKey,
+          )
+            ? state.registeredUsers.map((u) =>
+                u.email.toLowerCase() === emailKey ? { ...u, ...user } : u,
+              )
+            : [...state.registeredUsers, user];
+
+          get().setAuth(user, accessToken, refreshToken);
+          set({ registeredUsers });
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem("xc_session_active", "1");
+          }
+          return { success: true };
+        } catch (err: unknown) {
+          const status =
+            err &&
+            typeof err === "object" &&
+            "response" in err &&
+            err.response &&
+            typeof err.response === "object" &&
+            "status" in err.response
+              ? Number(err.response.status)
+              : undefined;
+          if (status === 409) {
+            return {
+              success: false,
+              error: "An account with this email already exists.",
+            };
+          }
+          /* fall through to offline registration */
+        }
+
         const state = get();
         const existing = state.registeredUsers.find(
           (u) => u.email.toLowerCase() === email.toLowerCase(),
@@ -358,6 +498,59 @@ export const useStore = create<Store>()(
       },
 
       loginUser: async (email, password) => {
+        try {
+          const { data: loginRes } = await authAPI.login(email, password);
+          const payload = loginRes.data;
+          const { accessToken, refreshToken, user: apiUser } = payload;
+
+          let balance = 0;
+          try {
+            get().setAuth(mapAuthLoginUser(apiUser, 0), accessToken, refreshToken);
+            const { data: meRes } = await authAPI.getMe();
+            balance = Number(meRes.data?.wallet?.fiatBalance ?? 0);
+          } catch {
+            /* wallet optional on login */
+          }
+
+          const user = mapAuthLoginUser(apiUser, balance);
+          const state = get();
+          const emailKey = user.email.toLowerCase();
+          const registeredUsers = state.registeredUsers.some(
+            (u) => u.email.toLowerCase() === emailKey,
+          )
+            ? state.registeredUsers.map((u) =>
+                u.email.toLowerCase() === emailKey
+                  ? { ...u, ...user, lastLogin: new Date().toISOString() }
+                  : u,
+              )
+            : [...state.registeredUsers, { ...user, lastLogin: new Date().toISOString() }];
+
+          get().setAuth(
+            { ...user, lastLogin: new Date().toISOString() },
+            accessToken,
+            refreshToken,
+          );
+          set({ registeredUsers });
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem("xc_session_active", "1");
+          }
+          return { success: true };
+        } catch (err: unknown) {
+          const status =
+            err &&
+            typeof err === "object" &&
+            "response" in err &&
+            err.response &&
+            typeof err.response === "object" &&
+            "status" in err.response
+              ? Number(err.response.status)
+              : undefined;
+          if (status === 401 || status === 403) {
+            return { success: false, error: "Incorrect password." };
+          }
+          /* API unavailable — use local auth */
+        }
+
         const state = get();
         const pwHash = await hashPassword(password);
 
@@ -491,17 +684,26 @@ export const useStore = create<Store>()(
 
       updateUserById: (userId, updates) => {
         set((state) => {
+          const target = state.registeredUsers.find((u) => u.id === userId);
           const updatedRegisteredUsers = state.registeredUsers.map((u) =>
             u.id === userId ? { ...u, ...updates } : u,
           );
-          const isCurrentUser = state.user?.id === userId;
-          const updatedUser = isCurrentUser
-            ? { ...state.user!, ...updates }
+          const sessionMatches =
+            state.user &&
+            (state.user.id === userId ||
+              (target &&
+                state.user.email.toLowerCase() ===
+                  target.email.toLowerCase()));
+          const updatedUser = sessionMatches
+            ? mergeUserFromRegistry(state.user, updatedRegisteredUsers)
             : state.user;
 
-          // Sync wallet.fiatBalance whenever admin updates balance for the logged-in user
           let updatedWallet = state.wallet;
-          if (isCurrentUser && updates.balance !== undefined && state.wallet) {
+          if (
+            sessionMatches &&
+            updates.balance !== undefined &&
+            state.wallet
+          ) {
             updatedWallet = {
               ...state.wallet,
               fiatBalance: updates.balance,
@@ -530,6 +732,42 @@ export const useStore = create<Store>()(
         role = "USER",
         tier = "CORE",
       }) => {
+        if (hasApiToken()) {
+          try {
+            const { data: res } = await adminAPI.createUser({
+              firstName,
+              lastName,
+              email,
+              password,
+              tier,
+            });
+            const created = res.data;
+            const newUser: User = {
+              ...mapAuthLoginUser(created, Number(created.balance ?? 0)),
+              role: role as User["role"],
+              tier: tier as User["tier"],
+            };
+            set({
+              registeredUsers: [...get().registeredUsers, newUser],
+            });
+            return { success: true };
+          } catch (err: unknown) {
+            const msg =
+              err &&
+              typeof err === "object" &&
+              "response" in err &&
+              err.response &&
+              typeof err.response === "object" &&
+              "data" in err.response &&
+              err.response.data &&
+              typeof err.response.data === "object" &&
+              "message" in err.response.data
+                ? String(err.response.data.message)
+                : "Failed to create user on server.";
+            return { success: false, error: msg };
+          }
+        }
+
         const state = get();
         const existing = state.registeredUsers.find(
           (u) => u.email.toLowerCase() === email.toLowerCase(),
@@ -901,6 +1139,12 @@ export const useStore = create<Store>()(
         const state = get();
         const sub = state.kycSubmissions.find((s) => s.id === submissionId);
         if (!sub) return;
+        const matchesSub = (u: User) =>
+          u.id === sub.userId ||
+          u.email.toLowerCase() === sub.userEmail.toLowerCase();
+        const registeredUsers = state.registeredUsers.map((u) =>
+          matchesSub(u) ? { ...u, kycStatus: "APPROVED" as const } : u,
+        );
         set({
           kycSubmissions: state.kycSubmissions.map((s) =>
             s.id === submissionId
@@ -912,19 +1156,20 @@ export const useStore = create<Store>()(
                 }
               : s,
           ),
-          registeredUsers: state.registeredUsers.map((u) =>
-            u.id === sub.userId ? { ...u, kycStatus: "APPROVED" as const } : u,
-          ),
-          user:
-            state.user?.id === sub.userId
-              ? { ...state.user, kycStatus: "APPROVED" as const }
-              : state.user,
+          registeredUsers,
+          user: mergeUserFromRegistry(state.user, registeredUsers),
         });
       },
       rejectKYC: (submissionId, adminEmail, reason) => {
         const state = get();
         const sub = state.kycSubmissions.find((s) => s.id === submissionId);
         if (!sub) return;
+        const matchesSub = (u: User) =>
+          u.id === sub.userId ||
+          u.email.toLowerCase() === sub.userEmail.toLowerCase();
+        const registeredUsers = state.registeredUsers.map((u) =>
+          matchesSub(u) ? { ...u, kycStatus: "REJECTED" as const } : u,
+        );
         set({
           kycSubmissions: state.kycSubmissions.map((s) =>
             s.id === submissionId
@@ -937,13 +1182,8 @@ export const useStore = create<Store>()(
                 }
               : s,
           ),
-          registeredUsers: state.registeredUsers.map((u) =>
-            u.id === sub.userId ? { ...u, kycStatus: "REJECTED" as const } : u,
-          ),
-          user:
-            state.user?.id === sub.userId
-              ? { ...state.user, kycStatus: "REJECTED" as const }
-              : state.user,
+          registeredUsers,
+          user: mergeUserFromRegistry(state.user, registeredUsers),
         });
       },
 
@@ -990,6 +1230,15 @@ export const useStore = create<Store>()(
           if (state.theme) {
             document.documentElement.setAttribute("data-theme", state.theme);
           }
+          if (state.user && state.registeredUsers?.length) {
+            state.user = mergeUserFromRegistry(
+              state.user,
+              state.registeredUsers,
+            );
+          }
+          if (state.isAuthenticated && hasApiToken()) {
+            void useStore.getState().syncSessionFromApi();
+          }
         } catch (e) {
           console.error("[Store] Rehydration callback error:", e);
         }
@@ -1005,15 +1254,10 @@ export const useStore = create<Store>()(
                 useStore.setState((current) => {
                   const nextUsers =
                     incoming.registeredUsers ?? current.registeredUsers;
-                  const nextCurrentUser = current.user
-                    ? (nextUsers.find((u: User) => u.id === current.user!.id) ??
-                      nextUsers.find(
-                        (u: User) =>
-                          u.email.toLowerCase() ===
-                          current.user!.email.toLowerCase(),
-                      ) ??
-                      current.user)
-                    : current.user;
+                  const nextCurrentUser = mergeUserFromRegistry(
+                    current.user,
+                    nextUsers,
+                  );
 
                   const nextWallet =
                     nextCurrentUser && current.wallet

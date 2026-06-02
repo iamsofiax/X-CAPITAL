@@ -1,5 +1,6 @@
 import { PrismaClient, AssetType, InvestmentCategory } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import bcrypt from "bcryptjs";
 import "dotenv/config";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
@@ -256,6 +257,36 @@ async function main() {
       update: {},
       create: { ...inv, id: inv.name.replace(/\s+/g, "_").toLowerCase() },
     });
+  }
+
+  // ─── Platform admin (multi-device login + admin panel) ───────────────────
+  const adminEmail = "admin@xcapital.io";
+  const adminPasswordHash = await bcrypt.hash("Admin2026!", 12);
+  const existingAdmin = await prisma.user.findUnique({
+    where: { email: adminEmail },
+  });
+  if (!existingAdmin) {
+    const adminUser = await prisma.user.create({
+      data: {
+        email: adminEmail,
+        passwordHash: adminPasswordHash,
+        firstName: "Platform",
+        lastName: "Admin",
+        tier: "BLACK",
+        kycStatus: "APPROVED",
+        accreditationStatus: "ACCREDITED",
+      },
+    });
+    await prisma.wallet.create({ data: { userId: adminUser.id } });
+    await prisma.portfolio.create({
+      data: {
+        userId: adminUser.id,
+        totalValue: 0,
+        totalCost: 0,
+        totalPnL: 0,
+      },
+    });
+    console.log("   - Platform admin: admin@xcapital.io");
   }
 
   console.log("✅ Database seeded successfully!");

@@ -1518,10 +1518,46 @@ img[data-loaded="true"] {
   }
 }
 
-/* Tawk live chat — bottom-right, above app chrome */
+/* Tawk live chat — bottom-right, above app chrome (customer routes only) */
 #tawkchat-container,
 .tawk-widget {
   z-index: 100000 !important;
+}
+
+body[data-admin-route="true"] #tawkchat-container,
+body[data-admin-route="true"] .tawk-widget,
+body[data-admin-route="true"] iframe[title*="chat" i] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Mission canvas — lightweight enter (no JS animation lib) */
+@keyframes mission-canvas-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mission-canvas-enter {
+  animation: mission-canvas-in 0.35s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mission-canvas-enter {
+    animation: none;
+  }
+}
+
+.rail-infrastructure {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 12px 40px rgba(0, 0, 0, 0.35);
 }
 
 /* ─── Node Engine utilities ─────────────────────────────────────────────── */

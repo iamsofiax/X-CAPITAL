@@ -95,7 +95,7 @@ export default function MarketTicker() {
           };
         }),
       );
-    }, 3000);
+    }, 12000);
     return () => clearInterval(interval);
   }, [prices]);
 

@@ -16,6 +16,7 @@ import {
   X,
   Zap,
   Lock,
+  Unlock,
   Radio,
 } from "lucide-react";
 import { useStore } from "@/store/useStore";
@@ -89,17 +90,9 @@ const SESSION_COLOR: Record<string, string> = {
 export default function Sidebar() {
   const pathname = usePathname();
   const { sidebarOpen, setSidebarOpen, user, logout } = useStore();
-  const { canAccess, nodeId, phaseLabel } = useXEngine();
+  const { canAccess, nodeId, phaseLabel, unlockedRails } = useXEngine();
   const { time, session } = useUTCClock();
-  const [uptime, setUptime] = useState(99.97);
-
-  // Micro-fluctuate uptime for realism
-  useEffect(() => {
-    const id = setInterval(() => {
-      setUptime((u) => parseFloat((u + (Math.random() - 0.5) * 0.005).toFixed(3)));
-    }, 7000);
-    return () => clearInterval(id);
-  }, []);
+  const uptime = 99.97;
 
   return (
     <>
@@ -180,6 +173,8 @@ export default function Sidebar() {
           {navItems.map(({ href, icon: Icon, label, code, rail, railIndex }) => {
             const active = pathname === href || pathname.startsWith(href + "/");
             const locked = !canAccess(rail);
+            const adminLive =
+              !locked && unlockedRails?.includes(rail) === true;
             const dotColor = RAIL_COLORS[railIndex % RAIL_COLORS.length];
 
             return (
@@ -188,12 +183,11 @@ export default function Sidebar() {
                 href={href}
                 onClick={() => setSidebarOpen(false)}
                 className={cn(
-                  "group relative flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all duration-150",
+                  "group relative flex items-center gap-3 px-3.5 py-3 rounded-xl transition-colors duration-100",
                   "md:justify-center lg:justify-start",
                   active
                     ? "bg-white/[0.09] text-white shadow-sm"
                     : "text-white/55 hover:text-white hover:bg-white/[0.06]",
-                  locked && !active && "opacity-50",
                 )}
               >
                 {/* Active rail accent line */}
@@ -219,6 +213,12 @@ export default function Sidebar() {
                   active ? "font-extrabold" : "font-semibold",
                 )}>{label}</span>
 
+                {adminLive && !active && (
+                  <span className="md:hidden lg:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/25 text-[8px] font-bold text-emerald-400 tracking-wider shrink-0">
+                    <Unlock className="w-2.5 h-2.5" />
+                    LIVE
+                  </span>
+                )}
                 {locked && !active && (
                   <Lock className="w-3 h-3 text-amber-500/60 md:hidden lg:inline shrink-0" />
                 )}

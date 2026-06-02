@@ -1376,19 +1376,19 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── ENGINE: TURN ANY LIABILITY INTO A VAULT ─────────────── */}
+      {/* ── ENGINE: ASSET INTEGRATION ───────────────────────────── */}
       <section className="relative py-16 md:py-28 px-4 md:px-6 overflow-hidden bg-[#050508]">
         <div className="relative z-10 max-w-6xl mx-auto">
           <div className="text-center mb-16" data-reveal>
             <p className="text-[10px] font-mono font-semibold text-white/30 tracking-[0.5em] mb-4 uppercase">
-              Asset Integration
+              Core Infrastructure
             </p>
             <h2 className="text-3xl md:text-5xl font-black text-white mb-4 tracking-tight">
-              Turn any liability{" "}
-              <span className="gradient-text">into a vault.</span>
+              Balance-sheet assets,{" "}
+              <span className="gradient-text">routed as infrastructure.</span>
             </h2>
-            <p className="text-slate-500 text-base max-w-lg mx-auto">
-              Select your asset class. The engine syncs.
+            <p className="text-slate-500 text-base max-w-2xl mx-auto leading-relaxed">
+              Register collateral classes on the global mesh — mobility, real assets, operating equipment, and financial instruments — with audited custody, throughput attribution, and structural yield disclosure.
             </p>
           </div>
 

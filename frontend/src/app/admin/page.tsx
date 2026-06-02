@@ -9,6 +9,8 @@ import {
   type KYCSubmission,
 } from "@/store/useStore";
 import { cn, formatCurrency } from "@/lib/utils";
+import { adminAPI } from "@/lib/api";
+import { hasApiToken } from "@/lib/apiUser";
 import { MissionControl } from "@/components/x-engine";
 import type { User, Transaction } from "@/types";
 import {
@@ -189,6 +191,8 @@ export default function AdminPage() {
     kycSubmissions,
     approveKYC,
     rejectKYC,
+    loadAdminUsersFromApi,
+    syncSessionFromApi,
   } = useStore();
 
   const isAdmin =
@@ -311,6 +315,15 @@ export default function AdminPage() {
     };
   }, [registeredUsers]);
 
+  useEffect(() => {
+    if (!isAdmin || !hasApiToken()) return;
+    void loadAdminUsersFromApi();
+    const interval = setInterval(() => {
+      void loadAdminUsersFromApi();
+    }, 25_000);
+    return () => clearInterval(interval);
+  }, [isAdmin, loadAdminUsersFromApi]);
+
   // ── Helpers ───────────────────────────────────────────────────────────────
   const showToast = useCallback(
     (message: string, type: "success" | "error" | "info" = "success") =>
@@ -362,7 +375,7 @@ export default function AdminPage() {
     showToast(`Trading ${enabled ? "started" : "stopped"} for ${u.firstName}`);
   };
 
-  const handleFundDebit = () => {
+  const handleFundDebit = async () => {
     if (!fundModal) return;
     const amount = parseFloat(fundAmount);
     if (isNaN(amount) || amount <= 0) {
@@ -372,9 +385,69 @@ export default function AdminPage() {
     const user = registeredUsers.find((u) => u.id === fundModal.userId);
     if (!user) return;
     const isFund = fundModal.mode === "fund";
-    const newBalance = (user.balance ?? 0) + (isFund ? amount : -amount);
 
-    // Determine transaction type
+    const finish = () => {
+      audit(
+        `${isFund ? "Funded" : "Debited"} ${formatCurrency(amount)}${fundAsUser ? " (as user)" : ""}`,
+        user.email,
+        isFund ? "success" : "warning",
+      );
+      showToast(
+        `${isFund ? "Funded" : "Debited"} ${formatCurrency(amount)} ${isFund ? "to" : "from"} ${user.firstName}`,
+      );
+      setFundModal(null);
+      setFundAmount("");
+      setFundNote("");
+      setFundAsUser(false);
+      setFundTxType("auto");
+    };
+
+    if (hasApiToken()) {
+      try {
+        const dbTxType =
+          fundTxType === "auto"
+            ? undefined
+            : fundTxType === "FUND_INVESTMENT"
+              ? "FUND_INVESTMENT"
+              : fundTxType === "FUND_REDEMPTION"
+                ? "FUND_REDEMPTION"
+                : fundTxType;
+
+        const { data: res } = await adminAPI.adjustBalance(user.id, {
+          amount,
+          direction: isFund ? "credit" : "debit",
+          note:
+            fundNote ||
+            (isFund ? "Deposit" : "Withdrawal") +
+              (fundAsUser ? " (as user)" : ""),
+          txType: dbTxType,
+        });
+
+        const newBalance = Number(res.data?.fiatBalance ?? 0);
+        updateUserById(fundModal.userId, { balance: newBalance });
+        await loadAdminUsersFromApi();
+        await syncSessionFromApi();
+        finish();
+        return;
+      } catch (err: unknown) {
+        const msg =
+          err &&
+          typeof err === "object" &&
+          "response" in err &&
+          err.response &&
+          typeof err.response === "object" &&
+          "data" in err.response &&
+          err.response.data &&
+          typeof err.response.data === "object" &&
+          "message" in err.response.data
+            ? String(err.response.data.message)
+            : "Server balance update failed.";
+        showToast(msg, "error");
+        return;
+      }
+    }
+
+    const newBalance = (user.balance ?? 0) + (isFund ? amount : -amount);
     let txType: Transaction["type"];
     if (fundTxType === "auto") {
       txType = isFund ? "CREDIT" : "DEBIT";
@@ -394,19 +467,7 @@ export default function AdminPage() {
       balance: Math.max(0, newBalance),
       transactions: [...(user.transactions || []), txn],
     });
-    audit(
-      `${isFund ? "Funded" : "Debited"} ${formatCurrency(amount)}${fundAsUser ? " (as user)" : ""}`,
-      user.email,
-      isFund ? "success" : "warning",
-    );
-    showToast(
-      `${isFund ? "Funded" : "Debited"} ${formatCurrency(amount)} ${isFund ? "to" : "from"} ${user.firstName}`,
-    );
-    setFundModal(null);
-    setFundAmount("");
-    setFundNote("");
-    setFundAsUser(false);
-    setFundTxType("auto");
+    finish();
   };
 
   const handleEditSave = () => {

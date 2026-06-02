@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AIOracle from "@/components/oracle/AIOracle";
 import { StatCard } from "@/components/ui/Card";
-import { RailLock } from "@/components/x-engine";
+import { RailLock, RailInfrastructureHeader } from "@/components/x-engine";
 import { useStore } from "@/store/useStore";
 import { oracleAPI, tradingAPI } from "@/lib/api";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
@@ -268,6 +268,7 @@ export default function OraclePage() {
     <DashboardLayout title="Oracle" subtitle="Inference · sentiment · signals">
       <RailLock rail="oracle">
       <div className="space-y-8">
+        <RailInfrastructureHeader rail="oracle" />
         {/* ── Stats ── */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3 lg:gap-4">
           <StatCard

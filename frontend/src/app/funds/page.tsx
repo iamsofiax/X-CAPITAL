@@ -3,7 +3,11 @@
 import { useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import FundCard from "@/components/funds/FundCard";
-import { MissionPanel, RailLock } from "@/components/x-engine";
+import {
+  MissionPanel,
+  RailLock,
+  RailInfrastructureHeader,
+} from "@/components/x-engine";
 import { ENGINE_COPY } from "@/lib/xEngine";
 import { useXEngine } from "@/hooks/useXEngine";
 import { useStore } from "@/store/useStore";
@@ -174,6 +178,7 @@ export default function FundsPage() {
     <DashboardLayout title="Funds" subtitle="Capital allocation targets">
       <RailLock rail="funds">
       <div className="space-y-8">
+        <RailInfrastructureHeader rail="funds" />
         {!isArmed && (
           <MissionPanel title={ENGINE_COPY.nodeCold} code="FUND-00">
             <p className="text-sm text-white/50 mb-4">{ENGINE_COPY.groundHold}</p>

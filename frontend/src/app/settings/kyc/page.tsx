@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useStore, type KYCSubmission } from "@/store/useStore";
+import { useSessionUser } from "@/hooks/useSessionUser";
 import { cn } from "@/lib/utils";
 import {
   Shield,
@@ -69,7 +70,8 @@ const COUNTRIES = [
 
 export default function KYCPage() {
   const router = useRouter();
-  const { user, submitKYC, kycSubmissions, addAuditEntry } = useStore();
+  const { submitKYC, kycSubmissions, addAuditEntry } = useStore();
+  const user = useSessionUser();
 
   const [step, setStep] = useState<Step>(1);
   const [submitting, setSubmitting] = useState(false);
@@ -103,12 +105,18 @@ export default function KYCPage() {
   const idBackRef = useRef<HTMLInputElement>(null);
   const selfieRef = useRef<HTMLInputElement>(null);
 
-  // Check if user already has pending/approved KYC
+  const matchesUser = (s: KYCSubmission) =>
+    !!user &&
+    (s.userId === user.id ||
+      s.userEmail.toLowerCase() === user.email.toLowerCase());
+
   const existingSubmission = kycSubmissions.find(
     (s) =>
-      s.userId === user?.id &&
+      matchesUser(s) &&
       (s.status === "PENDING" || s.status === "APPROVED"),
   );
+
+  const kycApproved = user?.kycStatus === "APPROVED";
 
   const handleFileUpload = useCallback(
     (setter: (v: string) => void) =>
@@ -229,9 +237,13 @@ export default function KYCPage() {
     setSubmitted(true);
   };
 
-  // ── Already submitted ────────────────────────────────────────────────────
-  if (existingSubmission || submitted) {
-    const status = submitted ? "PENDING" : existingSubmission!.status;
+  // ── Already submitted or cleared by admin ───────────────────────────────
+  if (kycApproved || existingSubmission || submitted) {
+    const status = kycApproved
+      ? "APPROVED"
+      : submitted
+        ? "PENDING"
+        : existingSubmission!.status;
     return (
       <DashboardLayout
         title="KYC Verification"
@@ -287,7 +299,7 @@ export default function KYCPage() {
 
   // ── Rejected — allow resubmit ────────────────────────────────────────────
   const rejectedSubmission = kycSubmissions.find(
-    (s) => s.userId === user?.id && s.status === "REJECTED",
+    (s) => matchesUser(s) && s.status === "REJECTED",
   );
 
   return (

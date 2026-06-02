@@ -2,7 +2,12 @@
 
 import { useState, useMemo } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { MissionPanel, RailLock, PhaseTrack } from "@/components/x-engine";
+import {
+  MissionPanel,
+  RailLock,
+  PhaseTrack,
+  RailInfrastructureHeader,
+} from "@/components/x-engine";
 import AssetList from "@/components/trading/AssetList";
 import OrderForm from "@/components/trading/OrderForm";
 import { Badge } from "@/components/ui/Badge";
@@ -136,6 +141,7 @@ export default function TradingPage() {
     >
       <RailLock rail="trading">
       <div className="space-y-8">
+        <RailInfrastructureHeader rail="trading" />
         <MissionPanel
           title="XLINK"
           code="EXEC-01"

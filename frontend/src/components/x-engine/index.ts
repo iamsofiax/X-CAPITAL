@@ -6,3 +6,5 @@ export { default as MissionPanel } from "./MissionPanel";
 export { default as MissionControl } from "./MissionControl";
 export { default as PhaseTrack } from "./PhaseTrack";
 export { default as RailLock } from "./RailLock";
+export { default as RailAccessStrip } from "./RailAccessStrip";
+export { default as RailInfrastructureHeader } from "./RailInfrastructureHeader";

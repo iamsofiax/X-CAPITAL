@@ -62,9 +62,15 @@ import type {
   OptimalAllocation,
 } from "@/types";
 import Link from "next/link";
-import { MissionPanel, RailLock, PhaseTrack } from "@/components/x-engine";
+import {
+  MissionPanel,
+  RailLock,
+  PhaseTrack,
+  RailAccessStrip,
+} from "@/components/x-engine";
 import { ENGINE_COPY } from "@/lib/xEngine";
 import { useXEngine } from "@/hooks/useXEngine";
+import { useSessionUser } from "@/hooks/useSessionUser";
 
 // €€€ Deterministic performance data for chart (seeded, no random flicker) €€€€
 function generatePerformanceData(baseValue: number, days: number) {
@@ -124,6 +130,7 @@ const CustomTooltip = ({
 export default function DashboardPage() {
   const { user, setPortfolio, setWallet, wallet, pendingTransactions } =
     useStore();
+  const sessionUser = useSessionUser();
   const [portfolio, setLocalPortfolio] = useState<Portfolio | null>(null);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [topAssets, setTopAssets] = useState<Asset[]>([]);
@@ -304,7 +311,7 @@ export default function DashboardPage() {
     >
       <div className="space-y-8">
         {/* €€€ KYC Banner €€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ */}
-        {user?.kycStatus !== "APPROVED" && (
+        {sessionUser?.kycStatus !== "APPROVED" && (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/[0.03] border border-white/[0.10]/40 rounded-xl px-4 sm:px-5 py-3">
             <div>
               <span className="text-white/50 font-semibold text-sm">
@@ -325,8 +332,8 @@ export default function DashboardPage() {
 
         {!isArmed && (
           <MissionPanel title={ENGINE_COPY.nodeCold} code="OPS-00">
-            <p className="text-sm text-white/50 mb-6 max-w-lg">
-              {ENGINE_COPY.groundHold}. Open uplink to inject capital and arm execution rails.
+            <p className="text-sm text-white/55 mb-6 max-w-2xl leading-relaxed">
+              {ENGINE_COPY.nodeCold}. {ENGINE_COPY.groundHold}. Open the capital uplink to sequence rail arming across execution, holdings, funds, commerce, and oracle modules.
             </p>
             <Link
               href="/wallet"
@@ -338,6 +345,7 @@ export default function DashboardPage() {
         )}
 
         <PhaseTrack />
+        <RailAccessStrip />
 
         <RailLock rail="portfolio">
         {/* ─── Stats Row ─── */}

@@ -9,26 +9,26 @@ import MissionPanel from "./MissionPanel";
 const PHASES = [
   {
     id: "I",
-    title: "Register node",
-    body: "Create your operator identity on the network.",
+    title: "Node registration",
+    body: "Operator identity, compliance profile, and custody agreement bound to your XC node ID.",
     done: true,
   },
   {
     id: "II",
-    title: "Open uplink",
-    body: "Ground station clears capital. Loadout goes live.",
+    title: "Capital uplink",
+    body: "Fiat ingress through settlement queue. Ground station confirms loadout before rails sequence.",
     doneKey: "capital" as const,
   },
   {
     id: "III",
-    title: "Arm rails",
-    body: "Execution, funds, commerce, and oracle unlock.",
+    title: "Rail arming",
+    body: "Execution, holdings, funds, commerce, and oracle modules unlock under armed state or explicit clearance.",
     doneKey: "armed" as const,
   },
   {
     id: "IV",
-    title: "Build your phase",
-    body: "VIP curriculum: design your own deployment stack.",
+    title: "Infrastructure deployment",
+    body: "Integrate balance-sheet assets into the core engine — bandwidth, inference, and structural yield layers.",
     vip: true,
   },
 ];
@@ -38,18 +38,22 @@ export default function PhaseTrack() {
 
   const stepDone = (key?: "capital" | "armed") => {
     if (!key) return true;
-    if (key === "capital") return balance > 0 || phase === "PENDING" || phase === "DETECTING";
+    if (key === "capital")
+      return balance > 0 || phase === "PENDING" || phase === "DETECTING";
     if (key === "armed") return isArmed;
     return false;
   };
 
   return (
-    <MissionPanel title="Deployment phases" code="VIP">
+    <MissionPanel title="Deployment sequence" code="SEQ-00">
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
         {PHASES.map((p) => {
           const active =
             p.id === "I" ||
-            (p.id === "II" && (phase === "COLD" || phase === "DETECTING" || phase === "PENDING")) ||
+            (p.id === "II" &&
+              (phase === "COLD" ||
+                phase === "DETECTING" ||
+                phase === "PENDING")) ||
             (p.id === "III" && (phase === "PENDING" || isArmed)) ||
             (p.id === "IV" && isArmed);
           const done = p.done || (p.doneKey ? stepDone(p.doneKey) : false);
@@ -58,7 +62,7 @@ export default function PhaseTrack() {
             <div
               key={p.id}
               className={cn(
-                "rounded-lg border p-4 transition-colors",
+                "rounded-xl border p-4",
                 active
                   ? "border-emerald-500/30 bg-emerald-500/[0.04]"
                   : "border-white/[0.06] bg-white/[0.02]",
@@ -70,15 +74,19 @@ export default function PhaseTrack() {
                 </span>
                 {p.vip && (
                   <span className="text-[9px] font-bold uppercase tracking-wider text-amber-400/80">
-                    VIP
+                    CORE
                   </span>
                 )}
                 {done && (
-                  <span className="text-[9px] font-bold text-emerald-400">DONE</span>
+                  <span className="text-[9px] font-bold text-emerald-400">
+                    COMPLETE
+                  </span>
                 )}
               </div>
-              <h3 className="text-sm font-semibold text-white">{p.title}</h3>
-              <p className="text-xs text-white/45 mt-2 leading-relaxed">{p.body}</p>
+              <h3 className="text-sm font-bold text-white">{p.title}</h3>
+              <p className="text-xs text-white/45 mt-2 leading-relaxed">
+                {p.body}
+              </p>
             </div>
           );
         })}
@@ -86,10 +94,10 @@ export default function PhaseTrack() {
       {isArmed && (
         <Link
           href="/engine"
-          className="inline-flex items-center gap-2 mt-6 text-sm font-semibold text-emerald-400 hover:text-white transition-colors"
+          className="inline-flex items-center gap-2 mt-6 text-sm font-semibold text-emerald-400 hover:text-white transition-colors duration-100"
         >
           <Rocket className="w-4 h-4" />
-          Phase IV: learn to build your own stack
+          Phase IV: asset integration & yield architecture
           <ArrowRight className="w-4 h-4" />
         </Link>
       )}

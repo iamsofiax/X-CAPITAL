@@ -5,7 +5,12 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/ui/Card";
 import PortfolioChart from "@/components/portfolio/PortfolioChart";
 import HoldingsList from "@/components/portfolio/HoldingsList";
-import { MissionPanel, RailLock, PhaseTrack } from "@/components/x-engine";
+import {
+  MissionPanel,
+  RailLock,
+  PhaseTrack,
+  RailInfrastructureHeader,
+} from "@/components/x-engine";
 import { ENGINE_COPY } from "@/lib/xEngine";
 import { useXEngine } from "@/hooks/useXEngine";
 import { useStore } from "@/store/useStore";
@@ -251,6 +256,7 @@ export default function PortfolioPage() {
     <DashboardLayout title="Holdings" subtitle="Deployed capital · allocation">
       <RailLock rail="portfolio">
       <div className="space-y-8">
+        <RailInfrastructureHeader rail="portfolio" />
         {!isArmed && unfunded && (
           <MissionPanel title={ENGINE_COPY.nodeCold} code="HOLD-00">
             <p className="text-sm text-white/50">{ENGINE_COPY.groundHold}</p>

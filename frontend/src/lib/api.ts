@@ -131,6 +131,24 @@ export const oracleAPI = {
 };
 
 export const adminAPI = {
+  listUsers: () => api.get('/admin/users'),
+  createUser: (data: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    tier?: string;
+    phone?: string;
+  }) => api.post('/admin/users', data),
+  adjustBalance: (
+    userId: string,
+    body: {
+      amount: number;
+      direction: 'credit' | 'debit';
+      note?: string;
+      txType?: string;
+    },
+  ) => api.post(`/admin/users/${userId}/balance`, body),
   getAlerts: (status?: string) =>
     api.get('/admin/alerts', { params: status ? { status } : {} }),
   approveAlert: (id: string) => api.post(`/admin/alerts/${id}/approve`),

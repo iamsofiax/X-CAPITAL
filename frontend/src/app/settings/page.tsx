@@ -21,6 +21,7 @@ import {
   Lock,
 } from "lucide-react";
 import { useStore } from "@/store/useStore";
+import { useSessionUser } from "@/hooks/useSessionUser";
 import { cn } from "@/lib/utils";
 
 const TIER_STYLES: Record<string, string> = {
@@ -30,7 +31,8 @@ const TIER_STYLES: Record<string, string> = {
 };
 
 export default function SettingsPage() {
-  const { user, updateUser, changePassword, theme, setTheme } = useStore();
+  const { updateUser, changePassword, theme, setTheme } = useStore();
+  const user = useSessionUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [firstName, setFirstName] = useState(user?.firstName ?? "");

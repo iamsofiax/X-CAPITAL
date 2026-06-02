@@ -22,6 +22,7 @@ import {
   Filter,
 } from "lucide-react";
 import { useStore } from "@/store/useStore";
+import { RailLock, RailInfrastructureHeader } from "@/components/x-engine";
 
 /* €€ category filter config €€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ */
 const CATEGORIES = [
@@ -125,9 +126,11 @@ export default function CommercePage() {
   return (
     <DashboardLayout
       title="Commerce"
-      subtitle="Buy world-class products Â· Invest in the companies behind them"
+      subtitle="Institutional catalog · tokenized production nodes"
     >
+      <RailLock rail="commerce">
       <div className="space-y-4 md:space-y-6 lg:space-y-8">
+        <RailInfrastructureHeader rail="commerce" />
         {/* Hero Banner */}
         <div className="relative overflow-hidden rounded-2xl border border-xc-border min-h-[200px]">
           {/* background image */}
@@ -380,6 +383,7 @@ export default function CommercePage() {
           </span>
         </div>
       </div>
+      </RailLock>
 
       {/* €€ Checkout Modal €€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ */}
       <Modal

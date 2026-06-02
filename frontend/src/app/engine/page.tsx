@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { PhaseTrack } from "@/components/x-engine";
+import { PhaseTrack, RailInfrastructureHeader } from "@/components/x-engine";
+import { ENGINE_COPY } from "@/lib/xEngine";
 import { StructuralBlock } from "@/components/node-engine";
 import { cn } from "@/lib/utils";
 import {
@@ -257,24 +258,28 @@ export default function EnginePage() {
       ]);
     };
     push();
-    const interval = setInterval(push, 2200);
+    const interval = setInterval(push, 8000);
     return () => clearInterval(interval);
   }, []);
 
-  // Engine sync animation
   const handleAssetSelect = useCallback((id: string) => {
     setSelectedAsset(id);
     setEngineSyncing(true);
+  }, []);
+
+  useEffect(() => {
+    if (!engineSyncing) return;
     const timer = setTimeout(() => setEngineSyncing(false), 2400);
     return () => clearTimeout(timer);
-  }, []);
+  }, [engineSyncing, selectedAsset]);
 
   return (
     <DashboardLayout
-      title="The Engine"
-      subtitle="Turn any liability into a revenue node"
+      title="Core Engine"
+      subtitle="Asset integration · bandwidth mesh · structural yield"
     >
       <div className="space-y-0">
+        <RailInfrastructureHeader rail="engine" className="mb-10 md:mb-14" />
         {/* ── HERO: AI COMPUTE + BANDWIDTH ──────────────────────────── */}
         <section className="border-b border-white/[0.08] pb-10 md:pb-16 mb-10 md:mb-16">
           <div className="max-w-3xl">
@@ -530,16 +535,16 @@ export default function EnginePage() {
           </div>
         </section>
 
-        {/* ── TURN ANY LIABILITY INTO A VAULT ───────────────────────── */}
+        {/* ── ASSET INTEGRATION ─────────────────────────────────────── */}
         <section className="border-b border-white/[0.08] pb-10 md:pb-16 mb-10 md:mb-16">
           <p className="text-xs font-mono uppercase tracking-[0.2em] text-white/30 mb-4">
             ASSET INTEGRATION
           </p>
           <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight mb-3">
-            Turn any liability into a vault.
+            {ENGINE_COPY.assetIntegrationTitle}
           </h2>
-          <p className="text-sm text-white/35 max-w-xl mb-6 md:mb-10">
-            Select your asset class. The engine syncs.
+          <p className="text-sm text-white/45 max-w-2xl mb-6 md:mb-10 leading-relaxed">
+            {ENGINE_COPY.assetIntegrationBody}
           </p>
 
           <div className="grid md:grid-cols-[280px_1fr] gap-6 md:gap-10">
@@ -550,7 +555,7 @@ export default function EnginePage() {
                   key={cat.id}
                   onClick={() => handleAssetSelect(cat.id)}
                   className={cn(
-                    "w-full flex items-center gap-4 px-5 py-5 border-b border-white/[0.08] last:border-b-0 text-left transition-all",
+                    "w-full flex items-center gap-4 px-5 py-5 border-b border-white/[0.08] last:border-b-0 text-left transition-colors duration-100",
                     selectedAsset === cat.id
                       ? "bg-white/[0.06]"
                       : "hover:bg-white/[0.02]",
