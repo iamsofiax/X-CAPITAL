@@ -329,48 +329,38 @@ export const useStore = create<Store>()(
           const me = meRes.data;
           if (!me?.id) return;
 
-          const mapped = mapMeToUser(me);
-          const balance = Number(me.wallet?.fiatBalance ?? mapped.balance ?? 0);
+          // Server balance is the single source of truth — never let local override it
+          const serverBalance = Number(me.wallet?.fiatBalance ?? 0);
+          const emailKey = me.email.toLowerCase();
 
           set((state) => {
-            const emailKey = mapped.email.toLowerCase();
-            const hasRegistry = state.registeredUsers.some(
-              (u) =>
-                u.id === mapped.id || u.email.toLowerCase() === emailKey,
+            const registeredUsers = state.registeredUsers.map((u) =>
+              u.id === me.id || u.email.toLowerCase() === emailKey
+                ? { ...u, balance: serverBalance }
+                : u,
             );
-            const registeredUsers = hasRegistry
-              ? state.registeredUsers.map((u) =>
-                  u.id === mapped.id || u.email.toLowerCase() === emailKey
-                    ? { ...u, ...mapped, balance }
-                    : u,
-                )
-              : [...state.registeredUsers, { ...mapped, balance }];
-
             const sessionMatches =
               state.user &&
-              (state.user.id === mapped.id ||
+              (state.user.id === me.id ||
                 state.user.email.toLowerCase() === emailKey);
 
             const user = sessionMatches
-              ? { ...mergeUserFromRegistry(state.user, registeredUsers)!, balance }
+              ? { ...state.user!, balance: serverBalance }
               : state.user;
 
-            const wallet =
-              sessionMatches && state.wallet
-                ? { ...state.wallet, fiatBalance: balance }
-                : sessionMatches
-                  ? {
-                      id: me.wallet?.id ?? "wallet",
-                      fiatBalance: balance,
-                      cryptoBalance: Number(me.wallet?.cryptoBalance ?? 0),
-                      lockedBalance: 0,
-                    }
-                  : state.wallet;
+            const wallet = sessionMatches
+              ? {
+                  id: me.wallet?.id ?? state.wallet?.id ?? "wallet",
+                  fiatBalance: serverBalance,
+                  cryptoBalance: Number(me.wallet?.cryptoBalance ?? 0),
+                  lockedBalance: Number(me.wallet?.lockedBalance ?? 0),
+                }
+              : state.wallet;
 
             return { registeredUsers, user, wallet };
           });
         } catch {
-          /* API offline — keep local state */
+          /* API offline — keep current state */
         }
       },
 
@@ -1193,12 +1183,40 @@ export const useStore = create<Store>()(
     }),
     {
       name: "xcapital-store",
+      version: 3,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      migrate: (_old: unknown, _fromVersion: number): any => {
+        // Wipe all persisted data on upgrade — forces clean login and fresh server sync
+        return {
+          user: null,
+          accessToken: null,
+          refreshToken: null,
+          isAuthenticated: false,
+          registeredUsers: [],
+          auditLog: [],
+          pendingTransactions: [],
+          adminAlerts: [],
+          notifications: [],
+          kycSubmissions: [],
+          theme: "black",
+        };
+      },
       partialize: (state) => ({
-        user: state.user,
+        user: state.user
+          ? {
+              ...state.user,
+              // Never persist local balance — always pull from server on load
+              balance: undefined,
+            }
+          : null,
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
-        registeredUsers: state.registeredUsers,
+        registeredUsers: state.registeredUsers.map((u) => ({
+          ...u,
+          // Strip balance from persisted registry — server is truth
+          balance: undefined,
+        })),
         auditLog: state.auditLog,
         pendingTransactions: state.pendingTransactions,
         adminAlerts: state.adminAlerts,
@@ -1226,16 +1244,10 @@ export const useStore = create<Store>()(
           if (state.isAuthenticated && !remembered) {
             sessionStorage.setItem("xc_session_active", "1");
           }
-          // Apply persisted theme
           if (state.theme) {
             document.documentElement.setAttribute("data-theme", state.theme);
           }
-          if (state.user && state.registeredUsers?.length) {
-            state.user = mergeUserFromRegistry(
-              state.user,
-              state.registeredUsers,
-            );
-          }
+          // Always fetch live balance from server on load — never trust cached value
           if (state.isAuthenticated && hasApiToken()) {
             void useStore.getState().syncSessionFromApi();
           }

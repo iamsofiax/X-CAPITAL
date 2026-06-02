@@ -560,48 +560,47 @@ export default function AdminPage() {
   };
 
   // ── Transaction Actions ───────────────────────────────────────────────────
-  const handleApprove = (txId: string) => {
+  const handleApprove = async (txId: string) => {
     const tx = pendingTransactions.find((t) => t.id === txId);
     if (!tx) return;
-    approvePendingTransaction(txId, currentUser?.email || "admin");
 
-    // Credit or debit user balance
-    const targetUser = registeredUsers.find((u) => u.id === tx.userId);
-    if (targetUser) {
-      const usdAmount =
-        tx.currency === "USD"
-          ? tx.amount
-          : tx.amount * (CRYPTO_RATES[tx.currency] || 1);
-      if (tx.type === "DEPOSIT") {
-        const txn: Transaction = {
-          id: uid(),
-          type: "CREDIT",
+    const usdAmount =
+      tx.currency === "USD"
+        ? tx.amount
+        : tx.amount * (CRYPTO_RATES[tx.currency] || 1);
+
+    if (hasApiToken()) {
+      try {
+        await adminAPI.adjustBalance(tx.userId, {
           amount: usdAmount,
-          note: `${tx.method.toUpperCase()} deposit approved`,
-          timestamp: new Date().toISOString(),
-          performedBy: currentUser?.email || "admin",
-        };
-        updateUserById(tx.userId, {
-          balance: (targetUser.balance ?? 0) + usdAmount,
-          transactions: [...(targetUser.transactions || []), txn],
+          direction: tx.type === "DEPOSIT" ? "credit" : "debit",
+          note: `${tx.method.toUpperCase()} ${tx.type.toLowerCase()} approved`,
+          txType: tx.type === "DEPOSIT" ? "DEPOSIT" : "WITHDRAWAL",
         });
-      } else {
-        const txn: Transaction = {
-          id: uid(),
-          type: "DEBIT",
-          amount: -usdAmount,
-          note: `${tx.method.toUpperCase()} withdrawal approved`,
-          timestamp: new Date().toISOString(),
-          performedBy: currentUser?.email || "admin",
-        };
-        updateUserById(tx.userId, {
-          balance: Math.max(0, (targetUser.balance ?? 0) - usdAmount),
-          transactions: [...(targetUser.transactions || []), txn],
-        });
+        approvePendingTransaction(txId, currentUser?.email || "admin");
+        await loadAdminUsersFromApi();
+        await syncSessionFromApi();
+      } catch (err: unknown) {
+        const msg =
+          err &&
+          typeof err === "object" &&
+          "response" in err &&
+          err.response &&
+          typeof err.response === "object" &&
+          "data" in err.response &&
+          err.response.data &&
+          typeof err.response.data === "object" &&
+          "message" in err.response.data
+            ? String(err.response.data.message)
+            : "Server approval failed.";
+        showToast(msg, "error");
+        return;
       }
+    } else {
+      // Offline fallback — local only
+      approvePendingTransaction(txId, currentUser?.email || "admin");
     }
 
-    // Notify user
     addNotification({
       id: `n-${uid()}`,
       userId: tx.userId,
