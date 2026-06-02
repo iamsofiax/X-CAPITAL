@@ -64,7 +64,7 @@ function formatPrice(price: number): string {
 
 export default function MarketTicker() {
   const [data, setData] = useState(TICKER_SEED);
-  const { prices } = useMarketPrices({ refreshInterval: 30_000 });
+  const { prices } = useMarketPrices({ refreshInterval: 120_000 });
 
   // Overlay live prices onto ticker items whenever prices update
   useEffect(() => {
@@ -80,23 +80,6 @@ export default function MarketTicker() {
         };
       }),
     );
-  }, [prices]);
-
-  // Micro-fluctuations for items without live data (private tokens, commodities)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setData((prev) =>
-        prev.map((item) => {
-          if (prices[item.symbol]) return item; // skip live-priced items
-          return {
-            ...item,
-            price: item.price * (1 + (Math.random() - 0.5) * 0.002),
-            change: item.change + (Math.random() - 0.5) * 0.15,
-          };
-        }),
-      );
-    }, 12000);
-    return () => clearInterval(interval);
   }, [prices]);
 
   const items = [...data, ...data]; // duplicate for seamless loop

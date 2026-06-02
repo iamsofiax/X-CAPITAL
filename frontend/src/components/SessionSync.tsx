@@ -1,31 +1,42 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useStore } from "@/store/useStore";
 import { hasApiToken } from "@/lib/apiUser";
 
-/** Keeps wallet balance in sync across devices when logged in via the API. */
+/** Syncs wallet balance from server — throttled, no focus spam. */
 export default function SessionSync() {
   const isAuthenticated = useStore((s) => s.isAuthenticated);
   const syncSessionFromApi = useStore((s) => s.syncSessionFromApi);
+  const syncingRef = useRef(false);
 
   useEffect(() => {
     if (!isAuthenticated || !hasApiToken()) return;
 
-    void syncSessionFromApi();
+    const runSync = async () => {
+      if (syncingRef.current || document.hidden) return;
+      syncingRef.current = true;
+      try {
+        await syncSessionFromApi();
+      } finally {
+        syncingRef.current = false;
+      }
+    };
+
+    void runSync();
 
     const interval = setInterval(() => {
-      void syncSessionFromApi();
-    }, 20_000);
+      void runSync();
+    }, 90_000);
 
-    const onFocus = () => {
-      void syncSessionFromApi();
+    const onVisible = () => {
+      if (!document.hidden) void runSync();
     };
-    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [isAuthenticated, syncSessionFromApi]);
 

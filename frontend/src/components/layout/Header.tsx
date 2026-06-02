@@ -7,6 +7,7 @@ import { useStore } from "@/store/useStore";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useXEngine } from "@/hooks/useXEngine";
+import { useStableBalance } from "@/hooks/useStableBalance";
 import { PHASE_COLOR } from "@/lib/xEngine";
 import SearchModal from "./SearchModal";
 import NotificationsPanel from "./NotificationsPanel";
@@ -16,23 +17,22 @@ interface HeaderProps {
   subtitle?: string;
 }
 
-// Live market ticker — cycles through key instruments
 const TICKERS = [
   { sym: "TSLA", price: "248.37", chg: "+2.84%", up: true },
   { sym: "NVDA", price: "946.21", chg: "+1.22%", up: true },
-  { sym: "SPX",  price: "5,821", chg: "+0.41%", up: true },
-  { sym: "BTC",  price: "94,112", chg: "-0.38%", up: false },
+  { sym: "SPX", price: "5,821", chg: "+0.41%", up: true },
+  { sym: "BTC", price: "94,112", chg: "-0.38%", up: false },
   { sym: "AMZN", price: "213.54", chg: "+1.09%", up: true },
-  { sym: "XLINK","price": "2,441", chg: "+6.12%", up: true },
+  { sym: "XLINK", price: "2,441", chg: "+6.12%", up: true },
 ];
 
 export default function Header({ title, subtitle }: HeaderProps) {
   const { user, setSidebarOpen, notifications } = useStore();
-  const { phase, phaseLabel, balance } = useXEngine();
+  const { phase, phaseLabel } = useXEngine();
+  const stableBalance = useStableBalance();
   const [searchOpen, setSearchOpen] = useState(false);
   const [notifsOpen, setNotifsOpen] = useState(false);
   const [tickerIdx, setTickerIdx] = useState(0);
-  const [pulse, setPulse] = useState(false);
   const bellRef = useRef<HTMLButtonElement>(null);
 
   const unread = notifications.filter(
@@ -51,15 +51,10 @@ export default function Header({ title, subtitle }: HeaderProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
 
-  // Cycle tickers every 3.5 s
   useEffect(() => {
     const id = setInterval(() => {
-      setPulse(true);
-      setTimeout(() => {
-        setTickerIdx((i) => (i + 1) % TICKERS.length);
-        setPulse(false);
-      }, 200);
-    }, 3500);
+      setTickerIdx((i) => (i + 1) % TICKERS.length);
+    }, 15_000);
     return () => clearInterval(id);
   }, []);
 
@@ -68,9 +63,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-white/[0.05] bg-[#020204]/90 backdrop-blur-xl">
-        {/* Main header row */}
         <div className="flex items-center justify-between px-4 md:px-6 h-14 gap-4">
-          {/* Left: hamburger + page title */}
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setSidebarOpen(true)}
@@ -90,16 +83,8 @@ export default function Header({ title, subtitle }: HeaderProps) {
             </div>
           </div>
 
-          {/* Right: controls */}
           <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
-
-            {/* Live ticker chip */}
-            <div
-              className={cn(
-                "hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] transition-opacity duration-200",
-                pulse && "opacity-0",
-              )}
-            >
+            <div className="hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02]">
               <span className="engine-mono text-[9px] text-white/35 font-bold">{ticker.sym}</span>
               <span className="engine-mono text-[10px] text-white/60 font-bold tabular-nums">{ticker.price}</span>
               <span className={cn("engine-mono text-[9px] font-bold", ticker.up ? "text-emerald-400" : "text-red-400")}>
@@ -108,19 +93,17 @@ export default function Header({ title, subtitle }: HeaderProps) {
               </span>
             </div>
 
-            {/* Phase + balance chip */}
             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02]">
-              <Activity className="w-2.5 h-2.5 text-emerald-500/60 animate-pulse shrink-0" />
+              <Activity className="w-2.5 h-2.5 text-emerald-500/60 shrink-0" />
               <span className={cn("engine-mono text-[8px] font-bold tracking-wider", PHASE_COLOR[phase])}>
                 {phaseLabel}
               </span>
               <span className="w-px h-3 bg-white/[0.08]" />
               <span className="engine-mono text-[10px] text-emerald-400 font-bold tabular-nums">
-                {formatCurrency(balance)}
+                {formatCurrency(stableBalance)}
               </span>
             </div>
 
-            {/* Search */}
             <button
               onClick={() => setSearchOpen(true)}
               className="w-8 h-8 rounded-lg flex items-center justify-center text-white/35 hover:text-white hover:bg-white/5 transition-colors"
@@ -129,7 +112,6 @@ export default function Header({ title, subtitle }: HeaderProps) {
               <Search className="w-3.5 h-3.5" />
             </button>
 
-            {/* Notifications */}
             <div className="relative">
               <button
                 ref={bellRef}
@@ -151,7 +133,6 @@ export default function Header({ title, subtitle }: HeaderProps) {
               />
             </div>
 
-            {/* Avatar */}
             {user && (
               <div className="w-8 h-8 rounded-lg bg-white/[0.07] border border-white/[0.08] flex items-center justify-center overflow-hidden">
                 {user.profilePicture ? (
@@ -173,13 +154,12 @@ export default function Header({ title, subtitle }: HeaderProps) {
           </div>
         </div>
 
-        {/* Sub-strip: instrument context breadcrumb */}
         <div className="hidden md:flex items-center gap-0 border-t border-white/[0.03] px-6 h-7 overflow-hidden">
           {TICKERS.map((t, i) => (
             <div
               key={t.sym}
               className={cn(
-                "flex items-center gap-1.5 pr-4 mr-4 border-r border-white/[0.04] transition-all duration-300",
+                "flex items-center gap-1.5 pr-4 mr-4 border-r border-white/[0.04]",
                 i === tickerIdx ? "opacity-100" : "opacity-25",
                 i === TICKERS.length - 1 && "border-r-0",
               )}
@@ -189,8 +169,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
             </div>
           ))}
           <div className="ml-auto flex items-center gap-1.5">
-            <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="engine-mono text-[8px] text-emerald-500/50 tracking-widest">MARKETS LIVE</span>
+            <span className="engine-mono text-[8px] text-white/35 tracking-widest">REFERENCE</span>
           </div>
         </div>
       </header>

@@ -318,10 +318,6 @@ export default function AdminPage() {
   useEffect(() => {
     if (!isAdmin || !hasApiToken()) return;
     void loadAdminUsersFromApi();
-    const interval = setInterval(() => {
-      void loadAdminUsersFromApi();
-    }, 25_000);
-    return () => clearInterval(interval);
   }, [isAdmin, loadAdminUsersFromApi]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────

@@ -329,11 +329,18 @@ export const useStore = create<Store>()(
           const me = meRes.data;
           if (!me?.id) return;
 
-          // Server balance is the single source of truth — never let local override it
           const serverBalance = Number(me.wallet?.fiatBalance ?? 0);
           const emailKey = me.email.toLowerCase();
 
           set((state) => {
+            const currentBal = Number(state.wallet?.fiatBalance ?? state.user?.balance ?? 0);
+            if (
+              Math.abs(currentBal - serverBalance) < 0.01 &&
+              state.user?.id === me.id
+            ) {
+              return state;
+            }
+
             const registeredUsers = state.registeredUsers.map((u) =>
               u.id === me.id || u.email.toLowerCase() === emailKey
                 ? { ...u, balance: serverBalance }
@@ -858,6 +865,42 @@ export const useStore = create<Store>()(
         const tx = state.pendingTransactions.find((t) => t.id === txId);
         if (!tx || tx.status !== "PENDING") return;
 
+        const statusPatch = {
+          pendingTransactions: state.pendingTransactions.map((t) =>
+            t.id === txId
+              ? {
+                  ...t,
+                  status: "APPROVED" as const,
+                  resolvedAt: new Date().toISOString(),
+                  resolvedBy: adminEmail,
+                }
+              : t,
+          ),
+          adminAlerts: state.adminAlerts.map((a) =>
+            a.pendingTxId === txId
+              ? {
+                  ...a,
+                  status: "APPROVED" as const,
+                  read: true,
+                  resolvedAt: new Date().toISOString(),
+                }
+              : a,
+          ),
+        };
+
+        if (hasApiToken()) {
+          set(statusPatch);
+          state.addAuditEntry({
+            id: `audit-${Date.now()}`,
+            time: new Date().toISOString(),
+            actor: adminEmail,
+            action: "APPROVE_TX",
+            target: `${tx.type} $${tx.amount} — ${tx.userEmail}`,
+            level: "success",
+          });
+          return;
+        }
+
         const creditUser = (userId: string, amount: number) => {
           const updatedUsers = state.registeredUsers.map((u) =>
             u.id === userId
@@ -1183,7 +1226,7 @@ export const useStore = create<Store>()(
     }),
     {
       name: "xcapital-store",
-      version: 3,
+      version: 4,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       migrate: (_old: unknown, _fromVersion: number): any => {
         // Wipe all persisted data on upgrade — forces clean login and fresh server sync
@@ -1255,47 +1298,21 @@ export const useStore = create<Store>()(
           console.error("[Store] Rehydration callback error:", e);
         }
 
-        // Cross-tab sync: when another tab (e.g. admin) writes to localStorage,
-        // re-hydrate the shared slices so the user tab sees changes immediately.
+        // Cross-tab: sync notifications/alerts only — never balances (server is truth).
         if (typeof window !== "undefined") {
           window.addEventListener("storage", (e) => {
-            if (e.key === "xcapital-store" && e.newValue) {
-              try {
-                const parsed = JSON.parse(e.newValue);
-                const incoming = parsed?.state ?? parsed;
-                useStore.setState((current) => {
-                  const nextUsers =
-                    incoming.registeredUsers ?? current.registeredUsers;
-                  const nextCurrentUser = mergeUserFromRegistry(
-                    current.user,
-                    nextUsers,
-                  );
-
-                  const nextWallet =
-                    nextCurrentUser && current.wallet
-                      ? {
-                          ...current.wallet,
-                          fiatBalance:
-                            nextCurrentUser.balance ??
-                            Number(current.wallet.fiatBalance ?? 0),
-                        }
-                      : current.wallet;
-
-                  return {
-                    registeredUsers: nextUsers,
-                    user: nextCurrentUser,
-                    wallet: nextWallet,
-                    pendingTransactions:
-                      incoming.pendingTransactions ?? current.pendingTransactions,
-                    adminAlerts: incoming.adminAlerts ?? current.adminAlerts,
-                    notifications: incoming.notifications ?? current.notifications,
-                    kycSubmissions:
-                      incoming.kycSubmissions ?? current.kycSubmissions,
-                  };
-                });
-              } catch {
-                /* ignore malformed storage events */
-              }
+            if (e.key !== "xcapital-store" || !e.newValue) return;
+            try {
+              const parsed = JSON.parse(e.newValue);
+              const incoming = parsed?.state ?? parsed;
+              useStore.setState((current) => ({
+                pendingTransactions:
+                  incoming.pendingTransactions ?? current.pendingTransactions,
+                adminAlerts: incoming.adminAlerts ?? current.adminAlerts,
+                notifications: incoming.notifications ?? current.notifications,
+              }));
+            } catch {
+              /* ignore */
             }
           });
         }
