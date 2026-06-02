@@ -64,13 +64,18 @@ function useUTCClock() {
       const h = now.getUTCHours();
       const m = now.getUTCMinutes().toString().padStart(2, "0");
       const s = now.getUTCSeconds().toString().padStart(2, "0");
-      setTime(`${h.toString().padStart(2, "0")}:${m}:${s} UTC`);
+      const next = `${h.toString().padStart(2, "0")}:${m}:${s} UTC`;
+      setTime((prev) => (prev === next ? prev : next));
 
-      // Market sessions (UTC hours)
-      if (h >= 0 && h < 8) setSession("TOKYO");
-      else if (h >= 8 && h < 16) setSession("LONDON");
-      else if (h >= 13 && h < 22) setSession("NEW YORK");
-      else setSession("CLOSED");
+      const nextSession: "TOKYO" | "LONDON" | "NEW YORK" | "CLOSED" =
+        h >= 0 && h < 8
+          ? "TOKYO"
+          : h >= 8 && h < 16
+            ? "LONDON"
+            : h >= 13 && h < 22
+              ? "NEW YORK"
+              : "CLOSED";
+      setSession((prev) => (prev === nextSession ? prev : nextSession));
     };
     tick();
     const id = setInterval(tick, 1000);

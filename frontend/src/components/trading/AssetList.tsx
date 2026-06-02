@@ -61,7 +61,7 @@ export default function AssetList({
     load();
   }, [providedAssets]);
 
-  const { prices: livePrices } = useMarketPrices({ refreshInterval: 30_000 });
+  const { prices: livePrices } = useMarketPrices({ refreshInterval: 120_000 });
 
   // Overlay live prices onto assets
   useEffect(() => {
@@ -79,23 +79,7 @@ export default function AssetList({
     );
   }, [livePrices]);
 
-  // Micro-fluctuations only for assets without live data (private tokens etc)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setAssets((prev) =>
-        prev.map((a) => {
-          if (livePrices[a.symbol]) return a; // skip live-priced
-          return {
-            ...a,
-            price: Number(a.price) * (1 + (Math.random() - 0.48) * 0.004),
-            priceChange24h:
-              Number(a.priceChange24h ?? 0) + (Math.random() - 0.48) * 0.08,
-          };
-        }),
-      );
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [livePrices]);
+  // Asset list only updates when live prices arrive — no random interval
 
   const filtered = assets.filter((a) => {
     const matchSearch =

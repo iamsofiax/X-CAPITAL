@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "@/store/useStore";
 import { Button } from "@/components/ui/Button";
+import { XCapitalLogoMark } from "@/components/brand/XCapitalLogo";
 import {
   Eye,
   EyeOff,
@@ -102,7 +103,7 @@ export default function RegisterPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-xc-black flex items-center justify-center p-4">
+    <div className="min-h-screen min-h-[100dvh] bg-xc-black flex flex-col">
       <div className="fixed inset-0 bg-gradient-to-br from-white/[0.04]/10 via-transparent to-black pointer-events-none" />
       <div
         className="fixed inset-0 pointer-events-none"
@@ -111,20 +112,23 @@ export default function RegisterPage() {
         }}
       />
 
-      <div className="w-full max-w-md relative">
-        {/* Brand */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-block">
-            <div className="font-black text-3xl tracking-tight mb-2">
-              <span className="gradient-text">X-CAPITAL</span>
+      <div className="flex-1 flex items-center justify-center px-5 pt-14 pb-10 sm:pt-16 sm:pb-12 md:py-12">
+      <div className="w-full max-w-md relative premium-3d-scene">
+        <div className="text-center mb-10 sm:mb-12">
+          <Link href="/" className="inline-flex flex-col items-center gap-4">
+            <XCapitalLogoMark size={52} className="mx-auto" />
+            <div>
+              <div className="font-black text-2xl sm:text-3xl tracking-tight">
+                <span className="gradient-text">X-CAPITAL</span>
+              </div>
+              <p className="text-xc-muted text-sm mt-2">
+                Create your account — free forever
+              </p>
             </div>
           </Link>
-          <p className="text-xc-muted text-sm">
-            Create your account — free forever
-          </p>
         </div>
 
-        <div className="bg-xc-card border border-xc-border rounded-2xl p-8 shadow-2xl shadow-black/60">
+        <div className="bg-xc-card border border-xc-border rounded-2xl p-8 shadow-2xl shadow-black/60 premium-3d-tilt">
           <h1 className="text-xl font-black text-white mb-6">Get started</h1>
 
           <form onSubmit={handleRegister} className="space-y-4">
@@ -301,6 +305,7 @@ export default function RegisterPage() {
             </Link>
           </p>
         </div>
+      </div>
       </div>
     </div>
   );

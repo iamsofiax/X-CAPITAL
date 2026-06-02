@@ -280,7 +280,7 @@ export default function WalletPage() {
   const { prices: livePrices } = useMarketPrices({
     stocks: false,
     etfs: false,
-    refreshInterval: 30_000,
+    refreshInterval: 120_000,
   });
 
   // Overlay live rates onto the CRYPTOS array

@@ -163,7 +163,7 @@ export default function PortfolioPage() {
     setMonthlyReturns(generateMonthlyReturns());
   }, []);
 
-  const { prices: livePrices } = useMarketPrices({ refreshInterval: 30_000 });
+  const { prices: livePrices } = useMarketPrices({ refreshInterval: 120_000 });
 
   // Overlay live prices onto holdings
   useEffect(() => {
@@ -196,35 +196,33 @@ export default function PortfolioPage() {
     });
   }, [livePrices]);
 
-  // Micro-fluctuations for assets without live data
+  // Holdings refresh only when live prices arrive — no random interval tick
   useEffect(() => {
-    const interval = setInterval(() => {
-      setPortfolio((prev) => {
-        if (!prev || !prev.holdings?.length) return prev;
-        const updatedHoldings = prev.holdings.map((h) => {
-          if (livePrices[h.asset?.symbol ?? ""]) return h; // skip live-priced
-          const priceChange = (Math.random() - 0.48) * 0.005;
-          const newPrice = Number(h.asset?.price ?? 0) * (1 + priceChange);
-          const newValue = h.quantity * newPrice;
-          return {
-            ...h,
-            currentValue: newValue,
-            unrealizedPnL: newValue - h.quantity * h.avgCost,
-            asset: h.asset ? { ...h.asset, price: newPrice } : h.asset,
-          };
-        });
-        const totalVal =
-          updatedHoldings.reduce((s, h) => s + Number(h.currentValue), 0) +
-          (prev.cashBalance ?? 0);
+    if (!Object.keys(livePrices).length) return;
+    setPortfolio((prev) => {
+      if (!prev || !prev.holdings?.length) return prev;
+      const updatedHoldings = prev.holdings.map((h) => {
+        const live = livePrices[h.asset?.symbol ?? ""];
+        if (!live) return h;
+        const newPrice = live.price;
+        const newValue = h.quantity * newPrice;
         return {
-          ...prev,
-          holdings: updatedHoldings,
-          totalValue: totalVal,
-          totalPnL: totalVal - (prev.totalCost ?? 0),
+          ...h,
+          currentValue: newValue,
+          unrealizedPnL: newValue - h.quantity * h.avgCost,
+          asset: h.asset ? { ...h.asset, price: newPrice } : h.asset,
         };
       });
-    }, 2500);
-    return () => clearInterval(interval);
+      const totalVal =
+        updatedHoldings.reduce((s, h) => s + Number(h.currentValue), 0) +
+        (prev.cashBalance ?? 0);
+      return {
+        ...prev,
+        holdings: updatedHoldings,
+        totalValue: totalVal,
+        totalPnL: totalVal - (prev.totalCost ?? 0),
+      };
+    });
   }, [livePrices]);
 
   const pnlPct =

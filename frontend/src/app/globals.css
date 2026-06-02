@@ -491,6 +491,46 @@ input[type="number"] {
   opacity: 1;
 }
 
+/* Subtle 3D depth — premium sections (no jitter) */
+.premium-3d-scene {
+  perspective: 1200px;
+  perspective-origin: 50% 40%;
+}
+
+.premium-3d-tilt {
+  transform-style: preserve-3d;
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.premium-3d-tilt:hover {
+  transform: rotateX(6deg) rotateY(-5deg) translateZ(12px);
+}
+
+.depth-float {
+  transform-style: preserve-3d;
+  animation: depth-float 7s ease-in-out infinite;
+}
+
+@keyframes depth-float {
+  0%,
+  100% {
+    transform: rotateX(2deg) translateY(0) translateZ(0);
+  }
+  50% {
+    transform: rotateX(5deg) translateY(-6px) translateZ(8px);
+  }
+}
+
+.depth-layer-back {
+  transform: translateZ(-24px) scale(1.02);
+  opacity: 0.85;
+}
+
+.depth-layer-front {
+  transform: translateZ(16px);
+}
+
 /* Profit number styling */
 .profit-number {
   color: #10b981;

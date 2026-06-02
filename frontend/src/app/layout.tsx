@@ -172,10 +172,10 @@ export default function RootLayout({
             </div>
             {/* Logo */}
             <div className="xc-splash-logo">
-              <div className="xc-splash-icon">
-                <svg viewBox="0 0 24 24" fill="white" width="48" height="48">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                  <path d="M12 12l6-6" stroke="green" strokeWidth="2" />
+              <div className="xc-splash-icon flex items-center justify-center">
+                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" aria-hidden>
+                  <line x1="6" y1="6" x2="18" y2="18" stroke="white" strokeWidth="2.75" strokeLinecap="round" />
+                  <line x1="6" y1="18" x2="18" y2="6" stroke="#22c55e" strokeWidth="2.75" strokeLinecap="round" style={{ filter: "drop-shadow(0 0 8px rgba(34,197,94,0.6))" }} />
                 </svg>
               </div>
             </div>

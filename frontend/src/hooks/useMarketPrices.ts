@@ -29,7 +29,7 @@ export function useMarketPrices(
     stocks = true,
     crypto = true,
     etfs = true,
-    refreshInterval = 30_000,
+    refreshInterval = 120_000,
   } = options;
 
   const [prices, setPrices] = useState<Record<string, MarketPrice>>({});

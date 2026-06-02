@@ -30,6 +30,7 @@ import {
   Satellite,
 } from "lucide-react";
 import { OrbitalHero, CapitalTrajectory } from "@/components/node-engine";
+import { XCapitalLogoMark } from "@/components/brand/XCapitalLogo";
 import { cn } from "@/lib/utils";
 
 const stats = [
@@ -534,26 +535,7 @@ export default function LandingPage() {
       <nav className="fixed top-0 inset-x-0 z-50 px-6 py-4 glass border-b border-white/5">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="hero-x-logo w-9 h-9 rounded-xl bg-gradient-to-br from-black to-zinc-900 border border-white/20 flex items-center justify-center shadow-lg shadow-emerald-950/30">
-              <div className="x-logo relative">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="white"
-                  width="16"
-                  height="16"
-                  aria-label="X"
-                  style={{
-                    filter: "drop-shadow(0 0 6px rgba(16,185,129,0.4))",
-                  }}
-                >
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                </svg>
-                <div
-                  className="x-crossing"
-                  style={{ width: "140%", left: "-20%" }}
-                />
-              </div>
-            </div>
+            <XCapitalLogoMark size={36} className="depth-float" />
             <span className="font-black text-lg tracking-tight brand-xc">
               CAPITAL
             </span>
@@ -663,9 +645,9 @@ export default function LandingPage() {
         />
 
         {/* ── HERO CONTENT — centered on mobile, left-aligned on desktop ── */}
-        <div className="relative z-10 max-w-7xl w-full mx-auto px-6 md:px-16 text-center md:text-left pt-28 pb-32 md:pt-32 md:pb-24">
+        <div className="relative z-10 max-w-7xl w-full mx-auto px-6 md:px-16 text-center md:text-left pt-36 pb-40 sm:pt-32 sm:pb-36 md:pt-32 md:pb-28 premium-3d-scene">
           {/* Mobile depth layer — glassmorphic card behind text */}
-          <div className="md:hidden absolute inset-x-4 top-20 bottom-20 rounded-3xl bg-black/40 backdrop-blur-md border border-white/[0.06] pointer-events-none" />
+          <div className="md:hidden absolute inset-x-4 top-28 bottom-32 rounded-3xl bg-black/40 backdrop-blur-md border border-white/[0.06] pointer-events-none" />
 
           {/* Headline */}
           <h1 className="mb-6 md:mb-8 max-w-3xl mx-auto md:mx-0 relative">
@@ -701,7 +683,7 @@ export default function LandingPage() {
           </p>
 
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center md:items-start gap-3 md:gap-4 mb-12 md:mb-16 relative">
+          <div className="flex flex-col sm:flex-row items-center md:items-start gap-3 md:gap-4 mb-16 md:mb-20 relative">
             <Link
               href="/auth/register"
               className="group flex items-center gap-2.5 bg-white text-black font-bold px-8 py-4 rounded-xl text-base hover:bg-slate-100 transition-all shadow-[0_0_60px_rgba(255,255,255,0.15)]"
@@ -755,17 +737,17 @@ export default function LandingPage() {
         </div>
 
         {/* ── Stats bar — overlaps into next section for depth ── */}
-        <div className="absolute -bottom-6 md:bottom-0 inset-x-0 z-10">
+        <div className="absolute -bottom-4 md:bottom-0 inset-x-0 z-10 pb-6 md:pb-10">
           <div
             ref={statsRef}
-            className="max-w-5xl mx-auto px-4 md:px-6 pb-0 md:pb-8"
+            className="max-w-5xl mx-auto px-4 md:px-6"
           >
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 premium-3d-scene">
               {stats.map((stat, i) => (
                 <div
                   key={stat.label}
                   data-reveal
-                  className="reveal-item bg-black/30 backdrop-blur-xl border border-white/[0.08] rounded-xl px-4 py-4 text-center hover:bg-black/40 hover:border-white/[0.12] transition-all duration-300"
+                  className="reveal-item premium-3d-tilt bg-black/30 backdrop-blur-xl border border-white/[0.08] rounded-xl px-4 py-5 md:py-4 text-center hover:bg-black/40 hover:border-emerald-500/20 transition-all duration-300"
                   style={{ transitionDelay: `${i * 80}ms` }}
                 >
                   <div className="text-xl md:text-2xl font-black text-white mb-0.5 tracking-tight">
@@ -782,7 +764,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Live Market Ticker ── */}
-      <div className="relative w-full overflow-hidden border-y border-white/[0.04] bg-[#07070f]/90 backdrop-blur-lg pt-10 md:pt-3.5 pb-3.5 cursor-default">
+      <div className="relative w-full overflow-hidden border-y border-white/[0.04] bg-[#07070f]/90 backdrop-blur-lg pt-16 sm:pt-14 md:pt-8 pb-4 cursor-default">
         <div className="animate-ticker inline-flex gap-12 whitespace-nowrap text-xs font-mono">
           {[...tickerItems, ...tickerItems].map((item, i) => (
             <span key={i} className="inline-flex items-center gap-2.5">
@@ -839,7 +821,7 @@ export default function LandingPage() {
       {/* Features */}
       <section
         id="features"
-        className="relative py-16 md:py-28 px-4 md:px-6 overflow-hidden bg-[#030307]"
+        className="relative pt-20 pb-28 md:pt-28 md:pb-36 px-4 md:px-6 overflow-hidden bg-[#030307]"
       >
         {/* Living institutional rail canvas — adapts continuously */}
         <canvas
@@ -875,7 +857,7 @@ export default function LandingPage() {
                 key={feature.title}
                 href="/auth/register"
                 data-reveal
-                className={`reveal-item relative rounded-2xl bg-gradient-to-br ${feature.color} border p-5 md:p-6 hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/60 hover:border-white/[0.14] transition-all duration-300 group block ${i === 6 ? "sm:col-span-2 xl:col-span-2" : ""}`}
+                className={`reveal-item premium-3d-tilt relative rounded-2xl bg-gradient-to-br ${feature.color} border p-5 md:p-6 hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/60 hover:border-white/[0.14] transition-all duration-300 group block ${i === 6 ? "sm:col-span-2 xl:col-span-2" : ""}`}
                 style={{ transitionDelay: `${i * 60}ms` }}
               >
                 {/* Rail index badge */}
@@ -902,7 +884,7 @@ export default function LandingPage() {
 
           {/* Rail metrics strip */}
           <div
-            className="mt-8 md:mt-12 grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3"
+            className="mt-10 md:mt-14 mb-4 md:mb-8 grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3 premium-3d-scene"
             data-reveal
           >
             {[
@@ -913,7 +895,7 @@ export default function LandingPage() {
             ].map((m) => (
               <div
                 key={m.label}
-                className="text-center py-4 px-3 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:border-white/10 transition-colors"
+                className="text-center py-4 px-3 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:border-white/10 transition-colors premium-3d-tilt"
               >
                 <div className="text-xl font-black text-white font-mono">{m.value}</div>
                 <div className="text-[10px] font-bold text-white/50 mt-0.5">{m.label}</div>
@@ -2113,25 +2095,7 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div className="md:col-span-1">
               <div className="flex items-center gap-2 mb-3">
-                <div className="hero-x-logo w-6 h-6 rounded-md bg-gradient-to-br from-white/10 to-white/10 flex items-center justify-center">
-                  <div className="x-logo relative">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="white"
-                      width="12"
-                      height="12"
-                      style={{
-                        filter: "drop-shadow(0 0 4px rgba(16,185,129,0.4))",
-                      }}
-                    >
-                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                    </svg>
-                    <div
-                      className="x-crossing"
-                      style={{ width: "140%", left: "-20%", height: "1.5px" }}
-                    />
-                  </div>
-                </div>
+                <XCapitalLogoMark size={28} />
                 <span className="font-black text-white text-sm brand-xc">
                   CAPITAL
                 </span>

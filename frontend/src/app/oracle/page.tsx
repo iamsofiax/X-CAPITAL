@@ -177,49 +177,10 @@ export default function OraclePage() {
     setSentimentTimeline(generateSentimentTimeline(activeSymbol));
   }, [activeSymbol]);
 
-  // Drift accuracy live
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setAccuracyData((prev) =>
-        prev.map((d, i) =>
-          i === prev.length - 1
-            ? {
-                ...d,
-                accuracy: Math.min(
-                  95,
-                  Math.max(60, d.accuracy + (Math.random() - 0.48) * 0.5),
-                ),
-              }
-            : d,
-        ),
-      );
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Drift sentiment timeline live
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setSentimentTimeline((prev) => {
-        if (!prev.length) return prev;
-        const last = prev[prev.length - 1];
-        return [
-          ...prev.slice(0, -1),
-          {
-            ...last,
-            score: Math.max(
-              0.1,
-              Math.min(0.95, last.score + (Math.random() - 0.48) * 0.02),
-            ),
-          },
-        ];
-      });
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
+  // Accuracy and sentiment charts are static snapshots — no random drift
 
   // Live market prices — overlay onto forecasts' currentPrice
-  const { prices: livePrices } = useMarketPrices({ refreshInterval: 30_000 });
+  const { prices: livePrices } = useMarketPrices({ refreshInterval: 120_000 });
   useEffect(() => {
     if (Object.keys(livePrices).length === 0) return;
     setForecasts((prev) =>

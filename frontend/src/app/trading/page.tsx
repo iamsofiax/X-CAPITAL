@@ -118,7 +118,7 @@ const orderBookData = [
 
 export default function TradingPage() {
   const [selectedAsset, setSelectedAsset] = useState<Asset>(DEMO_ASSETS[7]); // XLINK
-  const { prices: livePrices } = useMarketPrices({ refreshInterval: 30000 });
+  const { prices: livePrices } = useMarketPrices({ refreshInterval: 120_000 });
 
   const assetWithLivePrice = useMemo(() => {
     const live = livePrices[selectedAsset?.symbol ?? ""];
