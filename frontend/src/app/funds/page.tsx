@@ -3,17 +3,13 @@
 import { useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import FundCard from "@/components/funds/FundCard";
-import {
-  OrbitalHero,
-  CapitalTrajectory,
-  NodeIntelligence,
-  NodeEmptyState,
-  NodePanel,
-} from "@/components/node-engine";
+import { MissionPanel, RailLock } from "@/components/x-engine";
+import { ENGINE_COPY } from "@/lib/xEngine";
+import { useXEngine } from "@/hooks/useXEngine";
 import { useStore } from "@/store/useStore";
 import { emitCapitalSignal } from "@/lib/capitalSignal";
 import type { PendingTransaction } from "@/store/useStore";
-import { NODE_EMPTY, formatNodeStatus, NODE_LABELS } from "@/lib/nodeCopy";
+import { NODE_LABELS } from "@/lib/nodeCopy";
 import { formatCurrency } from "@/lib/utils";
 
 const DEMO_FUNDS = [
@@ -118,11 +114,8 @@ export default function FundsPage() {
   const [investAmount, setInvestAmount] = useState("");
   const [investMsg, setInvestMsg] = useState<string | null>(null);
 
+  const { isArmed } = useXEngine();
   const cash = Number(wallet?.fiatBalance ?? user?.balance ?? 0);
-  const hasPending = pendingTransactions.some(
-    (t) => t.userId === user?.id && t.status === "PENDING",
-  );
-  const nodeState = formatNodeStatus(cash, hasPending);
 
   const filteredFunds = selectedCategory
     ? DEMO_FUNDS.filter((f) => f.category === selectedCategory)
@@ -178,26 +171,19 @@ export default function FundsPage() {
   };
 
   return (
-    <DashboardLayout
-      title="Investment Funds"
-      subtitle="Diversified fund access across all capital rails"
-    >
-      <div className="space-y-6">
-        <CapitalTrajectory />
-        <NodeIntelligence state={nodeState} />
-        <OrbitalHero dense showStats />
-
-        {cash <= 0 && (
-          <NodeEmptyState
-            title={NODE_EMPTY.funds.title}
-            body={NODE_EMPTY.funds.body}
-            cta={NODE_EMPTY.funds.cta}
-            href="/wallet"
-          />
+    <DashboardLayout title="Funds" subtitle="Capital allocation targets">
+      <RailLock rail="funds">
+      <div className="space-y-8">
+        {!isArmed && (
+          <MissionPanel title={ENGINE_COPY.nodeCold} code="FUND-00">
+            <p className="text-sm text-white/50 mb-4">{ENGINE_COPY.groundHold}</p>
+            <a href="/wallet" className="text-sm font-bold text-emerald-400 hover:text-white">
+              {ENGINE_COPY.uplink} →
+            </a>
+          </MissionPanel>
         )}
 
-        {/* Filters & Sorting */}
-        <NodePanel title="Fund routing matrix" subtitle="Filter deployment targets">
+        <MissionPanel title="Allocation matrix" code="FUND-01">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <h3 className="font-black text-white text-sm mb-3">
@@ -248,7 +234,7 @@ export default function FundsPage() {
               </select>
             </div>
           </div>
-        </NodePanel>
+        </MissionPanel>
 
         {/* Funds Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -263,9 +249,9 @@ export default function FundsPage() {
 
         {investModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-            <NodePanel
+            <MissionPanel
               title={`Route capital — ${investModal.name}`}
-              subtitle="Admin clearance required before allocation"
+              code="FUND-INV"
               className="max-w-md w-full"
             >
               <input
@@ -293,10 +279,11 @@ export default function FundsPage() {
                   Send signal
                 </button>
               </div>
-            </NodePanel>
+            </MissionPanel>
           </div>
         )}
       </div>
+      </RailLock>
     </DashboardLayout>
   );
 }

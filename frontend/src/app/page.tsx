@@ -546,11 +546,12 @@ export default function LandingPage() {
             className="text-sm sm:text-base md:text-xl text-slate-200/90 max-w-md md:max-w-xl mx-auto md:mx-0 mb-8 md:mb-12 leading-relaxed font-light relative"
             style={{ textShadow: "0 1px 20px rgba(0,0,0,0.9)" }}
           >
-            The institutional-grade platform for deploying capital across public
-            markets, private equity, tokenized assets, and the space economy.
+            One engine. Five rails. Ground station clears capital — then you
+            deploy into markets, funds, and orbital infrastructure at full
+            velocity.
             <span className="text-white font-medium">
               {" "}
-              Five rails. One command center.
+              $1T network capacity. Your node.
             </span>
           </p>
 
@@ -560,7 +561,7 @@ export default function LandingPage() {
               href="/auth/register"
               className="group flex items-center gap-2.5 bg-white text-black font-bold px-8 py-4 rounded-xl text-base hover:bg-slate-100 transition-all shadow-[0_0_60px_rgba(255,255,255,0.15)]"
             >
-              Launch Platform
+              Register node
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link
@@ -805,7 +806,7 @@ export default function LandingPage() {
               7,200+ active satellites. Sub-25ms latency. Orbital-grade
               redundancy. Your trades never touch terrestrial bottlenecks.
             </p>
-            <div className="mt-8 max-w-xl mx-auto">
+            <div className="mt-8 max-w-xl mx-auto hidden">
               <CapitalTrajectory />
             </div>
           </div>

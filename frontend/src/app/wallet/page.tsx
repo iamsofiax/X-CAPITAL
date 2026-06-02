@@ -9,15 +9,12 @@ import { Badge } from "@/components/ui/Badge";
 import { walletAPI } from "@/lib/api";
 import { emitCapitalSignal } from "@/lib/capitalSignal";
 import {
-  NodePanel,
   NodeStat,
-  NodeEmptyState,
-  NodeIntelligence,
-  CapitalTrajectory,
 } from "@/components/node-engine";
+import { MissionPanel } from "@/components/x-engine";
+import { ENGINE_COPY } from "@/lib/xEngine";
+import { useXEngine } from "@/hooks/useXEngine";
 import {
-  NODE_EMPTY,
-  formatNodeStatus,
   NODE_LABELS,
 } from "@/lib/nodeCopy";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -473,7 +470,7 @@ export default function WalletPage() {
   const cash = Number(wallet?.fiatBalance ?? user?.balance ?? 0);
   const locked = Number(wallet?.lockedBalance ?? 0);
   const displayTx = transactions;
-  const nodeState = formatNodeStatus(cash, myPending.length > 0);
+  const { phaseLabel, isArmed } = useXEngine();
   const isUnfunded = cash <= 0 && myPending.length === 0;
 
   const balanceHistory = useMemo(() => {
@@ -590,20 +587,20 @@ export default function WalletPage() {
 
   return (
     <DashboardLayout
-      title="Wallet"
-      subtitle="Balances, deposits &amp; withdrawals — live tracking"
+      title="Uplink"
+      subtitle="Capital injection · withdrawal · loadout"
     >
-      <div className="space-y-4 md:space-y-6 lg:space-y-8">
-        <CapitalTrajectory progress={isUnfunded ? 4 : 12} />
-        <NodeIntelligence state={nodeState} />
-
+      <div className="space-y-8">
         {isUnfunded && (
-          <NodeEmptyState
-            title={NODE_EMPTY.wallet.title}
-            body={NODE_EMPTY.wallet.body}
-            cta={NODE_EMPTY.wallet.cta}
-            href="#deposit-methods"
-          />
+          <MissionPanel title={ENGINE_COPY.nodeCold} code="UPL-00">
+            <p className="text-sm text-white/50 mb-6">{ENGINE_COPY.groundHold}</p>
+            <a
+              href="#deposit-methods"
+              className="inline-flex px-6 py-3 bg-white text-black text-sm font-bold rounded-full"
+            >
+              {ENGINE_COPY.uplink}
+            </a>
+          </MissionPanel>
         )}
 
         {/* ── Stat Cards ── */}
@@ -611,7 +608,7 @@ export default function WalletPage() {
           <NodeStat label="Available cash" value={formatCurrency(cash)} variant="signal" />
           <NodeStat label="Total deposited" value={formatCurrency(cash + locked)} variant="authority" />
           <NodeStat label="Locked in orders" value={formatCurrency(locked)} variant="locked" sub="In active positions" />
-          <NodeStat label="Node status" value={nodeState === "funded" ? "ARMED" : "UNFUNDED"} variant={cash > 0 ? "signal" : "locked"} />
+          <NodeStat label="Loadout status" value={phaseLabel} variant={isArmed ? "signal" : "locked"} />
         </div>
 
         {/* ── Pending Transactions Banner ── */}

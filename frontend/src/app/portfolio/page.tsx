@@ -5,13 +5,9 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/ui/Card";
 import PortfolioChart from "@/components/portfolio/PortfolioChart";
 import HoldingsList from "@/components/portfolio/HoldingsList";
-import {
-  NodePanel,
-  NodeIntelligence,
-  NodeEmptyState,
-  CapitalTrajectory,
-} from "@/components/node-engine";
-import { formatNodeStatus } from "@/lib/nodeCopy";
+import { MissionPanel, RailLock, PhaseTrack } from "@/components/x-engine";
+import { ENGINE_COPY } from "@/lib/xEngine";
+import { useXEngine } from "@/hooks/useXEngine";
 import { useStore } from "@/store/useStore";
 import { portfolioAPI } from "@/lib/api";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
@@ -238,13 +234,7 @@ export default function PortfolioPage() {
       }))
     : [];
 
-  const cash = Number(wallet?.fiatBalance ?? user?.balance ?? 0);
-  const nodeState = formatNodeStatus(
-    cash,
-    pendingTransactions.some(
-      (t) => t.userId === user?.id && t.status === "PENDING",
-    ),
-  );
+  const { isArmed } = useXEngine();
   const unfunded = (portfolio?.totalValue ?? 0) === 0 && !portfolio?.holdings?.length;
 
   const holdingsPnl =
@@ -258,20 +248,13 @@ export default function PortfolioPage() {
     })) ?? [];
 
   return (
-    <DashboardLayout
-      title="Portfolio"
-      subtitle="Performance, holdings &amp; allocation — live data"
-    >
-      <div className="space-y-5">
-        <CapitalTrajectory compact />
-        <NodeIntelligence state={nodeState} />
-        {unfunded && (
-          <NodeEmptyState
-            title="Portfolio node: UNFUNDED"
-            body="No holdings detected. Initiate a capital signal to arm execution rails."
-            cta="Initiate capital signal"
-            href="/wallet"
-          />
+    <DashboardLayout title="Holdings" subtitle="Deployed capital · allocation">
+      <RailLock rail="portfolio">
+      <div className="space-y-8">
+        {!isArmed && unfunded && (
+          <MissionPanel title={ENGINE_COPY.nodeCold} code="HOLD-00">
+            <p className="text-sm text-white/50">{ENGINE_COPY.groundHold}</p>
+          </MissionPanel>
         )}
         {/* ── Stats Row ── */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3 lg:gap-4">
@@ -676,7 +659,10 @@ export default function PortfolioPage() {
             ))}
           </div>
         </div>
+
+        <PhaseTrack />
       </div>
+      </RailLock>
     </DashboardLayout>
   );
 }

@@ -20,7 +20,7 @@ if (-not (Test-Path $Out)) { throw "Build output not found at $Out" }
 $NoJekyll = Join-Path $Out ".nojekyll"
 if (-not (Test-Path $NoJekyll)) { New-Item -Path $NoJekyll -ItemType File -Force | Out-Null }
 
-$CnameSrc = Join-Path $Root "frontend\public\CNAME"
+$CnameSrc = Join-Path $Root "scripts\CNAME.github-pages"
 $CnameDst = Join-Path $Out "CNAME"
 if (Test-Path $CnameSrc) { Copy-Item $CnameSrc $CnameDst -Force }
 
@@ -32,7 +32,8 @@ if ($LASTEXITCODE -ne 0) { throw "gh-pages publish failed" }
 Set-Location $Root
 Write-Host "Switching GitHub Pages to gh-pages branch..." -ForegroundColor Cyan
 $jsonFile = Join-Path $Root "pages-config.json"
-$pagesJson = '{"build_type":"legacy","source":{"branch":"gh-pages","path":"/"},"cname":"xcapital.investments"}'
+# Do not set cname here — production domain lives on Render (xcapital-web).
+$pagesJson = '{"build_type":"legacy","source":{"branch":"gh-pages","path":"/"}'
 [System.IO.File]::WriteAllText($jsonFile, $pagesJson, [System.Text.UTF8Encoding]::new($false))
 gh api -X PUT "repos/$RepoSlug/pages" --input $jsonFile 2>$null
 

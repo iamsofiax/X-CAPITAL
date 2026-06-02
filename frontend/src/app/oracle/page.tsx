@@ -4,12 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AIOracle from "@/components/oracle/AIOracle";
 import { StatCard } from "@/components/ui/Card";
-import {
-  CapitalTrajectory,
-  NodeIntelligence,
-  NodePanel,
-} from "@/components/node-engine";
-import { formatNodeStatus } from "@/lib/nodeCopy";
+import { RailLock } from "@/components/x-engine";
 import { useStore } from "@/store/useStore";
 import { oracleAPI, tradingAPI } from "@/lib/api";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
@@ -269,35 +264,10 @@ export default function OraclePage() {
     [forecasts],
   );
 
-  const cash = Number(wallet?.fiatBalance ?? user?.balance ?? 0);
-  const nodeState = formatNodeStatus(
-    cash,
-    pendingTransactions.some(
-      (t) => t.userId === user?.id && t.status === "PENDING",
-    ),
-  );
-
   return (
-    <DashboardLayout
-      title="AI Oracle"
-      subtitle="LSTM · Monte Carlo · Sentiment Analysis · Live Intelligence"
-    >
-      <div className="space-y-4 md:space-y-6 lg:space-y-8">
-        <CapitalTrajectory compact />
-        <NodeIntelligence state={nodeState} />
-        <NodePanel
-          title="Inference telemetry"
-          subtitle="Model outputs · sentiment rails · live signal routing"
-          headerRight={
-            <span className="node-telemetry text-node-signal text-[10px]">
-              NOMINAL
-            </span>
-          }
-        >
-          <p className="text-xs text-node-muted">
-            Execution layer nominal. Latency within orbital tolerance.
-          </p>
-        </NodePanel>
+    <DashboardLayout title="Oracle" subtitle="Inference · sentiment · signals">
+      <RailLock rail="oracle">
+      <div className="space-y-8">
         {/* ── Stats ── */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3 lg:gap-4">
           <StatCard
@@ -767,6 +737,7 @@ export default function OraclePage() {
           </div>
         </div>
       </div>
+      </RailLock>
     </DashboardLayout>
   );
 }

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { StructuralBlock, CapitalTrajectory } from "@/components/node-engine";
+import { PhaseTrack } from "@/components/x-engine";
+import { StructuralBlock } from "@/components/node-engine";
 import { cn } from "@/lib/utils";
 import {
   Car,
@@ -274,7 +275,6 @@ export default function EnginePage() {
       subtitle="Turn any liability into a revenue node"
     >
       <div className="space-y-0">
-        <CapitalTrajectory compact className="mb-8" />
         {/* ── HERO: AI COMPUTE + BANDWIDTH ──────────────────────────── */}
         <section className="border-b border-white/[0.08] pb-10 md:pb-16 mb-10 md:mb-16">
           <div className="max-w-3xl">
@@ -322,6 +322,10 @@ export default function EnginePage() {
             ))}
           </div>
         </section>
+
+        <div className="mb-10 md:mb-16">
+          <PhaseTrack />
+        </div>
 
         {/* ── WHY YIELD IS STRUCTURALLY GUARANTEED ──────────────────── */}
         <section className="border-b border-white/[0.08] pb-10 md:pb-16 mb-10 md:mb-16">

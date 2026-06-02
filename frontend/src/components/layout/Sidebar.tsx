@@ -15,160 +15,129 @@ import {
   Settings,
   X,
   Zap,
+  Lock,
 } from "lucide-react";
 import { useStore } from "@/store/useStore";
+import { useXEngine } from "@/hooks/useXEngine";
 import { cn } from "@/lib/utils";
+import type { EngineRail } from "@/lib/xEngine";
 
-const navItems = [
-  { href: "/dashboard", icon: Home, label: "Home" },
-  { href: "/trading", icon: BarChart3, label: "Trading" },
-  { href: "/portfolio", icon: Briefcase, label: "Portfolio" },
-  { href: "/funds", icon: Globe, label: "Funds & SPVs" },
-  { href: "/commerce", icon: ShoppingBag, label: "Commerce" },
-  { href: "/oracle", icon: Cpu, label: "AI Oracle" },
-  { href: "/engine", icon: Zap, label: "The Engine" },
-  { href: "/wallet", icon: Wallet, label: "Wallet" },
+const navItems: {
+  href: string;
+  icon: typeof Home;
+  label: string;
+  code: string;
+  rail: EngineRail;
+}[] = [
+  { href: "/dashboard", icon: Home, label: "Overview", code: "OPS", rail: "engine" },
+  { href: "/trading", icon: BarChart3, label: "Execution", code: "EXEC", rail: "trading" },
+  { href: "/portfolio", icon: Briefcase, label: "Holdings", code: "HOLD", rail: "portfolio" },
+  { href: "/funds", icon: Globe, label: "Funds", code: "FUND", rail: "funds" },
+  { href: "/commerce", icon: ShoppingBag, label: "Commerce", code: "COMM", rail: "commerce" },
+  { href: "/oracle", icon: Cpu, label: "Oracle", code: "INF", rail: "oracle" },
+  { href: "/engine", icon: Zap, label: "Engine", code: "CORE", rail: "engine" },
+  { href: "/wallet", icon: Wallet, label: "Uplink", code: "UPL", rail: "wallet" },
 ];
-
-const TIER_STYLES: Record<string, string> = {
-  CORE: "bg-white/10 text-white",
-  GOLD: "bg-amber-500/20 text-white/50 border border-white/[0.10]/30",
-  BLACK: "bg-white/10 text-white border border-white/20",
-};
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { sidebarOpen, setSidebarOpen, user, logout } = useStore();
+  const { canAccess, nodeId, phaseLabel } = useXEngine();
 
   return (
     <>
-      {/* Mobile backdrop overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar — slide drawer on mobile, fixed rail on desktop */}
       <aside
         className={cn(
-          "fixed top-0 bottom-0 left-0 z-50 flex flex-col bg-node-bg/98 backdrop-blur-xl border-r-2 border-node-border transition-transform duration-300 ease-in-out",
-          // Mobile: 260px drawer, slides in/out
-          "w-[260px]",
+          "fixed top-0 bottom-0 left-0 z-50 flex flex-col bg-black border-r border-white/[0.06]",
+          "w-[260px] transition-transform duration-300",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
-          // Desktop: always visible, icon rail (60px) expanding to full on lg
-          "md:translate-x-0 md:w-[60px] lg:w-[200px]",
+          "md:translate-x-0 md:w-[64px] lg:w-[220px]",
         )}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-3 py-4 border-b-2 border-node-border">
+        <div className="flex items-center justify-between px-3 py-5 border-b border-white/[0.06]">
           <Link
             href="/dashboard"
             className="flex items-center gap-3"
             onClick={() => setSidebarOpen(false)}
           >
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white flex items-center justify-center">
+            <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center shrink-0">
               <span className="text-black font-black text-xs">X</span>
             </div>
-            <span className="font-black text-sm tracking-tight text-white md:hidden lg:inline">
-              CAPITAL
-            </span>
+            <div className="md:hidden lg:block min-w-0">
+              <span className="font-bold text-sm text-white block">CAPITAL</span>
+              <span className="engine-mono text-[9px] text-white/30">{nodeId}</span>
+            </div>
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="md:hidden w-8 h-8 rounded-full flex items-center justify-center text-xc-muted hover:text-white hover:bg-white/10 transition-colors"
+            className="md:hidden w-8 h-8 rounded-lg text-white/40 hover:text-white"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
-          {navItems.map(({ href, icon: Icon, label }) => {
+        <div className="px-3 py-2 md:hidden lg:block">
+          <span className="engine-mono text-[9px] text-emerald-500/70">{phaseLabel}</span>
+        </div>
+
+        <nav className="flex-1 py-2 px-2 space-y-1 overflow-y-auto">
+          {navItems.map(({ href, icon: Icon, label, code, rail }) => {
             const active = pathname === href || pathname.startsWith(href + "/");
+            const locked = !canAccess(rail);
             return (
               <Link
                 key={href}
                 href={href}
                 onClick={() => setSidebarOpen(false)}
                 className={cn(
-                  "flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-semibold transition-all md:justify-center lg:justify-start border-2 border-transparent",
+                  "group flex items-center gap-3 px-3 py-3 rounded-lg text-[13px] transition-all",
+                  "md:justify-center lg:justify-start",
                   active
-                    ? "font-bold text-white bg-node-panel border-node-border"
-                    : "text-slate-300 hover:text-white hover:bg-node-panel/60 hover:border-node-border/40",
+                    ? "bg-white/[0.08] text-white"
+                    : "text-white/45 hover:text-white hover:bg-white/[0.04]",
+                  locked && !active && "opacity-50",
                 )}
               >
-                <Icon
-                  className={cn("w-[18px] h-[18px] flex-shrink-0")}
-                  strokeWidth={active ? 2.5 : 1.8}
-                />
-                <span className="md:hidden lg:inline">{label}</span>
+                <span className="engine-mono text-[9px] text-white/20 w-7 shrink-0 md:hidden lg:inline">
+                  {code}
+                </span>
+                <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={active ? 2.2 : 1.6} />
+                <span className="md:hidden lg:inline flex-1">{label}</span>
+                {locked && (
+                  <Lock className="w-3 h-3 text-amber-500/60 md:hidden lg:inline shrink-0" />
+                )}
               </Link>
             );
           })}
         </nav>
 
-        {/* User Section */}
         {user && (
-          <div className="border-t border-white/[0.08] p-2.5 space-y-0.5">
+          <div className="border-t border-white/[0.06] p-2 space-y-1">
             <Link
               href="/settings"
               onClick={() => setSidebarOpen(false)}
-              className="flex items-center gap-2.5 px-2 py-2 rounded-full hover:bg-white/[0.06] transition-colors md:justify-center lg:justify-start"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.04] text-sm md:justify-center lg:justify-start"
             >
-              <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                {user.profilePicture ? (
-                  <Image
-                    src={user.profilePicture}
-                    alt="Profile"
-                    width={32}
-                    height={32}
-                    className="w-full h-full object-cover"
-                    unoptimized
-                  />
-                ) : (
-                  <span className="text-white text-xs font-bold">
-                    {user.firstName?.[0] ?? ""}
-                    {user.lastName?.[0] ?? ""}
-                  </span>
-                )}
-              </div>
-              <div className="flex-1 min-w-0 md:hidden lg:block">
-                <span className="text-xs font-bold text-white truncate">
-                  {user.firstName} {user.lastName}
-                </span>
-                <div
-                  className={cn(
-                    "inline-block text-xs px-2 py-0.5 rounded-full font-mono font-bold mt-0.5",
-                    TIER_STYLES[user.tier],
-                  )}
-                >
-                  {user.tier}
-                </div>
-              </div>
+              <Settings className="w-4 h-4" />
+              <span className="md:hidden lg:inline">Settings</span>
             </Link>
-
-            <div className="flex items-center gap-1 md:flex-col lg:flex-row">
-              <Link
-                href="/settings"
-                onClick={() => setSidebarOpen(false)}
-                className="flex items-center gap-2 px-3 py-2 rounded-full text-xc-muted hover:text-white hover:bg-white/[0.06] transition-all text-sm flex-1 md:justify-center lg:justify-start"
-              >
-                <Settings className="w-4 h-4" />
-                <span className="md:hidden lg:inline">Settings</span>
-              </Link>
-              <button
-                onClick={() => {
-                  logout();
-                  setSidebarOpen(false);
-                }}
-                className="flex items-center gap-2 px-3 py-2 rounded-full text-xc-muted hover:text-xc-red hover:bg-red-950/30 transition-all text-sm flex-1 md:justify-center lg:justify-start"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="md:hidden lg:inline">Logout</span>
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                logout();
+                setSidebarOpen(false);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-950/20 text-sm md:justify-center lg:justify-start"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="md:hidden lg:inline">Logout</span>
+            </button>
           </div>
         )}
       </aside>

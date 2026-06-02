@@ -11,7 +11,6 @@ export interface Product {
   name: string;
   category: string;
   price: number;
-  imageEmoji: string;
   imageUrl?: string;            // high-res hero image
   imageAlt?: string;
   description: string;
@@ -107,18 +106,27 @@ function ProductHero({ product, overlayGrad }: { product: Product; overlayGrad: 
     );
   }
 
-  /* emoji fallback */
+  /* category icon fallback — no emoji strings */
+  const Icon =
+    product.category === "EV"
+      ? Zap
+      : product.category === "SPACE"
+        ? Rocket
+        : product.category === "AI" || product.category === "COMPUTING"
+          ? Star
+          : ShoppingCart;
+
   return (
-    <div className={cn(
-      'w-full h-40 flex flex-col items-center justify-center relative overflow-hidden',
-      'bg-gradient-to-br',
-      overlayGrad.replace('to-transparent', 'to-xc-dark'),
-    )}>
-      <div className="text-7xl group-hover:scale-110 transition-transform duration-500 drop-shadow-2xl">
-        {product.imageEmoji}
-      </div>
-      {/* decorative radial burst */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(124,58,237,0.15)_0%,transparent_70%)]" />
+    <div
+      className={cn(
+        "w-full h-40 flex flex-col items-center justify-center relative overflow-hidden",
+        "bg-gradient-to-br from-black/80 to-xc-card",
+      )}
+    >
+      <Icon className="w-16 h-16 text-white/20 group-hover:text-white/30 transition-colors" strokeWidth={1} />
+      <span className="engine-mono text-[10px] text-white/25 mt-3 uppercase tracking-widest">
+        {product.category}
+      </span>
     </div>
   );
 }

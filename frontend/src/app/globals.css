@@ -1492,6 +1492,41 @@ img[data-loaded="true"] {
   animation: nodePageEnter 0.5s ease-out forwards;
 }
 
+/* ─── X Engine — spacious mission composition ───────────────────────────── */
+.engine-mono {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  letter-spacing: 0.08em;
+}
+
+.x-engine-field {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 80% 50% at 50% -20%,
+    rgba(16, 185, 129, 0.04) 0%,
+    transparent 55%
+  );
+  opacity: 1;
+}
+
+.mission-panel {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.signal-pulse {
+  animation: signalPulseBg 2.5s ease-in-out infinite;
+}
+
+@keyframes signalPulseBg {
+  0%,
+  100% {
+    background-color: rgba(217, 119, 6, 0.04);
+  }
+  50% {
+    background-color: rgba(217, 119, 6, 0.08);
+  }
+}
+
 @keyframes nodePageEnter {
   from {
     opacity: 0;

@@ -2,9 +2,7 @@
 
 import { useState, useMemo } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { NodePanel, NodeIntelligence, CapitalTrajectory } from "@/components/node-engine";
-import { formatNodeStatus } from "@/lib/nodeCopy";
-import { useStore } from "@/store/useStore";
+import { MissionPanel, RailLock, PhaseTrack } from "@/components/x-engine";
 import AssetList from "@/components/trading/AssetList";
 import OrderForm from "@/components/trading/OrderForm";
 import { Badge } from "@/components/ui/Badge";
@@ -114,17 +112,8 @@ const orderBookData = [
 ];
 
 export default function TradingPage() {
-  const { user, wallet, pendingTransactions } = useStore();
   const [selectedAsset, setSelectedAsset] = useState<Asset>(DEMO_ASSETS[7]); // XLINK
   const { prices: livePrices } = useMarketPrices({ refreshInterval: 30000 });
-
-  const cash = Number(wallet?.fiatBalance ?? user?.balance ?? 0);
-  const nodeState = formatNodeStatus(
-    cash,
-    pendingTransactions.some(
-      (t) => t.userId === user?.id && t.status === "PENDING",
-    ),
-  );
 
   const assetWithLivePrice = useMemo(() => {
     const live = livePrices[selectedAsset?.symbol ?? ""];
@@ -141,18 +130,17 @@ export default function TradingPage() {
 
   return (
     <DashboardLayout
-      title="Trading Terminal"
-      subtitle="Real-time execution across all asset classes"
+      title="Execution"
+      subtitle="Live order routing · XLINK mesh"
+      wide
     >
-      <div className="space-y-6">
-        <CapitalTrajectory compact />
-        <NodePanel
-          title="XLINK execution rail"
-          subtitle="Orbital infrastructure token · live market feed"
+      <RailLock rail="trading">
+      <div className="space-y-8">
+        <MissionPanel
+          title="XLINK"
+          code="EXEC-01"
           headerRight={
-            <span className="node-telemetry text-node-signal text-[10px]">
-              LIVE
-            </span>
+            <span className="engine-mono text-[10px] text-emerald-400">LIVE</span>
           }
         >
           <div className="grid md:grid-cols-3 gap-6 items-start">
@@ -180,8 +168,7 @@ export default function TradingPage() {
               <p className="text-2xl font-black text-emerald-400">$4.2B</p>
             </div>
           </div>
-        </NodePanel>
-        <NodeIntelligence state={nodeState} />
+        </MissionPanel>
 
         {/* Main Trading Layout */}
         <div className="grid lg:grid-cols-3 gap-4">
@@ -321,7 +308,10 @@ export default function TradingPage() {
             ))}
           </div>
         </div>
+
+        <PhaseTrack />
       </div>
+      </RailLock>
     </DashboardLayout>
   );
 }

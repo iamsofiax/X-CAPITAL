@@ -117,7 +117,7 @@ export default function AssetList({
   );
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col">
       {/* Search */}
       <div className="relative mb-3">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-xc-muted" />
@@ -160,7 +160,7 @@ export default function AssetList({
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+      <div className="space-y-1">
         {loading
           ? Array.from({ length: 10 }).map((_, i) => (
               <div

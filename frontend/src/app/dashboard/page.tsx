@@ -62,15 +62,11 @@ import type {
   OptimalAllocation,
 } from "@/types";
 import Link from "next/link";
-import {
-  CapitalTrajectory,
-  NodeIntelligence,
-  OrbitalHero,
-  NodeEmptyState,
-} from "@/components/node-engine";
-import { NODE_EMPTY, formatNodeStatus } from "@/lib/nodeCopy";
+import { MissionPanel, RailLock, PhaseTrack } from "@/components/x-engine";
+import { ENGINE_COPY } from "@/lib/xEngine";
+import { useXEngine } from "@/hooks/useXEngine";
 
-// â”€â”€â”€ Deterministic performance data for chart (seeded, no random flicker) â”€â”€â”€â”€
+// €€€ Deterministic performance data for chart (seeded, no random flicker) €€€€
 function generatePerformanceData(baseValue: number, days: number) {
   const data = [];
   let value = baseValue * 0.75;
@@ -230,7 +226,7 @@ export default function DashboardPage() {
         .map(([name, value]) => ({ name, value: Number(value) }))
     : [];
 
-  // â”€â”€ Live price drift on perf chart (deterministic micro-oscillation) â”€â”€
+  // €€ Live price drift on perf chart (deterministic micro-oscillation) €€
   useEffect(() => {
     let tick = 0;
     const driftSequence = [
@@ -277,7 +273,7 @@ export default function DashboardPage() {
     [livePrices],
   );
 
-  // â”€â”€ Volume data for dashboard volume chart (deterministic to avoid hydration mismatch) â”€â”€
+  // €€ Volume data for dashboard volume chart (deterministic to avoid hydration mismatch) €€
   const volumeData = useMemo(() => {
     const seed = [
       0.72, 0.31, 0.89, 0.44, 0.67, 0.18, 0.93, 0.56, 0.38, 0.81, 0.25, 0.64,
@@ -298,21 +294,16 @@ export default function DashboardPage() {
     return data;
   }, []);
 
-  const cash = Number(wallet?.fiatBalance ?? user?.balance ?? 0);
-  const nodeState = formatNodeStatus(
-    cash,
-    pendingTransactions.some(
-      (t) => t.userId === user?.id && t.status === "PENDING",
-    ),
-  );
+  const { balance, phase, isArmed } = useXEngine();
 
   return (
     <DashboardLayout
-      title="Dashboard"
-      subtitle={`Welcome back, ${user?.firstName ?? "Investor"}`}
+      title="Overview"
+      subtitle={`Operator ${user?.firstName ?? "node"}`}
+      wide
     >
-      <div className="space-y-5">
-        {/* â”€â”€â”€ KYC Banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <div className="space-y-8">
+        {/* €€€ KYC Banner €€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ */}
         {user?.kycStatus !== "APPROVED" && (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/[0.03] border border-white/[0.10]/40 rounded-xl px-4 sm:px-5 py-3">
             <div>
@@ -320,7 +311,7 @@ export default function DashboardPage() {
                 KYC Verification Required
               </span>
               <span className="text-xc-muted text-sm ml-2">
-                â€” Complete identity verification to unlock trading.
+                — Complete identity verification to unlock trading.
               </span>
             </div>
             <Link
@@ -332,20 +323,23 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <CapitalTrajectory progress={cash > 0 ? 14 : 6} />
-        <NodeIntelligence state={nodeState} />
-
-        {cash <= 0 && (
-          <NodeEmptyState
-            title={NODE_EMPTY.wallet.title}
-            body={NODE_EMPTY.wallet.body}
-            cta={NODE_EMPTY.wallet.cta}
-            href="/wallet"
-          />
+        {!isArmed && (
+          <MissionPanel title={ENGINE_COPY.nodeCold} code="OPS-00">
+            <p className="text-sm text-white/50 mb-6 max-w-lg">
+              {ENGINE_COPY.groundHold}. Open uplink to inject capital and arm execution rails.
+            </p>
+            <Link
+              href="/wallet"
+              className="inline-flex px-6 py-3 bg-white text-black text-sm font-bold rounded-full hover:bg-slate-100"
+            >
+              {ENGINE_COPY.uplink}
+            </Link>
+          </MissionPanel>
         )}
 
-        <OrbitalHero dense />
+        <PhaseTrack />
 
+        <RailLock rail="portfolio">
         {/* ─── Stats Row ─── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
@@ -402,7 +396,7 @@ export default function DashboardPage() {
                 value: weeklyRet,
                 pct: "+4.91%",
                 icon: <Calendar className="w-4 h-4" />,
-                period: "Mar 17 â€“ 23, 2026",
+                period: "Mar 17 – 23, 2026",
                 border: "border-white/[0.06]/25",
                 glow: "from-white/[0.03]/15",
               },
@@ -446,7 +440,7 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* â”€â”€â”€ X-Oracle Live Signals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* €€€ X-Oracle Live Signals €€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ */}
         <div className="bg-xc-card border border-white/[0.08]/25 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -458,7 +452,7 @@ export default function DashboardPage() {
                   X-Oracle Live Signals
                 </h3>
                 <p className="text-xs text-xc-muted">
-                  AI-generated trade intelligence â€” updated every 60s
+                  Live trade intelligence — updated every 60s
                 </p>
               </div>
             </div>
@@ -556,7 +550,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* â”€â”€â”€ Main Content Grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* €€€ Main Content Grid €€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ */}
         <div className="grid lg:grid-cols-3 gap-4">
           {/* Performance Chart */}
           <div className="lg:col-span-2 bg-xc-card border border-xc-border rounded-2xl p-4 sm:p-6">
@@ -692,7 +686,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* â”€â”€â”€ Trading Volume Chart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* €€€ Trading Volume Chart €€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ */}
         <div className="bg-xc-card border border-xc-border rounded-2xl p-4 sm:p-6">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2">
@@ -753,7 +747,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* â”€â”€â”€ Capital Rails + Quick Deploy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* €€€ Capital Rails + Quick Deploy €€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ */}
         <div className="grid lg:grid-cols-3 gap-4 items-start">
           {/* Capital Rails */}
           <div className="lg:col-span-2 bg-xc-card border border-xc-border rounded-2xl p-5">
@@ -887,7 +881,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* â”€â”€â”€ Bottom Row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* €€€ Bottom Row €€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ */}
         <div className="grid lg:grid-cols-2 gap-4">
           {/* Top Assets */}
           <div className="bg-xc-card border border-xc-border rounded-2xl p-4 sm:p-6">
@@ -1015,9 +1009,9 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* â”€â”€â”€ SpaceX Mission Control & Musk Empire â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* €€€ SpaceX Mission Control & Musk Empire €€€€€€€€€€€€€€€€€€€€€€€ */}
         <div className="grid lg:grid-cols-5 gap-4">
-          {/* SpaceX Mission Control â€” 3-col */}
+          {/* SpaceX Mission Control 3-col */}
           <div className="lg:col-span-3 bg-xc-card border border-white/[0.06]/25 rounded-2xl p-4 sm:p-6 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
             <div className="relative z-10">
@@ -1156,7 +1150,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Musk Empire Ventures â€” 2-col */}
+          {/* Musk Empire Ventures 2-col */}
           <div className="lg:col-span-2 bg-xc-card border border-white/[0.08]/25 rounded-2xl p-4 sm:p-6 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-black/15 to-transparent pointer-events-none" />
             <div className="relative z-10">
@@ -1246,7 +1240,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* â”€â”€â”€ Starlink & Live News Feed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* €€€ Starlink & Live News Feed €€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ */}
         <div className="grid lg:grid-cols-3 gap-4">
           {/* Starlink Growth Tracker */}
           <div className="bg-xc-card border border-xc-border rounded-2xl p-4 sm:p-6">
@@ -1393,12 +1387,12 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* â”€â”€â”€ Founder Vision â€” Elon Musk at the Bottom â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* €€€ Founder Vision Elon Musk at the Bottom €€€€€€€€€€€€€€€€€€€€€ */}
         <div className="relative rounded-3xl overflow-hidden border border-white/[0.06] shadow-[0_0_80px_-20px_rgba(124,58,237,0.4)]">
           {/* Starship background */}
           <div className="absolute inset-0">
             <Image
-              src="https://images.unsplash.com/photo-1614732414444-096e5f1122d5?w=640&q=70&auto=format&fit=crop"
+              src="https://images.unsplash.com/photo-1614732414444-096e5f1122d5?w=640&q=90&auto=format&fit=crop"
               alt="SpaceX Starship Big Rocket at Starbase Texas"
               fill
               sizes="100vw"
@@ -1425,7 +1419,7 @@ export default function DashboardPage() {
               <div className="relative w-36 h-48 sm:w-48 sm:h-64 rounded-2xl overflow-hidden ring-2 ring-white/20/50 shadow-2xl shadow-black/80">
                 <Image
                   src="/images/elon-musk.jpg"
-                  alt="Elon Musk â€” Founder & Chief Architect, X-CAPITAL"
+                  alt="Elon Musk — Founder & Chief Architect, X-CAPITAL"
                   fill
                   sizes="192px"
                   className="object-cover object-top"
@@ -1457,7 +1451,7 @@ export default function DashboardPage() {
               </blockquote>
               <p className="text-sm text-white/50 leading-relaxed max-w-xl mb-8">
                 Every dollar deployed here bends the arc of civilization toward
-                the stars. From Wall Street to Starbase â€” capital at the speed
+                the stars. From Wall Street to Starbase — capital at the speed
                 of the future, without limits, without borders, without
                 compromise.
               </p>
@@ -1503,12 +1497,13 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+      </RailLock>
       </div>
     </DashboardLayout>
   );
 }
 
-// â”€â”€â”€ Demo data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// €€€ Demo data €€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€
 const DEMO_ASSETS: Partial<Asset>[] = [
   { symbol: "TSLA", name: "Tesla, Inc.", price: 248.42, priceChange24h: 3.21 },
   {
@@ -1571,7 +1566,7 @@ const DEMO_TRANSACTIONS = [
   },
 ] as WalletTransaction[];
 
-// â”€â”€â”€ SpaceX Missions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// €€€ SpaceX Missions €€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€
 const SPACEX_MISSIONS = [
   {
     name: "Starship Flight 11",
@@ -1610,7 +1605,7 @@ const SPACEX_MISSIONS = [
   },
 ];
 
-// â”€â”€â”€ Musk Empire Ventures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// €€€ Musk Empire Ventures €€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€
 const MUSK_VENTURES = [
   {
     name: "Tesla",
@@ -1668,7 +1663,7 @@ const MUSK_VENTURES = [
   },
 ];
 
-// â”€â”€â”€ News Feed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// €€€ News Feed €€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€
 type NewsSentiment = "bullish" | "bearish" | "neutral";
 const NEWS_FEED: Array<{
   headline: string;
@@ -1683,7 +1678,7 @@ const NEWS_FEED: Array<{
 }> = [
   {
     headline:
-      "Starship Flight 12 scheduled for April 9 â€” full orbital attempt with 40 V3 Starlinks",
+      "Starship Flight 12 scheduled for April 9 — full orbital attempt with 40 V3 Starlinks",
     summary:
       "SpaceX targeting full orbital insertion and booster catch. If successful, this will be the first operational Starlink V3 deployment via Starship.",
     time: "2h ago",
@@ -1696,7 +1691,7 @@ const NEWS_FEED: Array<{
   },
   {
     headline:
-      "Tesla Q1 2026 deliveries surge 38% to 614,000 units â€” Cybertruck ramp accelerates",
+      "Tesla Q1 2026 deliveries surge 38% to 614,000 units — Cybertruck ramp accelerates",
     summary:
       "Tesla exceeded Wall Street consensus by 12%. Cybertruck production hit 8,200/week run rate at Gigafactory Texas. Model 2 production begins Q3.",
     time: "5h ago",
@@ -1709,7 +1704,7 @@ const NEWS_FEED: Array<{
   },
   {
     headline:
-      "xAI Grok-4 benchmark crushes GPT-5 on MMLU-Pro and ARC-AGI â€” valuation jumps to $80B",
+      "xAI Grok-4 benchmark crushes GPT-5 on MMLU-Pro and ARC-AGI — valuation jumps to $80B",
     summary:
       "xAI's latest foundation model achieves 94.2% on MMLU-Pro. Enterprise API launch expected May 2026. Memphis supercluster now at 200,000 H100 GPUs.",
     time: "8h ago",
@@ -1722,7 +1717,7 @@ const NEWS_FEED: Array<{
   },
   {
     headline:
-      "Neuralink PRIME study â€” 8th patient implanted, full cursor control achieved in 72 hours",
+      "Neuralink PRIME study — 8th patient implanted, full cursor control achieved in 72 hours",
     summary:
       "FDA expanded access approval for N2 chip. Patients demonstrating thought-to-text at 62 words/minute. IPO speculation intensifies.",
     time: "12h ago",
@@ -1735,7 +1730,7 @@ const NEWS_FEED: Array<{
   },
   {
     headline:
-      "Starlink surpasses 5 million subscribers â€” direct-to-cell beta in 14 countries",
+      "Starlink surpasses 5 million subscribers — direct-to-cell beta in 14 countries",
     summary:
       "Starlink's direct-to-cell service now covers 94% of the globe. Partnership deals with T-Mobile, Vodafone, and Jio accelerating subscriber growth.",
     time: "1d ago",
@@ -1748,7 +1743,7 @@ const NEWS_FEED: Array<{
   },
   {
     headline:
-      "NVIDIA cuts Q2 guidance on supply constraints â€” AI capex remains strong",
+      "NVIDIA cuts Q2 guidance on supply constraints — AI capex remains strong",
     summary:
       "Supply bottleneck for B200 GPUs delays shipments by 4-6 weeks. Demand remains at 2x supply. xAI and Tesla among largest buyers.",
     time: "1d ago",
