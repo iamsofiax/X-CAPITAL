@@ -133,10 +133,10 @@ export default function CommercePage() {
           {/* background image */}
           <div className="absolute inset-0">
             <Image
-              src="https://images.unsplash.com/photo-1617704548623-340376564e68?w=1600&q=95&auto=format&fit=crop"
-              alt="Tesla vehicle panoramic"
+              src="https://images.unsplash.com/photo-1563720360172-67b8f3dce741?w=1600&q=95&auto=format&fit=crop&crop=center"
+              alt="Institutional technology commerce — premium products"
               fill
-              className="object-cover object-center scale-105"
+              className="object-cover object-center"
               unoptimized
               priority
             />
@@ -219,10 +219,10 @@ export default function CommercePage() {
             {/* Wide panoramic Tesla banner */}
             <div className="relative h-36 md:h-48 rounded-2xl overflow-hidden mb-4 md:mb-5 border border-red-900/20">
               <Image
-                src="https://images.unsplash.com/photo-1536700503339-1e4b06520771?w=1600&q=95&auto=format&fit=crop"
-                alt="Tesla Model S editorial"
+                src="https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=1600&q=95&auto=format&fit=crop&crop=center"
+                alt="Tesla Model S — Plaid factory reveal"
                 fill
-                className="object-cover object-center scale-105"
+                className="object-cover object-center"
                 unoptimized
               />
               <div className="absolute inset-0 bg-gradient-to-r from-red-950/85 to-transparent" />
@@ -586,17 +586,20 @@ export default function CommercePage() {
   );
 }
 
-/* •••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••• DEMO DATA full product catalog •••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••• */
+/* ─── DEMO DATA ──────────────────────────────────────────────────────────────
+   All images: Unsplash high-res w=1400&q=95, studio/press-grade.
+   Products ordered by category: EV → ENERGY → SPACE → AI → COMPUTING.
+   ─────────────────────────────────────────────────────────────────────────── */
 const DEMO_PRODUCTS: Product[] = [
-  // €€ Tesla lineup €€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€
+  // ── Tesla Ecosystem ──────────────────────────────────────────────────────────
   {
     id: "tesla-model-x",
     name: "Tesla Model X Plaid",
     category: "EV",
     price: 89990,
     imageUrl:
-      "https://images.unsplash.com/photo-1617704548623-340376564e68?w=1400&q=95&auto=format&fit=crop",
-    imageAlt: "Tesla Model X Plaid in silver",
+      "https://images.unsplash.com/photo-1617704548623-340376564e68?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "Tesla Model X Plaid — studio press shot",
     tagline: "The quickest SUV ever made.",
     badge: "Bestseller",
     description:
@@ -634,8 +637,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "EV",
     price: 89990,
     imageUrl:
-      "https://images.unsplash.com/photo-1536700503339-1e4b06520771?w=1400&q=95&auto=format&fit=crop",
-    imageAlt: "Tesla Model S Plaid studio shot",
+      "https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "Tesla Model S Plaid — factory press",
     tagline: "1,020 hp. 0–60 in 1.99 s.",
     badge: "Plaid",
     description:
@@ -669,8 +672,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "EV",
     price: 42990,
     imageUrl:
-      "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=1400&q=95&auto=format&fit=crop",
-    imageAlt: "Tesla Model 3 white editorial",
+      "https://images.unsplash.com/photo-1561580125-028ee3bd62eb?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "Tesla Model 3 Long Range — clean studio",
     tagline: "The world's most popular EV sedan.",
     description:
       "Long Range AWD Model 3 with 358-mile range, 4.2-second 0–60, and 17-inch glass cockpit. Dual-motor, full Autopilot hardware, and over-the-air software updates for life.",
@@ -703,8 +706,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "EV",
     price: 47990,
     imageUrl:
-      "https://images.unsplash.com/photo-1590629953144-c9b1cd41e1e0?w=1400&q=95&auto=format&fit=crop",
-    imageAlt: "Tesla Model Y AWD premium",
+      "https://images.unsplash.com/photo-1620714223084-8fcacc6dfd8d?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "Tesla Model Y AWD — factory press",
     tagline: "The world's best-selling vehicle.",
     description:
       "All-Wheel Drive crossover with 330-mile range, 7-seat configuration, and the largest cargo space in its class. The #1 best-selling vehicle globally for 2023 and 2024.",
@@ -737,8 +740,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "EV",
     price: 99990,
     imageUrl:
-      "https://images.unsplash.com/photo-1699128603498-a11a7e0b4c91?w=1400&q=95&auto=format&fit=crop",
-    imageAlt: "Tesla Cybertruck editorial",
+      "https://images.unsplash.com/photo-1705771801928-4fceafdd6e55?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "Tesla Cybertruck Foundation — press reveal",
     tagline: "Built for the future. Available now.",
     badge: "Limited",
     description:
@@ -772,8 +775,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "ENERGY",
     price: 11500,
     imageUrl:
-      "https://images.unsplash.com/photo-1509391366360-2e959784a276?w=1400&q=95&auto=format&fit=crop",
-    imageAlt: "Tesla Powerwall solar energy",
+      "https://images.unsplash.com/photo-1509391366360-2e959784a276?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "Tesla Powerwall 3 — home energy storage",
     tagline: "Whole-home backup power.",
     description:
       "Powerwall 3 with integrated 11.5 kW solar inverter, 13.5 kWh usable capacity, and Storm Watch automatic backup activation. Monitor and control from the Tesla app.",
@@ -808,8 +811,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "SPACE",
     price: 499,
     imageUrl:
-      "https://images.unsplash.com/photo-1457364559154-aa2644600ebb?w=640&q=90&auto=format&fit=crop",
-    imageAlt: "SpaceX rocket launch",
+      "https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "Starlink satellite dish — residential kit",
     tagline: "High-speed internet from low orbit.",
     badge: "Space",
     description:
@@ -843,8 +846,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "SPACE",
     price: 2500,
     imageUrl:
-      "https://images.unsplash.com/photo-1516849677043-ef67c9557e16?w=640&q=90&auto=format&fit=crop",
-    imageAlt: "SpaceX Falcon 9 at launch pad",
+      "https://images.unsplash.com/photo-1516849677043-ef67c9557e16?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "Starlink Roam — portable satellite",
     tagline: "Internet anywhere on Earth.",
     badge: "Enterprise",
     description:
@@ -880,8 +883,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "AI",
     price: 250000,
     imageUrl:
-      "https://images.unsplash.com/photo-1591488320449-011701bb6704?w=640&q=90&auto=format&fit=crop",
-    imageAlt: "NVIDIA AI computing system",
+      "https://images.unsplash.com/photo-1591488320449-011701bb6704?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "NVIDIA DGX H100 — AI supercomputer",
     tagline: "The AI supercomputer. In a box.",
     badge: "Enterprise",
     description:
@@ -915,8 +918,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "COMPUTING",
     price: 3499,
     imageUrl:
-      "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=640&q=90&auto=format&fit=crop",
-    imageAlt: "Apple MacBook Pro on desk",
+      "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "MacBook Pro M4 Max — studio",
     tagline: "Outrageous. Outrageously good.",
     badge: "New",
     description:
@@ -952,8 +955,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "SPACE",
     price: 10000,
     imageUrl:
-      "https://images.unsplash.com/photo-1534224039826-c7a0eda0e6b3?w=640&q=90&auto=format&fit=crop",
-    imageAlt: "Satellite dish on ship at sea",
+      "https://images.unsplash.com/photo-1534224039826-c7a0eda0e6b3?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "Starlink Maritime — ocean-grade antenna",
     tagline: "High-speed internet for every ocean.",
     badge: "Maritime",
     description:
@@ -987,8 +990,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "ENERGY",
     price: 34000,
     imageUrl:
-      "https://images.unsplash.com/photo-1509391366360-2e959784a276?w=640&q=90&auto=format&fit=crop",
-    imageAlt: "Tesla Solar Roof tiles on house",
+      "https://images.unsplash.com/photo-1497440001374-f26997328c1b?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "Tesla Solar Roof V4 — architectural integration",
     tagline: "A beautiful roof that powers your home.",
     badge: "Solar",
     description:
@@ -1022,8 +1025,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "AI",
     price: 25000,
     imageUrl:
-      "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=640&q=90&auto=format&fit=crop",
-    imageAlt: "Humanoid robot concept",
+      "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "Tesla Optimus Gen 2 — humanoid robot",
     tagline: "The world's most capable humanoid.",
     badge: "Pre-order",
     description:
@@ -1057,8 +1060,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "ENERGY",
     price: 185000,
     imageUrl:
-      "https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=640&q=90&auto=format&fit=crop",
-    imageAlt: "Tesla Megapack battery storage facility",
+      "https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "Tesla Megapack — grid-scale storage",
     tagline: "Grid-scale energy storage.",
     badge: "Enterprise",
     description:
@@ -1092,8 +1095,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "SPACE",
     price: 275000,
     imageUrl:
-      "https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?w=640&q=90&auto=format&fit=crop",
-    imageAlt: "SpaceX Falcon 9 launch rideshare",
+      "https://images.unsplash.com/photo-1457364887197-9150188c107b?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "SpaceX Falcon 9 — orbital launch",
     tagline: "Launch your payload to orbit.",
     badge: "Enterprise",
     description:
@@ -1127,8 +1130,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "COMPUTING",
     price: 300,
     imageUrl:
-      "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=640&q=90&auto=format&fit=crop",
-    imageAlt: "Infrastructure tunnel bricks",
+      "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "Boring Company infrastructure brick set",
     tagline: "Build the future, literally.",
     badge: "Collector",
     description:
@@ -1155,5 +1158,185 @@ const DEMO_PRODUCTS: Product[] = [
       amount: 15,
     },
     affiliateUrl: "https://boringcompany.com/bricks",
+  },
+
+  // ── Luxury Electric Vehicles ─────────────────────────────────────────────────
+  {
+    id: "lucid-air-sapphire",
+    name: "Lucid Air Sapphire",
+    category: "EV",
+    price: 249000,
+    imageUrl:
+      "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "Lucid Air Sapphire — luxury sedan",
+    tagline: "1,234 hp. The fastest sedan ever tested.",
+    badge: "Ultra Luxury",
+    description:
+      "Three-motor Lucid Air Sapphire with 1,234 hp and a 0–60 in 1.89 seconds. 410-mile range, bespoke interior, Surreal Sound Pro with Dolby Atmos. The benchmark of electric luxury.",
+    specs: {
+      Range: "410 mi",
+      "0-60": "1.89 s",
+      Power: "1,234 hp",
+      Motors: "Tri AWD",
+      "Top Speed": "205 mph",
+      Interior: "Bespoke",
+    },
+    features: ["Tri-Motor", "Dolby Atmos", "Dream Drive Pro", "Satin Sapphire", "Glass Roof"],
+    investmentSuggestion: {
+      symbol: "LCID",
+      name: "Lucid Group, Inc.",
+      percentage: 8,
+      amount: 19920,
+    },
+    affiliateUrl: "https://lucidmotors.com/air/sapphire",
+  },
+  {
+    id: "porsche-taycan-turbo-s",
+    name: "Porsche Taycan Turbo S Cross Turismo",
+    category: "EV",
+    price: 199900,
+    imageUrl:
+      "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "Porsche Taycan Turbo S — factory press",
+    tagline: "Stuttgart engineering. Zero emissions.",
+    badge: "Flagship",
+    description:
+      "Porsche Taycan Turbo S Cross Turismo: 760 hp, 0–60 in 2.4 s, 30-minute 10–80% DC fast charge, and the rear cargo versatility of an estate — engineered to the last detail.",
+    specs: {
+      Range: "246 mi",
+      "0-60": "2.4 s",
+      Power: "760 hp",
+      Charge: "270 kW DC",
+      Cargo: "81 cu ft",
+      Seats: "5",
+    },
+    features: ["Porsche InnoDrive", "Night Vision", "Bose Surround", "Sport Chrono", "Air Suspension"],
+    investmentSuggestion: {
+      symbol: "POAHY",
+      name: "Porsche AG",
+      percentage: 7,
+      amount: 13993,
+    },
+    affiliateUrl: "https://porsche.com/taycan",
+  },
+  {
+    id: "tesla-semi",
+    name: "Tesla Semi Class 8",
+    category: "EV",
+    price: 150000,
+    imageUrl:
+      "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "Tesla Semi — electric Class 8 truck",
+    tagline: "500 miles. Zero diesel.",
+    badge: "Fleet",
+    description:
+      "Tesla Semi with 500-mile range (loaded) on a single charge. Megawatt Charging System for 70% charge in 30 min. Enhanced Autopilot, jack-knife prevention, and $200K fuel savings over 3 years.",
+    specs: {
+      Range: "500 mi",
+      Payload: "82,000 lb GVW",
+      Charge: "MCS 70% / 30min",
+      "0-60": "20 s (loaded)",
+      "Drag Cd": "0.36",
+      Savings: "$200K / 3yr",
+    },
+    features: ["Megawatt Charging", "Enhanced Autopilot", "Jack-Knife Lock", "Air Disc Brakes", "Regen Braking"],
+    investmentSuggestion: {
+      symbol: "TSLA",
+      name: "Tesla, Inc.",
+      percentage: 5,
+      amount: 7500,
+    },
+    affiliateUrl: "https://tesla.com/semi",
+  },
+
+  // ── AI / Compute Hardware ─────────────────────────────────────────────────────
+  {
+    id: "nvidia-gb200-nvl72",
+    name: "NVIDIA GB200 NVL72 Rack",
+    category: "AI",
+    price: 3000000,
+    imageUrl:
+      "https://images.unsplash.com/photo-1518770660439-4636190af475?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "NVIDIA Blackwell NVL72 — AI rack system",
+    tagline: "30x faster inference than H100.",
+    badge: "Blackwell",
+    description:
+      "NVIDIA GB200 NVL72: 72 Blackwell GPUs in a single liquid-cooled rack. 1.4 Exaflops of AI compute. The architecture powering the next generation of frontier AI models and AGI research.",
+    specs: {
+      GPUs: "72x GB200",
+      Compute: "1.4 Exaflops",
+      Memory: "13.5 TB HBM3e",
+      Bandwidth: "130 TB/s",
+      Cooling: "Direct Liquid",
+      Power: "120 kW",
+    },
+    features: ["Blackwell Architecture", "NVLink 5.0", "FP4 Inference", "Liquid Cooled", "Rack-Scale"],
+    investmentSuggestion: {
+      symbol: "NVDA",
+      name: "NVIDIA Corporation",
+      percentage: 10,
+      amount: 300000,
+    },
+    affiliateUrl: "https://nvidia.com/gb200",
+  },
+  {
+    id: "apple-vision-pro",
+    name: "Apple Vision Pro",
+    category: "COMPUTING",
+    price: 3499,
+    imageUrl:
+      "https://images.unsplash.com/photo-1607016284318-d1384bf4e3c0?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "Apple Vision Pro — spatial computing",
+    tagline: "Spatial computing. Arrived.",
+    badge: "New",
+    description:
+      "Apple Vision Pro: the first spatial computing device. M2 + R1 chips, micro-OLED 4K displays for each eye, eye/hand/voice input, and visionOS 2 with native AI spatial apps and infinite canvas.",
+    specs: {
+      Chip: "M2 + R1",
+      Display: "4K micro-OLED×2",
+      Storage: "1 TB",
+      Battery: "2–2.5 hr",
+      Input: "Eye/Hand/Voice",
+      Weight: "600–650g",
+    },
+    features: ["visionOS 2", "EyeSight Display", "FaceTime Spatial", "3D Camera", "passthrough AR"],
+    investmentSuggestion: {
+      symbol: "AAPL",
+      name: "Apple Inc.",
+      percentage: 10,
+      amount: 349.9,
+    },
+    affiliateUrl: "https://apple.com/apple-vision-pro",
+  },
+
+  // ── Space Economy Expansion ───────────────────────────────────────────────────
+  {
+    id: "planet-labs-tasking",
+    name: "Planet Labs Daily Satellite Tasking",
+    category: "SPACE",
+    price: 48000,
+    imageUrl:
+      "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=1400&q=95&auto=format&fit=crop&crop=center",
+    imageAlt: "Planet Labs satellite imaging — Earth from orbit",
+    tagline: "Any point on Earth. Every day.",
+    badge: "Institutional",
+    description:
+      "Annual Planet Labs SkySat tasking contract: daily 50cm-resolution imagery of any 3 targets. Ideal for supply-chain monitoring, agricultural intelligence, infrastructure observation, and geopolitical analysis.",
+    specs: {
+      Resolution: "50 cm",
+      Frequency: "Daily",
+      Revisit: "3 targets",
+      Coverage: "Global",
+      Format: "GeoTIFF",
+      Delivery: "API + Dashboard",
+    },
+    features: ["50cm Resolution", "Daily Revisit", "Cloud Masking", "Change Detection", "API Access"],
+    investmentSuggestion: {
+      symbol: "PL",
+      name: "Planet Labs PBC",
+      percentage: 12,
+      amount: 5760,
+    },
+    affiliateUrl: "https://planet.com",
   },
 ];

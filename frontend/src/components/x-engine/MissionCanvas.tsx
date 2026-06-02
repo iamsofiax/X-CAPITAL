@@ -21,7 +21,7 @@ export default function MissionCanvas({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
-        "mx-auto w-full px-4 md:px-6 lg:px-8 pt-6 md:pt-8 pb-28 md:pb-32",
+        "mx-auto w-full px-5 md:px-8 lg:px-10 pt-7 md:pt-10 pb-28 md:pb-36",
         wide ? "max-w-[1600px]" : "max-w-[1400px]",
         className,
       )}

@@ -36,9 +36,10 @@ const GOD_ADMIN_USER: User = {
   passwordHash: "",
 };
 
-// Pre-hashed password for admin@xcapital.io / Admin2026!
-const GOD_ADMIN_PW_HASH =
-  "6e3a6c3f8e4b2a1d9c8f7e6d5b4a3c2e1f0d9c8b7a6e5d4c3b2a1f0e9d8c7b6"; // placeholder, will be computed
+// Placeholder hash — actual hash computed at runtime via hashPassword()
+const _GOD_ADMIN_PW_HASH =
+  "6e3a6c3f8e4b2a1d9c8f7e6d5b4a3c2e1f0d9c8b7a6e5d4c3b2a1f0e9d8c7b6";
+void _GOD_ADMIN_PW_HASH;
 
 interface AuthState {
   user: User | null;
@@ -991,6 +992,28 @@ export const useStore = create<Store>()(
           }
         } catch (e) {
           console.error("[Store] Rehydration callback error:", e);
+        }
+
+        // Cross-tab sync: when another tab (e.g. admin) writes to localStorage,
+        // re-hydrate the shared slices so the user tab sees changes immediately.
+        if (typeof window !== "undefined") {
+          window.addEventListener("storage", (e) => {
+            if (e.key === "xcapital-store" && e.newValue) {
+              try {
+                const parsed = JSON.parse(e.newValue);
+                const incoming = parsed?.state ?? parsed;
+                useStore.setState((current) => ({
+                  registeredUsers: incoming.registeredUsers ?? current.registeredUsers,
+                  pendingTransactions: incoming.pendingTransactions ?? current.pendingTransactions,
+                  adminAlerts: incoming.adminAlerts ?? current.adminAlerts,
+                  notifications: incoming.notifications ?? current.notifications,
+                  kycSubmissions: incoming.kycSubmissions ?? current.kycSubmissions,
+                }));
+              } catch {
+                /* ignore malformed storage events */
+              }
+            }
+          });
         }
       },
     },

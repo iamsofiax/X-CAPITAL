@@ -16,13 +16,20 @@ import {
 export function useXEngine() {
   const {
     user,
+    registeredUsers,
     wallet,
     accessToken,
     pendingTransactions,
     adminAlerts,
   } = useStore();
 
-  const balance = Number(wallet?.fiatBalance ?? user?.balance ?? 0);
+  // Always read from registeredUsers so admin changes (balance, unlockedRails, isFrozen)
+  // reflect immediately without requiring a re-login.
+  const freshUser = user
+    ? (registeredUsers.find((u) => u.id === user.id) ?? user)
+    : user;
+
+  const balance = Number(wallet?.fiatBalance ?? freshUser?.balance ?? 0);
 
   const pendingCapital = useMemo(
     () =>
@@ -50,7 +57,7 @@ export function useXEngine() {
 
   const phase: NodePhase = resolveNodePhase({
     balance,
-    isFrozen: user?.isFrozen,
+    isFrozen: freshUser?.isFrozen,
     hasPendingCapital: pendingCapital.length > 0,
     hasDetectingSignal: detectingSignal,
   });
@@ -65,7 +72,7 @@ export function useXEngine() {
     nodeId: nodeIdFromToken(accessToken),
     pendingCapital,
     lastPending,
-    canAccess: (rail: EngineRail) => canAccessRail(phase, rail, user?.unlockedRails),
+    canAccess: (rail: EngineRail) => canAccessRail(phase, rail, freshUser?.unlockedRails),
     lockReason: (rail: EngineRail) => railLockReason(phase, rail),
     isArmed: phase === "ARMED",
     isOnHold: phase === "PENDING" || phase === "DETECTING",

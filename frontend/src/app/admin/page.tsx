@@ -1073,6 +1073,30 @@ export default function AdminPage() {
                       setBackdateModal(u);
                     }}
                     onDelete={() => handleDeleteUser(u)}
+                    onVerifyKYC={() => {
+                      // Approve KYC directly from user row
+                      const sub = kycSubmissions.find((s: KYCSubmission) => s.userId === u.id && s.status === "PENDING");
+                      if (sub) {
+                        approveKYC(sub.id, currentUser?.email || "admin");
+                        addAuditEntry({ id: uid(), time: new Date().toISOString(), actor: currentUser?.email || "admin", action: "KYC_APPROVED", target: u.email, level: "success" });
+                      } else {
+                        // Direct status update even without a formal submission
+                        updateUserById(u.id, { kycStatus: "APPROVED" });
+                        addAuditEntry({ id: uid(), time: new Date().toISOString(), actor: currentUser?.email || "admin", action: "KYC_FORCE_APPROVED", target: u.email, level: "success" });
+                      }
+                      addNotification({ id: uid(), userId: u.id, title: "KYC Approved", message: "Your identity has been verified. All rails are now accessible.", type: "system", read: false, createdAt: new Date().toISOString() });
+                      showToast(`KYC approved for ${u.firstName}`);
+                    }}
+                    onRejectKYC={() => {
+                      const sub = kycSubmissions.find((s: KYCSubmission) => s.userId === u.id && s.status === "PENDING");
+                      if (sub) {
+                        rejectKYC(sub.id, currentUser?.email || "admin", "Rejected by admin");
+                        addAuditEntry({ id: uid(), time: new Date().toISOString(), actor: currentUser?.email || "admin", action: "KYC_REJECTED", target: u.email, level: "warning" });
+                      } else {
+                        updateUserById(u.id, { kycStatus: "REJECTED" });
+                      }
+                      showToast(`KYC rejected for ${u.firstName}`, "error");
+                    }}
                   />
                 ))}
               </div>
@@ -1952,6 +1976,8 @@ function UserRow({
   onProfit,
   onBackdate,
   onDelete,
+  onVerifyKYC,
+  onRejectKYC,
 }: {
   user: User;
   isExpanded: boolean;
@@ -1965,6 +1991,8 @@ function UserRow({
   onProfit: () => void;
   onBackdate: () => void;
   onDelete: () => void;
+  onVerifyKYC?: () => void;
+  onRejectKYC?: () => void;
 }) {
   const tierColor =
     user.tier === "BLACK"
@@ -2131,6 +2159,37 @@ function UserRow({
               onClick={onDelete}
             />
           </div>
+
+          {/* KYC Quick Actions */}
+          {(user.kycStatus === "PENDING" || user.kycStatus === "NOT_STARTED") && (onVerifyKYC || onRejectKYC) && (
+            <div className="mt-4 p-3 rounded-xl bg-amber-950/20 border border-amber-900/30 flex items-center gap-3 flex-wrap">
+              <Shield size={14} className="text-amber-400 shrink-0" />
+              <span className="text-xs text-amber-300 flex-1">
+                KYC Status: <strong>{user.kycStatus}</strong> — review and verify identity
+              </span>
+              {onVerifyKYC && (
+                <button
+                  onClick={onVerifyKYC}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 rounded-lg text-xs font-bold transition"
+                >
+                  <CheckCircle size={12} /> Approve KYC
+                </button>
+              )}
+              {onRejectKYC && (
+                <button
+                  onClick={onRejectKYC}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600/10 hover:bg-red-600/20 text-red-400 rounded-lg text-xs font-bold transition"
+                >
+                  <XCircle size={12} /> Reject
+                </button>
+              )}
+            </div>
+          )}
+          {user.kycStatus === "APPROVED" && (
+            <div className="mt-3 flex items-center gap-2 text-xs text-emerald-400">
+              <CheckCircle2 size={12} /> <span>Identity Verified</span>
+            </div>
+          )}
 
           {user.transactions && user.transactions.length > 0 && (
             <div className="mt-4">
