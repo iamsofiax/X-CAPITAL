@@ -34,73 +34,73 @@ import { OrbitalHero, CapitalTrajectory } from "@/components/node-engine";
 const stats = [
   { label: "Instruments Available", value: "50,000+" },
   { label: "Markets Connected", value: "14" },
-  { label: "Capital Rails", value: "5" },
+  { label: "Capital Rails", value: "7" },
   { label: "Capital Deployed", value: "$2.4T+" },
 ];
 
 const features = [
   {
     icon: BarChart3,
-    title: "Public Markets",
+    title: "Public Markets Rail",
     description:
-      "Real-time stock execution via Alpaca Securities. Your orders route directly to NASDAQ, NYSE, and global exchanges.",
-    tag: "BROKER API",
-    color: "from-white/10/20 to-black border-white/[0.08]",
+      "Institutional-grade execution across NASDAQ, NYSE, and 14 global exchanges. Sub-millisecond order routing via Alpaca Securities. Level III market data. No retail latency floors.",
+    tag: "RAIL 01 · EQUITIES",
+    color: "from-white/[0.05] to-black border-white/[0.08]",
     iconColor: "text-white/60",
   },
   {
     icon: Lock,
-    title: "Private Equity & SPVs",
+    title: "Private Equity & SPV Rail",
     description:
-      "Access curated SPV structures and pre-IPO opportunities. From SpaceX exposure to AI infrastructure funds.",
-    tag: "ACCREDITED",
-    color: "from-white/10/20 to-amber-900/10 border-white/[0.08]",
-    iconColor: "text-white/50",
+      "Curated pre-IPO deal flow, co-investment rights, and structured SPV access. SpaceX, xAI, Anduril — before the public ever sees them. Accreditation verified, allocation reserved.",
+    tag: "RAIL 02 · PRIVATE",
+    color: "from-amber-900/[0.12] to-black border-amber-800/20",
+    iconColor: "text-amber-400/70",
   },
   {
     icon: Globe,
-    title: "Tokenized Assets",
+    title: "Tokenized Asset Rail",
     description:
-      "SEC-compliant security tokens on Polygon. Real exposure, on-chain execution, whitelisted wallets.",
-    tag: "BLOCKCHAIN",
-    color: "from-white/[0.06] to-black border-white/[0.08]",
-    iconColor: "text-white/50",
+      "SEC-compliant security tokens on Polygon. Real underlying ownership, on-chain settlement, whitelisted wallets. Fractional real estate, art, and infrastructure — liquid at last.",
+    tag: "RAIL 03 · CHAIN",
+    color: "from-violet-900/[0.12] to-black border-violet-800/20",
+    iconColor: "text-violet-400/70",
   },
   {
     icon: Zap,
-    title: "Real-World Commerce",
+    title: "Commerce-Capital Rail",
     description:
-      "Buy a Tesla and simultaneously invest in TSLA. Every purchase becomes a capital deployment event.",
-    tag: "COMMERCE",
-    color: "from-emerald-600/20 to-emerald-900/10 border-emerald-700/30",
+      "Every purchase is a capital deployment event. Buy a Tesla, simultaneously acquire TSLA exposure. Own the product and the company building it. Commerce and portfolio collapse into one.",
+    tag: "RAIL 04 · COMMERCE",
+    color: "from-emerald-900/[0.12] to-black border-emerald-800/20",
     iconColor: "text-emerald-400",
   },
   {
     icon: TrendingUp,
-    title: "AI Oracle",
+    title: "AI Oracle Rail",
     description:
-      "X-ORACLE runs LSTM forecasting, Monte Carlo risk simulation, and cross-asset sentiment analysis.",
-    tag: "ML POWERED",
-    color: "from-rose-600/20 to-rose-900/10 border-rose-700/30",
-    iconColor: "text-rose-400",
+      "X-ORACLE: LSTM forecasting, Monte Carlo risk simulation, cross-asset sentiment scoring. 947ms analysis cycles. Positions sized by machine, not intuition. Confidence threshold: 94.7%.",
+    tag: "RAIL 05 · INTELLIGENCE",
+    color: "from-rose-900/[0.12] to-black border-rose-800/20",
+    iconColor: "text-rose-400/70",
   },
   {
     icon: Shield,
-    title: "Infrastructure Funds",
+    title: "Infrastructure Fund Rail",
     description:
-      "Deploy capital into AI data centers, renewable energy grids, and the space supply chain.",
-    tag: "REAL ASSETS",
-    color: "from-indigo-600/20 to-indigo-900/10 border-indigo-700/30",
-    iconColor: "text-indigo-400",
+      "Deploy into AI data centers, geothermal grids, and the space supply chain. Hard-asset collateral. Government-contracted revenue streams. Yield that exists whether markets trade or not.",
+    tag: "RAIL 06 · REAL ASSETS",
+    color: "from-indigo-900/[0.12] to-black border-indigo-800/20",
+    iconColor: "text-indigo-400/70",
   },
   {
     icon: Satellite,
-    title: "Starlink Growth Accelerator",
+    title: "Orbital Economy Rail",
     description:
-      "Invest in satellite infrastructure with 42-56% APY. Direct exposure to orbital economy networks and space-based commerce.",
-    tag: "SPACE ECONOMY",
-    color: "from-emerald-600/20 to-emerald-900/10 border-emerald-700/30",
-    iconColor: "text-emerald-400",
+      "Direct exposure to Starlink satellite infrastructure. Bandwidth generates real yield — 42–56% APY. 7,200+ active satellites. LEO orbital economy participation, not a fund wrapper.",
+    tag: "RAIL 07 · ORBITAL",
+    color: "from-cyan-900/[0.10] to-black border-cyan-800/20",
+    iconColor: "text-cyan-400/70",
   },
 ];
 
@@ -364,6 +364,168 @@ export default function LandingPage() {
   }, [bioExpanded]);
 
   const statsRef = useRef<HTMLDivElement>(null);
+
+  // Rail canvas — living institutional signal field
+  useEffect(() => {
+    const canvas = document.getElementById("rail-canvas") as HTMLCanvasElement | null;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let raf: number;
+    let t = 0;
+
+    const resize = () => {
+      canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+      canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    };
+    resize();
+    window.addEventListener("resize", resize);
+
+    // Seven rail streams — one per capital rail
+    const RAIL_COLORS = [
+      "rgba(255,255,255,",    // Rail 1 — Equities — white
+      "rgba(251,191,36,",     // Rail 2 — Private — amber
+      "rgba(167,139,250,",    // Rail 3 — Chain — violet
+      "rgba(52,211,153,",     // Rail 4 — Commerce — emerald
+      "rgba(251,113,133,",    // Rail 5 — Intelligence — rose
+      "rgba(129,140,248,",    // Rail 6 — Real Assets — indigo
+      "rgba(34,211,238,",     // Rail 7 — Orbital — cyan
+    ];
+
+    type Particle = {
+      x: number; y: number;
+      vy: number; speed: number;
+      rail: number; opacity: number;
+      size: number; pulse: number;
+    };
+
+    const W = () => canvas.offsetWidth;
+    const H = () => canvas.offsetHeight;
+
+    // Flowing data particles per rail
+    const particles: Particle[] = Array.from({ length: 140 }, (_, i) => ({
+      x: (W() / 7) * (i % 7) + (W() / 14) + (Math.random() - 0.5) * (W() / 8),
+      y: Math.random() * H(),
+      vy: 0.25 + Math.random() * 0.55,
+      speed: 0.3 + Math.random() * 0.4,
+      rail: i % 7,
+      opacity: 0.15 + Math.random() * 0.45,
+      size: 1 + Math.random() * 1.8,
+      pulse: Math.random() * Math.PI * 2,
+    }));
+
+    const draw = () => {
+      t += 0.008;
+      const w = W(); const h = H();
+      ctx.clearRect(0, 0, w, h);
+
+      // --- Background: subtle hex-grid shimmer ---
+      ctx.save();
+      const hex = 32;
+      const cols = Math.ceil(w / (hex * 1.5)) + 2;
+      const rows = Math.ceil(h / (hex * Math.sqrt(3))) + 2;
+      for (let r = -1; r < rows; r++) {
+        for (let c = -1; c < cols; c++) {
+          const cx = c * hex * 1.5;
+          const cy = r * hex * Math.sqrt(3) + (c % 2 === 0 ? 0 : hex * Math.sqrt(3) / 2);
+          const dist = Math.abs(cx - w / 2) / (w / 2);
+          const shimmer = Math.sin(t * 0.6 + c * 0.4 + r * 0.3) * 0.5 + 0.5;
+          const alpha = shimmer * 0.04 * (1 - dist * 0.6);
+          ctx.beginPath();
+          for (let k = 0; k < 6; k++) {
+            const angle = (Math.PI / 3) * k - Math.PI / 6;
+            const hx = cx + hex * 0.9 * Math.cos(angle);
+            const hy = cy + hex * 0.9 * Math.sin(angle);
+            if (k === 0) { ctx.moveTo(hx, hy); } else { ctx.lineTo(hx, hy); }
+          }
+          ctx.closePath();
+          ctx.strokeStyle = `rgba(255,255,255,${alpha.toFixed(3)})`;
+          ctx.lineWidth = 0.4;
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+
+      // --- Seven vertical rail channels ---
+      for (let rail = 0; rail < 7; rail++) {
+        const cx = (w / 7) * rail + w / 14;
+        const phase = t + rail * 0.9;
+        const pulse = Math.sin(phase) * 0.5 + 0.5;
+
+        // Rail guide line
+        const grad = ctx.createLinearGradient(cx, 0, cx, h);
+        grad.addColorStop(0, `${RAIL_COLORS[rail]}0)`);
+        grad.addColorStop(0.3, `${RAIL_COLORS[rail]}${(0.04 + pulse * 0.06).toFixed(3)})`);
+        grad.addColorStop(0.7, `${RAIL_COLORS[rail]}${(0.06 + pulse * 0.08).toFixed(3)})`);
+        grad.addColorStop(1, `${RAIL_COLORS[rail]}0)`);
+        ctx.beginPath();
+        ctx.moveTo(cx, 0); ctx.lineTo(cx, h);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 1 + pulse * 0.6;
+        ctx.stroke();
+
+        // Signal burst — periodic bright flash
+        const burstY = ((t * 80 * (0.8 + rail * 0.1)) % h);
+        const burstGrad = ctx.createRadialGradient(cx, burstY, 0, cx, burstY, 60);
+        burstGrad.addColorStop(0, `${RAIL_COLORS[rail]}${(0.18 + pulse * 0.12).toFixed(3)})`);
+        burstGrad.addColorStop(1, `${RAIL_COLORS[rail]}0)`);
+        ctx.fillStyle = burstGrad;
+        ctx.beginPath();
+        ctx.ellipse(cx, burstY, 40, 80, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // --- Flowing data particles ---
+      for (const p of particles) {
+        const cx = (w / 7) * p.rail + w / 14 + Math.sin(t * 0.4 + p.pulse) * 18;
+        p.y += p.vy;
+        if (p.y > h + 10) { p.y = -10; p.x = cx; }
+
+        const flicker = Math.sin(t * 2.5 + p.pulse) * 0.3 + 0.7;
+        const alpha = p.opacity * flicker;
+
+        ctx.beginPath();
+        ctx.arc(cx, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `${RAIL_COLORS[p.rail]}${Math.min(alpha, 0.85).toFixed(3)})`;
+        ctx.fill();
+
+        // Tail
+        const tailGrad = ctx.createLinearGradient(cx, p.y - 16, cx, p.y);
+        tailGrad.addColorStop(0, `${RAIL_COLORS[p.rail]}0)`);
+        tailGrad.addColorStop(1, `${RAIL_COLORS[p.rail]}${(alpha * 0.4).toFixed(3)})`);
+        ctx.beginPath();
+        ctx.moveTo(cx, p.y - 16); ctx.lineTo(cx, p.y);
+        ctx.strokeStyle = tailGrad;
+        ctx.lineWidth = p.size * 0.8;
+        ctx.stroke();
+      }
+
+      // --- Cross-rail signal arcs (capital compounding connections) ---
+      if (Math.sin(t * 0.7) > 0.85) {
+        const r1 = Math.floor(Math.random() * 7);
+        const r2 = (r1 + 1 + Math.floor(Math.random() * 3)) % 7;
+        const x1 = (w / 7) * r1 + w / 14;
+        const x2 = (w / 7) * r2 + w / 14;
+        const arcY = h * (0.2 + Math.random() * 0.6);
+        const cp = arcY - 40 - Math.random() * 60;
+        ctx.beginPath();
+        ctx.moveTo(x1, arcY); ctx.quadraticCurveTo((x1 + x2) / 2, cp, x2, arcY);
+        ctx.strokeStyle = `rgba(255,255,255,0.04)`;
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+      }
+
+      raf = requestAnimationFrame(draw);
+    };
+
+    draw();
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", resize);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-xc-black">
@@ -681,84 +843,85 @@ export default function LandingPage() {
       {/* Features */}
       <section
         id="features"
-        className="relative py-16 md:py-28 px-4 md:px-6 overflow-hidden"
+        className="relative py-16 md:py-28 px-4 md:px-6 overflow-hidden bg-[#030307]"
       >
-        {/* Server room backdrop */}
-        <div className="absolute inset-0 pointer-events-none">
-          <img
-            src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&q=60&auto=format&fit=crop"
-            alt="Server infrastructure"
-            loading="lazy"
-            decoding="async"
-            className="absolute inset-0 w-full h-full object-cover object-center opacity-25"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#05050d] via-[#05050d]/60 to-[#05050d]" />
-        </div>
+        {/* Living institutional rail canvas — adapts continuously */}
+        <canvas
+          id="rail-canvas"
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          style={{ opacity: 0.55 }}
+        />
+        {/* Edge fades */}
+        <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-[#030307] via-transparent to-[#030307]" />
+        <div className="absolute inset-0 pointer-events-none bg-gradient-to-r from-[#030307]/60 via-transparent to-[#030307]/60" />
 
         <div className="relative z-10 max-w-6xl mx-auto">
           <div className="text-center mb-16" data-reveal>
-            <p className="text-[10px] font-mono font-semibold text-white/60/80 tracking-[0.5em] mb-4 uppercase">
-              Multi-Rail Infrastructure
-            </p>
+            <div className="inline-flex items-center gap-2 mb-5">
+              <span className="h-px w-8 bg-white/20" />
+              <p className="text-[10px] font-mono font-semibold text-white/50 tracking-[0.5em] uppercase">
+                Seven Capital Rails
+              </p>
+              <span className="h-px w-8 bg-white/20" />
+            </div>
             <h2 className="text-2xl sm:text-3xl md:text-5xl font-black text-white mb-4 tracking-tight">
-              Five Capital Rails.{" "}
+              Seven Capital Rails.{" "}
               <span className="gradient-text">One Platform.</span>
             </h2>
-            <p className="text-slate-500 text-base max-w-lg mx-auto">
-              Built on regulated infrastructure. Powered by AI. Secured by
-              blockchain.
+            <p className="text-slate-500 text-base max-w-xl mx-auto leading-relaxed">
+              Each rail is a distinct, regulated execution pathway. Together they compound across every asset class the institutional world runs on.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-3.5">
             {features.map((feature, i) => (
               <Link
                 key={feature.title}
                 href="/auth/register"
                 data-reveal
-                className={`reveal-item relative rounded-2xl bg-gradient-to-br ${feature.color} border p-6 hover:scale-[1.02] hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/50 transition-all duration-300 group block`}
-                style={{ transitionDelay: `${i * 80}ms` }}
+                className={`reveal-item relative rounded-2xl bg-gradient-to-br ${feature.color} border p-5 md:p-6 hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/60 hover:border-white/[0.14] transition-all duration-300 group block ${i === 6 ? "sm:col-span-2 xl:col-span-2" : ""}`}
+                style={{ transitionDelay: `${i * 60}ms` }}
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="p-2.5 rounded-xl bg-white/[0.04] group-hover:bg-white/[0.10] transition-colors">
-                    <feature.icon className={`w-5 h-5 ${feature.iconColor} group-hover:text-white/80 transition-colors`} />
+                {/* Rail index badge */}
+                <div className="flex items-start justify-between mb-5">
+                  <div className="p-2 rounded-lg bg-white/[0.04] group-hover:bg-white/[0.08] transition-colors">
+                    <feature.icon className={`w-4 h-4 ${feature.iconColor} group-hover:opacity-100 transition-all`} />
                   </div>
-                  <span className="text-[9px] font-mono font-bold text-slate-600 tracking-wider uppercase">
+                  <span className="text-[8px] font-mono font-black text-white/20 tracking-[0.2em] uppercase group-hover:text-white/40 transition-colors">
                     {feature.tag}
                   </span>
                 </div>
-                <h3 className="text-lg font-bold text-white mb-1.5 group-hover:text-white transition-colors">
+                <h3 className="text-[15px] font-black text-white mb-2 tracking-tight leading-tight">
                   {feature.title}
                 </h3>
-                <p className="text-sm text-slate-500 leading-relaxed mb-4">
+                <p className="text-[12px] text-white/35 leading-relaxed mb-5 group-hover:text-white/50 transition-colors">
                   {feature.description}
                 </p>
-                <div className="flex items-center gap-1 text-[11px] text-white/20 group-hover:text-white/50 transition-colors font-medium">
-                  Access <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                <div className="flex items-center gap-1 text-[10px] font-bold text-white/20 group-hover:text-white/60 transition-colors uppercase tracking-widest">
+                  Access Rail <ArrowRight className="w-2.5 h-2.5 group-hover:translate-x-1 transition-transform" />
                 </div>
               </Link>
             ))}
           </div>
 
-          {/* Metrics row */}
+          {/* Rail metrics strip */}
           <div
-            className="mt-8 md:mt-12 grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3"
+            className="mt-8 md:mt-12 grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3"
             data-reveal
           >
             {[
-              { value: "<1ms", label: "Execution" },
-              { value: "99.99%", label: "Uptime" },
-              { value: "14", label: "Markets" },
-              { value: "Level III", label: "AI Tier" },
+              { value: "7", label: "Capital Rails", sub: "Active" },
+              { value: "<1ms", label: "Execution", sub: "Latency" },
+              { value: "50,000+", label: "Instruments", sub: "Available" },
+              { value: "Level III", label: "AI Tier", sub: "Oracle" },
             ].map((m) => (
               <div
                 key={m.label}
-                className="text-center py-4 px-3 rounded-xl bg-white/[0.02] border border-white/[0.04]"
+                className="text-center py-4 px-3 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:border-white/10 transition-colors"
               >
-                <div className="text-lg font-black text-white">{m.value}</div>
-                <div className="text-[10px] text-slate-600 uppercase tracking-wider mt-0.5">
-                  {m.label}
-                </div>
+                <div className="text-xl font-black text-white font-mono">{m.value}</div>
+                <div className="text-[10px] font-bold text-white/50 mt-0.5">{m.label}</div>
+                <div className="text-[9px] text-white/20 uppercase tracking-wider">{m.sub}</div>
               </div>
             ))}
           </div>
