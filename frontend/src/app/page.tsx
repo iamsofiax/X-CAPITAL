@@ -28,7 +28,6 @@ import {
   Users,
   Eye,
   Satellite,
-  Rocket,
 } from "lucide-react";
 import { OrbitalHero, CapitalTrajectory } from "@/components/node-engine";
 
@@ -364,24 +363,7 @@ export default function LandingPage() {
     return () => obs.disconnect();
   }, [bioExpanded]);
 
-  // Counter animation for stats
-  const [countersVisible, setCountersVisible] = useState(false);
   const statsRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = statsRef.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setCountersVisible(true);
-          obs.disconnect();
-        }
-      },
-      { threshold: 0.3 },
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
 
   return (
     <div className="min-h-screen bg-xc-black">
@@ -730,27 +712,31 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             {features.map((feature, i) => (
-              <div
+              <Link
                 key={feature.title}
+                href="/auth/register"
                 data-reveal
-                className={`reveal-item relative rounded-2xl bg-gradient-to-br ${feature.color} border p-6 hover:scale-[1.02] hover:shadow-xl hover:shadow-purple-950/20 transition-all duration-400 cursor-pointer group`}
+                className={`reveal-item relative rounded-2xl bg-gradient-to-br ${feature.color} border p-6 hover:scale-[1.02] hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/50 transition-all duration-300 group block`}
                 style={{ transitionDelay: `${i * 80}ms` }}
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div className="p-2.5 rounded-xl bg-white/[0.04] group-hover:bg-white/[0.08] transition-colors">
-                    <feature.icon className={`w-5 h-5 ${feature.iconColor}`} />
+                  <div className="p-2.5 rounded-xl bg-white/[0.04] group-hover:bg-white/[0.10] transition-colors">
+                    <feature.icon className={`w-5 h-5 ${feature.iconColor} group-hover:text-white/80 transition-colors`} />
                   </div>
                   <span className="text-[9px] font-mono font-bold text-slate-600 tracking-wider uppercase">
                     {feature.tag}
                   </span>
                 </div>
-                <h3 className="text-lg font-bold text-white mb-1.5">
+                <h3 className="text-lg font-bold text-white mb-1.5 group-hover:text-white transition-colors">
                   {feature.title}
                 </h3>
-                <p className="text-sm text-slate-500 leading-relaxed">
+                <p className="text-sm text-slate-500 leading-relaxed mb-4">
                   {feature.description}
                 </p>
-              </div>
+                <div className="flex items-center gap-1 text-[11px] text-white/20 group-hover:text-white/50 transition-colors font-medium">
+                  Access <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                </div>
+              </Link>
             ))}
           </div>
 
@@ -802,7 +788,7 @@ export default function LandingPage() {
               </span>
             </h2>
             <p className="text-slate-500 text-base max-w-2xl mx-auto">
-              The world's first satellite-linked capital deployment network.
+              The world&apos;s first satellite-linked capital deployment network.
               7,200+ active satellites. Sub-25ms latency. Orbital-grade
               redundancy. Your trades never touch terrestrial bottlenecks.
             </p>
@@ -821,45 +807,51 @@ export default function LandingPage() {
                     value: "7,200+",
                     sub: "LEO Constellation",
                     trend: "+340/mo",
+                    href: "/engine",
                   },
                   {
                     label: "Global Coverage",
                     value: "105+",
                     sub: "Countries Served",
                     trend: "Expanding",
+                    href: "/engine",
                   },
                   {
                     label: "Daily Throughput",
                     value: "847 TB",
                     sub: "Bandwidth Routed",
                     trend: "+12% QoQ",
+                    href: "/funds",
                   },
                   {
                     label: "Node Yield",
                     value: "$2.4K+",
                     sub: "Monthly Per Node",
                     trend: "$1M/mo Pool",
+                    href: "/auth/register",
                   },
                 ].map((stat) => (
-                  <div
+                  <Link
                     key={stat.label}
-                    className="starlink-card rounded-xl p-4 hover:border-emerald-500/30 transition-all group"
+                    href={stat.href}
+                    className="starlink-card rounded-xl p-4 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-950/40 hover:-translate-y-0.5 transition-all duration-200 group cursor-pointer block"
                   >
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-[10px] font-bold text-xc-muted uppercase tracking-wider">
                         {stat.label}
                       </span>
-                      <span className="text-[9px] font-mono text-emerald-500/70 bg-emerald-950/40 px-1.5 py-0.5 rounded-full">
+                      <span className="text-[9px] font-mono text-emerald-500/70 bg-emerald-950/40 px-1.5 py-0.5 rounded-full group-hover:bg-emerald-500/20 transition-colors">
                         {stat.trend}
                       </span>
                     </div>
-                    <div className="font-black text-white font-mono text-lg profit-number">
+                    <div className="font-black text-white font-mono text-lg profit-number group-hover:text-emerald-300 transition-colors">
                       {stat.value}
                     </div>
-                    <div className="text-[10px] text-xc-muted/60 mt-0.5">
+                    <div className="text-[10px] text-xc-muted/60 mt-0.5 flex items-center gap-1">
                       {stat.sub}
+                      <ArrowRight className="w-2.5 h-2.5 opacity-0 -translate-x-1 group-hover:opacity-60 group-hover:translate-x-0 transition-all" />
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
 
@@ -954,90 +946,107 @@ export default function LandingPage() {
                 desc: "Every node routes real data through SpaceX\u2019s satellite constellation. Bandwidth = revenue. More nodes = more throughput = higher distribution per participant.",
                 icon: Wifi,
                 metric: "$340K/mo",
+                href: "/engine",
               },
               {
                 title: "AI Inference Compute",
                 desc: "Pooled compute resources process AI workloads for enterprise clients. GPU cycles are sold at market rate. Demand is permanent and accelerating.",
                 icon: Brain,
                 metric: "$480K/mo",
+                href: "/oracle",
               },
               {
                 title: "Global Payment Rails",
                 desc: "Cross-border settlement fees from the X payment network. Every transaction processed generates a micro-fee distributed across active nodes.",
                 icon: Globe,
                 metric: "$180K/mo",
+                href: "/funds",
               },
-            ].map(({ title, desc, icon: Icon, metric }) => (
-              <div key={title} className="bg-[#080812] p-7 md:p-8">
-                <Icon className="w-5 h-5 text-white/20 mb-5" />
-                <h3 className="text-base font-bold text-white mb-2">{title}</h3>
+            ].map(({ title, desc, icon: Icon, metric, href }) => (
+              <Link
+                key={title}
+                href={href}
+                className="bg-[#080812] p-7 md:p-8 group hover:bg-[#0a0a18] transition-colors cursor-pointer block"
+              >
+                <Icon className="w-5 h-5 text-white/20 mb-5 group-hover:text-emerald-400/50 transition-colors" />
+                <h3 className="text-base font-bold text-white mb-2 group-hover:text-emerald-300 transition-colors">{title}</h3>
                 <p className="text-[13px] text-white/35 leading-relaxed mb-6">
                   {desc}
                 </p>
-                <div className="pt-4 border-t border-white/[0.06]">
-                  <span className="text-xs text-white/25 uppercase tracking-wider">
-                    Pool contribution
-                  </span>
-                  <div className="text-2xl font-black font-mono text-white mt-1">
-                    {metric}
+                <div className="pt-4 border-t border-white/[0.06] flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-white/25 uppercase tracking-wider">
+                      Pool contribution
+                    </span>
+                    <div className="text-2xl font-black font-mono text-white mt-1 group-hover:text-emerald-400 transition-colors">
+                      {metric}
+                    </div>
                   </div>
+                  <ArrowRight className="w-4 h-4 text-white/10 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all" />
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
 
           {/* Live node metrics */}
           <div
-            className="mt-10 grid grid-cols-2 md:grid-cols-4 gap-px bg-white/[0.04] rounded-2xl overflow-hidden"
+            className="mt-10 grid grid-cols-2 md:grid-cols-4 gap-3"
             data-reveal
           >
             {[
-              { label: "Active Nodes", value: "14,892", icon: Server },
-              { label: "Compute Throughput", value: "2.4 PFlops", icon: Cpu },
-              {
-                label: "Bandwidth Routed",
-                value: "847 TB/day",
-                icon: Activity,
-              },
-              {
-                label: "Global Yield Pool",
-                value: "$1M/month",
-                icon: DollarSign,
-              },
-            ].map(({ label, value, icon: Icon }) => (
-              <div key={label} className="bg-[#080812] p-5 md:p-6">
-                <Icon className="w-4 h-4 text-white/20 mb-3" />
-                <div className="text-lg md:text-xl font-black font-mono text-white">
+              { label: "Active Nodes", value: "14,892", icon: Server, href: "/engine" },
+              { label: "Compute Throughput", value: "2.4 PFlops", icon: Cpu, href: "/oracle" },
+              { label: "Bandwidth Routed", value: "847 TB/day", icon: Activity, href: "/engine" },
+              { label: "Global Yield Pool", value: "$1M/month", icon: DollarSign, href: "/funds" },
+            ].map(({ label, value, icon: Icon, href }) => (
+              <Link
+                key={label}
+                href={href}
+                className="group bg-[#080812] border border-white/[0.04] rounded-xl p-5 md:p-6 hover:border-white/10 hover:bg-[#0a0a18] transition-all duration-200 block"
+              >
+                <Icon className="w-4 h-4 text-white/20 mb-3 group-hover:text-emerald-400/60 transition-colors" />
+                <div className="text-lg md:text-xl font-black font-mono text-white group-hover:text-emerald-300 transition-colors">
                   {value}
                 </div>
-                <div className="text-[11px] text-white/30 mt-1">{label}</div>
-              </div>
+                <div className="text-[11px] text-white/30 mt-1 flex items-center gap-1">
+                  {label}
+                  <ArrowRight className="w-2.5 h-2.5 opacity-0 group-hover:opacity-60 group-hover:translate-x-0.5 -translate-x-1 transition-all" />
+                </div>
+              </Link>
             ))}
           </div>
 
-          {/* FOMO banner */}
+          {/* Node capacity banner */}
           <div
-            className="mt-10 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+            className="mt-10 rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.03] to-white/[0.01] p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6"
             data-reveal
           >
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                <span className="text-[11px] font-mono text-white/50 uppercase tracking-wider">
-                  Limited Capacity
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[11px] font-mono text-emerald-400/70 uppercase tracking-widest">
+                  Live Capacity Constraint
                 </span>
               </div>
-              <h3 className="text-2xl font-black text-white mb-1">
-                847 nodes remaining this quarter.
+              <h3 className="text-xl md:text-2xl font-black text-white mb-2 tracking-tight">
+                847 node slots remaining this quarter.
               </h3>
-              <p className="text-sm text-white/35">
-                14,892 active. Network capacity closes at 15,739. Structural
-                constraint &mdash; not marketing.
+              <p className="text-sm text-white/35 max-w-lg leading-relaxed">
+                14,892 active. Hard cap at 15,739. Structural constraint, not marketing. When capacity closes, it stays closed.
               </p>
+              {/* Progress bar */}
+              <div className="mt-4 max-w-xs">
+                <div className="flex justify-between text-[10px] font-mono text-white/30 mb-1.5">
+                  <span>14,892 filled</span><span>15,739 cap</span>
+                </div>
+                <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                  <div className="h-full rounded-full bg-emerald-400" style={{ width: "94.6%" }} />
+                </div>
+              </div>
             </div>
             <Link
               href="/auth/register"
-              className="px-8 py-3.5 bg-white text-black font-bold text-sm rounded-full hover:bg-white/90 transition-all flex items-center gap-2 shrink-0"
+              className="px-8 py-3.5 bg-white text-black font-black text-sm rounded-full hover:bg-white/90 transition-all flex items-center gap-2 shrink-0 shadow-lg shadow-white/10"
             >
               Secure Your Node <ArrowRight className="w-4 h-4" />
             </Link>
@@ -1153,7 +1162,7 @@ export default function LandingPage() {
                   </div>
                   <div className="font-mono text-[13px] bg-[#08081a] p-5 leading-6">
                     <div className="text-slate-600 text-xs mb-3">
-                      // X-ORACLE — LIVE
+                      {/* X-ORACLE — LIVE */}
                     </div>
                     <div className="text-emerald-400">{"{"}</div>
                     <div className="pl-4 text-slate-400">
@@ -1229,20 +1238,21 @@ export default function LandingPage() {
             data-reveal
           >
             {engineAssetCategories.map((cat) => (
-              <div
+              <Link
                 key={cat.id}
-                className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.04] transition-all cursor-pointer group"
+                href="/commerce"
+                className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:border-white/20 hover:bg-white/[0.06] hover:-translate-y-1 hover:shadow-xl hover:shadow-black/40 transition-all duration-200 cursor-pointer group"
               >
-                <cat.icon className="w-6 h-6 text-white/25 group-hover:text-white/60 transition-colors" />
+                <cat.icon className="w-6 h-6 text-white/25 group-hover:text-white transition-colors" />
                 <div className="text-center">
                   <div className="text-sm font-bold text-white/60 group-hover:text-white transition-colors">
                     {cat.label}
                   </div>
-                  <div className="text-[10px] text-white/20 mt-0.5">
+                  <div className="text-[10px] text-white/20 mt-0.5 group-hover:text-white/40 transition-colors">
                     {cat.example}
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -1396,53 +1406,57 @@ export default function LandingPage() {
           </div>
 
           <div
-            className="grid md:grid-cols-3 gap-px bg-white/[0.04] rounded-2xl overflow-hidden"
+            className="grid md:grid-cols-3 gap-3 md:gap-4"
             data-reveal
           >
             {engineNodeTiers.map((tier) => (
               <div
                 key={tier.name}
-                className={`bg-[#080812] p-7 md:p-8 flex flex-col ${tier.highlight ? "bg-white/[0.03]" : ""}`}
+                className={`relative rounded-2xl border flex flex-col p-7 md:p-8 group transition-all duration-300 ${
+                  tier.highlight
+                    ? "bg-white/[0.06] border-white/20 shadow-2xl shadow-black/60 scale-[1.01]"
+                    : "bg-[#080812] border-white/[0.06] hover:border-white/14 hover:bg-[#0a0a18] hover:shadow-xl hover:shadow-black/40"
+                }`}
               >
                 {tier.highlight && (
-                  <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-white/50 mb-4 border border-white/[0.1] rounded-full px-3 py-1 w-fit">
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-black uppercase tracking-[0.15em] text-black bg-white px-4 py-1 rounded-full shadow-lg">
                     Most Popular
                   </span>
                 )}
-                <h3 className="text-xl font-black text-white mb-1">
+                <h3 className="text-xl font-black text-white mb-1 mt-2">
                   {tier.name}
                 </h3>
-                <div className="flex items-baseline gap-1 mb-1">
+                <div className="flex items-baseline gap-1.5 mb-1">
                   <span className="text-3xl font-black font-mono text-white">
                     {tier.price}
                   </span>
-                  <span className="text-xs text-white/25">one-time</span>
+                  <span className="text-xs text-white/30">one-time</span>
                 </div>
                 <div className="text-sm text-white/40 mb-6">
                   Est.{" "}
-                  <span className="text-white font-bold">{tier.yield}</span>{" "}
+                  <span className="text-white font-black">{tier.yield}</span>{" "}
                   yield
                 </div>
                 <div className="space-y-3 mb-8 flex-1">
                   {tier.features.map((f) => (
                     <div
                       key={f}
-                      className="flex items-start gap-2.5 text-[13px] text-white/40"
+                      className="flex items-start gap-2.5 text-[13px] text-white/50"
                     >
-                      <CheckCircle2 className="w-3.5 h-3.5 text-white/25 mt-0.5 shrink-0" />
+                      <CheckCircle2 className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${tier.highlight ? "text-white/60" : "text-white/25"}`} />
                       {f}
                     </div>
                   ))}
                 </div>
                 <Link
                   href="/auth/register"
-                  className={`w-full text-center block py-3.5 rounded-full text-sm font-bold transition-all ${
+                  className={`w-full text-center block py-3.5 rounded-full text-sm font-black transition-all duration-200 ${
                     tier.highlight
-                      ? "bg-white text-black hover:bg-white/90"
-                      : "bg-white/[0.06] text-white border border-white/[0.08] hover:bg-white/[0.1]"
+                      ? "bg-white text-black hover:bg-white/90 shadow-lg shadow-white/10"
+                      : "bg-white/[0.06] text-white border border-white/[0.10] hover:bg-white/[0.12] hover:border-white/20"
                   }`}
                 >
-                  Deploy {tier.name}
+                  Deploy {tier.name} <ArrowRight className="inline w-3.5 h-3.5 ml-1" />
                 </Link>
               </div>
             ))}
@@ -1450,7 +1464,7 @@ export default function LandingPage() {
 
           {/* Trust bar */}
           <div
-            className="flex flex-wrap items-center justify-center gap-6 md:gap-8 mt-10 text-[11px] text-white/20"
+            className="flex flex-wrap items-center justify-center gap-6 md:gap-10 mt-10 pt-8 border-t border-white/[0.04] text-[11px] text-white/25"
             data-reveal
           >
             {[
@@ -1459,7 +1473,7 @@ export default function LandingPage() {
               { icon: Users, text: "14,892 Active Nodes" },
               { icon: Eye, text: "Full Transparency" },
             ].map(({ icon: Icon, text }) => (
-              <div key={text} className="flex items-center gap-1.5">
+              <div key={text} className="flex items-center gap-2 hover:text-white/50 transition-colors">
                 <Icon className="w-3.5 h-3.5" /> {text}
               </div>
             ))}

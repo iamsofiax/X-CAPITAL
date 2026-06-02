@@ -442,9 +442,10 @@ input[type="number"] {
 /* Starlink card glow */
 .starlink-card {
   position: relative;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.03) 0%, rgba(0, 0, 0, 0.4) 50%, rgba(16, 185, 129, 0.02) 100%);
-  border: 1px solid rgba(16, 185, 129, 0.1);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.04) 0%, rgba(0, 0, 0, 0.5) 50%, rgba(16, 185, 129, 0.02) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.12);
   overflow: hidden;
+  backdrop-filter: blur(8px);
 }
 
 .starlink-card::before {
@@ -454,13 +455,28 @@ input[type="number"] {
   left: -100%;
   width: 100%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.5), transparent);
+  background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.6), transparent);
   animation: starlinkScan 4s linear infinite;
+}
+
+.starlink-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at 50% 0%, rgba(16, 185, 129, 0.06) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.starlink-card:hover::after {
+  opacity: 1;
 }
 
 @keyframes starlinkScan {
   0% { left: -100%; }
-  100% { left: 100%; }
+  100% { left: 200%; }
 }
 
 /* Satellite beam connection */
