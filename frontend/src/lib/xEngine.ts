@@ -69,10 +69,16 @@ export function resolveNodePhase(input: {
   return "COLD";
 }
 
-/** Capital in/out = admin. Trading & rails auto once ARMED. */
-export function canAccessRail(phase: NodePhase, rail: EngineRail): boolean {
+/** Capital in/out = admin. Trading & rails auto once ARMED.
+ *  unlockedRails allows admin to grant per-rail access regardless of phase. */
+export function canAccessRail(
+  phase: NodePhase,
+  rail: EngineRail,
+  unlockedRails?: string[],
+): boolean {
   if (phase === "FROZEN") return false;
   if (rail === "wallet" || rail === "engine") return true;
+  if (unlockedRails && unlockedRails.includes(rail)) return true;
   if (phase === "ARMED") return true;
   return false;
 }

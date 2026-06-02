@@ -133,10 +133,10 @@ export default function CommercePage() {
           {/* background image */}
           <div className="absolute inset-0">
             <Image
-              src="https://images.unsplash.com/photo-1617704548623-340376564e68?w=640&q=90&auto=format&fit=crop"
+              src="https://images.unsplash.com/photo-1617704548623-340376564e68?w=1600&q=95&auto=format&fit=crop"
               alt="Tesla vehicle panoramic"
               fill
-              className="object-cover object-center"
+              className="object-cover object-center scale-105"
               unoptimized
               priority
             />
@@ -219,10 +219,10 @@ export default function CommercePage() {
             {/* Wide panoramic Tesla banner */}
             <div className="relative h-36 md:h-48 rounded-2xl overflow-hidden mb-4 md:mb-5 border border-red-900/20">
               <Image
-                src="https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=640&q=90&auto=format&fit=crop"
-                alt="Tesla Model S on the road"
+                src="https://images.unsplash.com/photo-1536700503339-1e4b06520771?w=1600&q=95&auto=format&fit=crop"
+                alt="Tesla Model S editorial"
                 fill
-                className="object-cover object-center"
+                className="object-cover object-center scale-105"
                 unoptimized
               />
               <div className="absolute inset-0 bg-gradient-to-r from-red-950/85 to-transparent" />
@@ -595,7 +595,7 @@ const DEMO_PRODUCTS: Product[] = [
     category: "EV",
     price: 89990,
     imageUrl:
-      "https://images.unsplash.com/photo-1617704548623-340376564e68?w=640&q=90&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1617704548623-340376564e68?w=1400&q=95&auto=format&fit=crop",
     imageAlt: "Tesla Model X Plaid in silver",
     tagline: "The quickest SUV ever made.",
     badge: "Bestseller",
@@ -634,8 +634,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "EV",
     price: 89990,
     imageUrl:
-      "https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=640&q=90&auto=format&fit=crop",
-    imageAlt: "Tesla Model S Plaid red",
+      "https://images.unsplash.com/photo-1536700503339-1e4b06520771?w=1400&q=95&auto=format&fit=crop",
+    imageAlt: "Tesla Model S Plaid studio shot",
     tagline: "1,020 hp. 0–60 in 1.99 s.",
     badge: "Plaid",
     description:
@@ -669,8 +669,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "EV",
     price: 42990,
     imageUrl:
-      "https://images.unsplash.com/photo-1561580125-028ee3bd62eb?w=640&q=90&auto=format&fit=crop",
-    imageAlt: "Tesla Model 3 white",
+      "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=1400&q=95&auto=format&fit=crop",
+    imageAlt: "Tesla Model 3 white editorial",
     tagline: "The world's most popular EV sedan.",
     description:
       "Long Range AWD Model 3 with 358-mile range, 4.2-second 0–60, and 17-inch glass cockpit. Dual-motor, full Autopilot hardware, and over-the-air software updates for life.",
@@ -703,8 +703,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "EV",
     price: 47990,
     imageUrl:
-      "https://images.unsplash.com/photo-1620714223084-8fcacc6dfd8d?w=640&q=90&auto=format&fit=crop",
-    imageAlt: "Tesla Model Y crossover",
+      "https://images.unsplash.com/photo-1590629953144-c9b1cd41e1e0?w=1400&q=95&auto=format&fit=crop",
+    imageAlt: "Tesla Model Y AWD premium",
     tagline: "The world's best-selling vehicle.",
     description:
       "All-Wheel Drive crossover with 330-mile range, 7-seat configuration, and the largest cargo space in its class. The #1 best-selling vehicle globally for 2023 and 2024.",
@@ -737,8 +737,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "EV",
     price: 99990,
     imageUrl:
-      "https://images.unsplash.com/photo-1705771801928-4fceafdd6e55?w=640&q=90&auto=format&fit=crop",
-    imageAlt: "Tesla Cybertruck Foundation Series",
+      "https://images.unsplash.com/photo-1699128603498-a11a7e0b4c91?w=1400&q=95&auto=format&fit=crop",
+    imageAlt: "Tesla Cybertruck editorial",
     tagline: "Built for the future. Available now.",
     badge: "Limited",
     description:
@@ -772,8 +772,8 @@ const DEMO_PRODUCTS: Product[] = [
     category: "ENERGY",
     price: 11500,
     imageUrl:
-      "https://images.unsplash.com/photo-1593941707882-a5bba14938c7?w=640&q=90&auto=format&fit=crop",
-    imageAlt: "Tesla Powerwall home battery",
+      "https://images.unsplash.com/photo-1509391366360-2e959784a276?w=1400&q=95&auto=format&fit=crop",
+    imageAlt: "Tesla Powerwall solar energy",
     tagline: "Whole-home backup power.",
     description:
       "Powerwall 3 with integrated 11.5 kW solar inverter, 13.5 kWh usable capacity, and Storm Watch automatic backup activation. Monitor and control from the Tesla app.",

@@ -65,7 +65,7 @@ export function useXEngine() {
     nodeId: nodeIdFromToken(accessToken),
     pendingCapital,
     lastPending,
-    canAccess: (rail: EngineRail) => canAccessRail(phase, rail),
+    canAccess: (rail: EngineRail) => canAccessRail(phase, rail, user?.unlockedRails),
     lockReason: (rail: EngineRail) => railLockReason(phase, rail),
     isArmed: phase === "ARMED",
     isOnHold: phase === "PENDING" || phase === "DETECTING",

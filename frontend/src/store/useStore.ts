@@ -489,16 +489,30 @@ export const useStore = create<Store>()(
       getAllUsers: () => get().registeredUsers,
 
       updateUserById: (userId, updates) => {
-        set((state) => ({
-          registeredUsers: state.registeredUsers.map((u) =>
+        set((state) => {
+          const updatedRegisteredUsers = state.registeredUsers.map((u) =>
             u.id === userId ? { ...u, ...updates } : u,
-          ),
-          // Also update the current user if it matches
-          user:
-            state.user?.id === userId
-              ? { ...state.user, ...updates }
-              : state.user,
-        }));
+          );
+          const isCurrentUser = state.user?.id === userId;
+          const updatedUser = isCurrentUser
+            ? { ...state.user!, ...updates }
+            : state.user;
+
+          // Sync wallet.fiatBalance whenever admin updates balance for the logged-in user
+          let updatedWallet = state.wallet;
+          if (isCurrentUser && updates.balance !== undefined && state.wallet) {
+            updatedWallet = {
+              ...state.wallet,
+              fiatBalance: updates.balance,
+            };
+          }
+
+          return {
+            registeredUsers: updatedRegisteredUsers,
+            user: updatedUser,
+            wallet: updatedWallet,
+          };
+        });
       },
 
       deleteUserById: (userId) => {

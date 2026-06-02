@@ -66,6 +66,8 @@ export interface User {
   lastLogin?: string;
   country?: string;
   trades?: number;
+  // Admin-unlocked rails (bypasses phase check for specific rails)
+  unlockedRails?: string[];
   // Transaction ledger
   transactions?: Transaction[];
 }

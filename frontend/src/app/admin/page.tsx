@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   useStore,
   type AuditEntry,
-  type PendingTransaction, 
   type UserNotification,
   type KYCSubmission,
 } from "@/store/useStore";
@@ -32,7 +31,6 @@ import {
   Play,
   Pause,
   X,
-  AlertTriangle,
   Calendar,
   Percent,
   Activity,
@@ -70,7 +68,8 @@ type AdminTab =
   | "notifications"
   | "tos"
   | "audit"
-  | "create";
+  | "create"
+  | "rails";
 
 // ── Toast ───────────────────────────────────────────────────────────────────
 function Toast({
@@ -181,8 +180,6 @@ export default function AdminPage() {
     pendingTransactions,
     approvePendingTransaction,
     rejectPendingTransaction,
-    adminAlerts,
-    markAdminAlertRead,
     getUnreadAdminAlertCount,
     notifications,
     addNotification,
@@ -297,7 +294,7 @@ export default function AdminPage() {
     [pendingTransactions],
   );
 
-  const unreadAlerts = getUnreadAdminAlertCount();
+  const _unreadAlerts = getUnreadAdminAlertCount(); void _unreadAlerts;
 
   const stats = useMemo(() => {
     const users = registeredUsers || [];
@@ -582,7 +579,7 @@ export default function AdminPage() {
       createdAt: new Date().toISOString(),
     });
     audit(`Rejected ${tx.type} for ${tx.userEmail}`, tx.userEmail, "warning");
-    showToast(`Signal denied for ${tx.userName}`, "warning");
+    showToast(`Signal denied for ${tx.userName}`, "error");
   };
 
   const handleReject = () => {
@@ -807,6 +804,7 @@ export default function AdminPage() {
             { key: "tos" as const, label: "Terms of Service", icon: FileText },
             { key: "audit" as const, label: "Audit Log", icon: Clock },
             { key: "create" as const, label: "Create User", icon: UserPlus },
+            { key: "rails" as const, label: "Rail Access", icon: Unlock },
           ].map((t) => (
             <button
               key={t.key}
@@ -1476,6 +1474,105 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* RAIL ACCESS TAB                                                   */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {activeTab === "rails" && (
+          <div className="space-y-4">
+            <div className="bg-[#12121a] border border-white/5 rounded-xl p-5 mb-2">
+              <div className="flex items-center gap-2 mb-1">
+                <Unlock size={15} className="text-emerald-400" />
+                <h3 className="text-sm font-semibold text-white">Rail Access Manager</h3>
+              </div>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Grant or revoke access to specific capital rails for individual users, regardless of their current phase.
+                Unlocked rails bypass the ARMED requirement — use with precision.
+              </p>
+            </div>
+            <div className="relative mb-4">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name or email…"
+                className="w-full md:w-96 pl-9 pr-4 py-2.5 bg-[#12121a] border border-white/10 rounded-lg text-sm text-white placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-white/20"
+              />
+            </div>
+            <div className="space-y-3">
+              {allUsers.map((u) => {
+                const RAILS = ["trading", "portfolio", "funds", "commerce", "oracle"] as const;
+                const unlocked: string[] = u.unlockedRails ?? [];
+                const toggleRail = (rail: string) => {
+                  const already = unlocked.includes(rail);
+                  const next = already ? unlocked.filter((r) => r !== rail) : [...unlocked, rail];
+                  updateUserById(u.id, { unlockedRails: next });
+                  audit(`${already ? "Revoked" : "Granted"} ${rail} rail access`, u.email, "action");
+                  showToast(`${rail} ${already ? "locked" : "unlocked"} for ${u.firstName}`);
+                };
+                return (
+                  <div key={u.id} className="bg-[#12121a] border border-white/5 rounded-xl p-5">
+                    <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-white/[0.06] flex items-center justify-center text-sm font-bold text-white shrink-0">
+                          {(u.firstName?.[0] ?? "?").toUpperCase()}{(u.lastName?.[0] ?? "").toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-white">{u.firstName} {u.lastName}</p>
+                          <p className="text-xs text-gray-500">{u.email} · <span className="text-gray-600">{u.tier}</span></p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={cn(
+                          "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                          u.isFrozen ? "bg-red-600/20 text-red-400" :
+                          unlocked.length >= RAILS.length ? "bg-emerald-600/20 text-emerald-400" :
+                          unlocked.length > 0 ? "bg-amber-600/20 text-amber-400" :
+                          "bg-white/5 text-gray-500"
+                        )}>
+                          {u.isFrozen ? "FROZEN" : unlocked.length >= RAILS.length ? "FULL ACCESS" : unlocked.length > 0 ? `${unlocked.length} RAILS OPEN` : "PHASE GATE ONLY"}
+                        </span>
+                        <button
+                          onClick={() => { updateUserById(u.id, { unlockedRails: [...RAILS] }); audit("Unlocked all rails", u.email, "action"); showToast(`All rails unlocked for ${u.firstName}`); }}
+                          className="text-[10px] px-2.5 py-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 rounded-md font-bold transition"
+                        >
+                          Unlock All
+                        </button>
+                        <button
+                          onClick={() => { updateUserById(u.id, { unlockedRails: [] }); audit("Locked all rails", u.email, "action"); showToast(`All rails locked for ${u.firstName}`); }}
+                          className="text-[10px] px-2.5 py-1 bg-red-600/10 hover:bg-red-600/20 text-red-400 rounded-md font-bold transition"
+                        >
+                          Lock All
+                        </button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-5 gap-2">
+                      {RAILS.map((rail) => {
+                        const isOn = unlocked.includes(rail);
+                        return (
+                          <button
+                            key={rail}
+                            onClick={() => toggleRail(rail)}
+                            disabled={!!u.isFrozen}
+                            className={cn(
+                              "py-3 rounded-lg border flex flex-col items-center gap-1 text-[10px] font-bold uppercase tracking-wider transition-all duration-150",
+                              isOn ? "bg-emerald-600/20 border-emerald-600/40 text-emerald-300 hover:bg-emerald-600/30" :
+                              "bg-white/[0.03] border-white/[0.06] text-gray-600 hover:text-white hover:border-white/10",
+                              u.isFrozen && "opacity-30 cursor-not-allowed",
+                            )}
+                          >
+                            {isOn ? <Unlock size={12} /> : <Lock size={12} />}
+                            {rail}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 

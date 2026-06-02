@@ -176,7 +176,7 @@ export default function Sidebar() {
         </div>
 
         {/* ── NAVIGATION ──────────────────────────────────────── */}
-        <nav className="flex-1 py-1 px-2 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 py-2 px-2 space-y-0.5 overflow-y-auto">
           {navItems.map(({ href, icon: Icon, label, code, rail, railIndex }) => {
             const active = pathname === href || pathname.startsWith(href + "/");
             const locked = !canAccess(rail);
@@ -188,41 +188,39 @@ export default function Sidebar() {
                 href={href}
                 onClick={() => setSidebarOpen(false)}
                 className={cn(
-                  "group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] transition-all duration-150",
+                  "group relative flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all duration-150",
                   "md:justify-center lg:justify-start",
                   active
-                    ? "bg-white/[0.07] text-white"
-                    : "text-white/40 hover:text-white hover:bg-white/[0.04]",
-                  locked && !active && "opacity-40",
+                    ? "bg-white/[0.09] text-white shadow-sm"
+                    : "text-white/55 hover:text-white hover:bg-white/[0.06]",
+                  locked && !active && "opacity-50",
                 )}
               >
                 {/* Active rail accent line */}
                 {active && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full bg-white/60" />
+                  <span className={cn("absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-full", dotColor)} />
                 )}
 
                 {/* Rail dot */}
                 <span
                   className={cn(
-                    "w-1 h-1 rounded-full shrink-0 transition-opacity md:hidden lg:inline-block",
-                    active ? cn(dotColor, "opacity-80") : "bg-white/10",
+                    "w-1.5 h-1.5 rounded-full shrink-0 transition-opacity md:hidden lg:inline-block",
+                    active ? cn(dotColor, "opacity-90") : "bg-white/15",
                   )}
                 />
 
-                {/* Code stamp */}
-                <span className="engine-mono text-[7.5px] text-white/15 w-10 shrink-0 group-hover:text-white/30 transition-colors md:hidden lg:inline">
-                  {code}
-                </span>
-
                 <Icon
-                  className="w-[17px] h-[17px] shrink-0"
-                  strokeWidth={active ? 2.1 : 1.5}
+                  className="w-[18px] h-[18px] shrink-0"
+                  strokeWidth={active ? 2.2 : 1.8}
                 />
 
-                <span className="md:hidden lg:inline flex-1 font-medium tracking-tight">{label}</span>
+                <span className={cn(
+                  "md:hidden lg:inline flex-1 text-[14px] tracking-tight",
+                  active ? "font-extrabold" : "font-semibold",
+                )}>{label}</span>
 
                 {locked && !active && (
-                  <Lock className="w-2.5 h-2.5 text-amber-500/50 md:hidden lg:inline shrink-0" />
+                  <Lock className="w-3 h-3 text-amber-500/60 md:hidden lg:inline shrink-0" />
                 )}
               </Link>
             );

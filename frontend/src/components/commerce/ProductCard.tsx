@@ -3,20 +3,19 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { cn, formatCurrency } from '@/lib/utils';
-import { Button } from '@/components/ui/Button';
-import { ShoppingCart, TrendingUp, Zap, Star, ChevronRight, Rocket } from 'lucide-react';
+import { ArrowUpRight, TrendingUp, Zap, Star, Satellite, ShoppingBag } from 'lucide-react';
 
 export interface Product {
   id: string;
   name: string;
   category: string;
   price: number;
-  imageUrl?: string;            // high-res hero image
+  imageUrl?: string;
   imageAlt?: string;
   description: string;
-  specs?: Record<string, string>;   // key-value spec table (e.g. Range: "358 mi")
-  highlights?: string[];            // short bullet points shown under image
-  features?: string[];              // feature badges (e.g. ["Autopilot", "FSD Ready"])
+  specs?: Record<string, string>;
+  highlights?: string[];
+  features?: string[];
   investmentSuggestion?: {
     symbol: string;
     name: string;
@@ -33,218 +32,178 @@ interface ProductCardProps {
   onCheckout: (product: Product) => void;
 }
 
-/* ── per-category visual config ─────────────────────────────────────────── */
-const CAT_CONFIG: Record<string, { grad: string; glow: string; accent: string; overlayGrad: string }> = {
-  EV: {
-    grad: 'from-red-950/80 via-xc-card to-xc-card',
-    glow: 'hover:shadow-red-900/30',
-    accent: 'bg-red-500/20 text-red-300 border-red-600/30',
-    overlayGrad: 'from-red-950/70 to-transparent',
-  },
-  SPACE: {
-    grad: 'from-zinc-950/80 via-xc-card to-xc-card',
-    glow: 'hover:shadow-indigo-900/30',
-    accent: 'bg-indigo-500/20 text-indigo-300 border-indigo-600/30',
-    overlayGrad: 'from-zinc-950/75 to-transparent',
-  },
-  AI: {
-    grad: 'from-black via-xc-card to-xc-card',
-    glow: 'hover:shadow-black/50/30',
-    accent: 'bg-xc-purple/20 text-white/70 border-white/[0.10]/30',
-    overlayGrad: 'from-black/90 to-transparent',
-  },
-  COMPUTING: {
-    grad: 'from-blue-950/80 via-xc-card to-xc-card',
-    glow: 'hover:shadow-blue-900/30',
-    accent: 'bg-blue-500/20 text-blue-300 border-blue-600/30',
-    overlayGrad: 'from-blue-950/75 to-transparent',
-  },
-  ENERGY: {
-    grad: 'from-black/70 via-xc-card to-xc-card',
-    glow: 'hover:shadow-black/50/30',
-    accent: 'bg-amber-500/20 text-amber-300 border-white/[0.10]/30',
-    overlayGrad: 'from-black/75 to-transparent',
-  },
-  DEFAULT: {
-    grad: 'from-xc-dark to-xc-card',
-    glow: 'hover:shadow-black/50/20',
-    accent: 'bg-xc-purple/20 text-white/70 border-white/[0.10]/30',
-    overlayGrad: 'from-xc-dark/80 to-transparent',
-  },
-};
+/* ── per-category accent ─────────────────────────────────────────────── */
+const CAT = {
+  EV:        { accent: 'text-red-400',    border: 'hover:border-red-500/30',    tag: 'bg-red-500/10 text-red-300 border-red-500/20',    glow: 'hover:shadow-red-950/50'    },
+  SPACE:     { accent: 'text-indigo-400', border: 'hover:border-indigo-500/30', tag: 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20', glow: 'hover:shadow-indigo-950/50' },
+  AI:        { accent: 'text-violet-400', border: 'hover:border-violet-500/30', tag: 'bg-violet-500/10 text-violet-300 border-violet-500/20', glow: 'hover:shadow-violet-950/50'  },
+  COMPUTING: { accent: 'text-blue-400',   border: 'hover:border-blue-500/30',   tag: 'bg-blue-500/10 text-blue-300 border-blue-500/20',   glow: 'hover:shadow-blue-950/50'   },
+  ENERGY:    { accent: 'text-amber-400',  border: 'hover:border-amber-500/30',  tag: 'bg-amber-500/10 text-amber-300 border-amber-500/20', glow: 'hover:shadow-amber-950/50'  },
+  DEFAULT:   { accent: 'text-white/50',   border: 'hover:border-white/20',      tag: 'bg-white/5 text-white/50 border-white/10',          glow: 'hover:shadow-black/60'      },
+} as const;
 
-/* ── category icon ────────────────────────────────────────────────────────── */
-function CategoryIcon({ category }: { category: string }) {
-  if (category === 'EV') return <Zap className="w-3 h-3" />;
-  if (category === 'SPACE') return <Rocket className="w-3 h-3" />;
-  if (category === 'AI' || category === 'COMPUTING') return <Star className="w-3 h-3" />;
-  return <ChevronRight className="w-3 h-3" />;
+function catCfg(cat: string) {
+  return CAT[cat as keyof typeof CAT] ?? CAT.DEFAULT;
 }
 
-/* ── hero image with graceful emoji fallback ─────────────────────────────── */
-function ProductHero({ product, overlayGrad }: { product: Product; overlayGrad: string }) {
-  const [imgError, setImgError] = useState(false);
+function CatIcon({ category }: { category: string }) {
+  const cls = 'w-3 h-3';
+  if (category === 'EV') return <Zap className={cls} />;
+  if (category === 'SPACE') return <Satellite className={cls} />;
+  if (category === 'AI' || category === 'COMPUTING') return <Star className={cls} />;
+  return <ShoppingBag className={cls} />;
+}
 
-  if (product.imageUrl && !imgError) {
+/* ── hero image ─────────────────────────────────────────────────────── */
+function ProductHero({ product }: { product: Product }) {
+  const [err, setErr] = useState(false);
+  const cfg = catCfg(product.category);
+
+  if (product.imageUrl && !err) {
     return (
-      <div className="relative w-full h-52 overflow-hidden bg-xc-dark">
+      <div className="relative w-full h-56 overflow-hidden">
         <Image
           src={product.imageUrl}
           alt={product.imageAlt ?? product.name}
           fill
-          sizes="(max-width: 768px) 100vw, 400px"
-          className="object-cover transition-transform duration-700 group-hover:scale-105"
-          onError={() => setImgError(true)}
-          unoptimized={false}
+          sizes="(max-width: 768px) 100vw, 480px"
+          className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+          onError={() => setErr(true)}
           priority={false}
+          unoptimized
         />
-        {/* bottom gradient bleed so card background looks seamless */}
-        <div className={cn('absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t', overlayGrad)} />
-        {/* top scrim for badges */}
-        <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/50 to-transparent" />
+        {/* cinematic gradients */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent" />
+        {/* bottom vignette intensity */}
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black to-transparent" />
       </div>
     );
   }
 
-  /* category icon fallback — no emoji strings */
   const Icon =
-    product.category === "EV"
-      ? Zap
-      : product.category === "SPACE"
-        ? Rocket
-        : product.category === "AI" || product.category === "COMPUTING"
-          ? Star
-          : ShoppingCart;
+    product.category === 'EV' ? Zap :
+    product.category === 'SPACE' ? Satellite :
+    product.category === 'AI' || product.category === 'COMPUTING' ? Star : ShoppingBag;
 
   return (
-    <div
-      className={cn(
-        "w-full h-40 flex flex-col items-center justify-center relative overflow-hidden",
-        "bg-gradient-to-br from-black/80 to-xc-card",
-      )}
-    >
-      <Icon className="w-16 h-16 text-white/20 group-hover:text-white/30 transition-colors" strokeWidth={1} />
-      <span className="engine-mono text-[10px] text-white/25 mt-3 uppercase tracking-widest">
-        {product.category}
-      </span>
+    <div className="w-full h-56 flex items-center justify-center bg-gradient-to-br from-black to-[#0a0a12] relative overflow-hidden">
+      <div className={cn('w-24 h-24 rounded-2xl flex items-center justify-center bg-white/[0.04] border border-white/[0.06]')}>
+        <Icon className={cn('w-10 h-10', cfg.accent)} strokeWidth={1} />
+      </div>
     </div>
   );
 }
 
 export default function ProductCard({ product, onCheckout }: ProductCardProps) {
-  const cat = CAT_CONFIG[product.category] ?? CAT_CONFIG.DEFAULT;
+  const cfg = catCfg(product.category);
 
   return (
-    <div className={cn(
-      'bg-gradient-to-b rounded-2xl border border-xc-border overflow-hidden flex flex-col',
-      'transition-all duration-300 hover:border-xc-purple/50',
-      'hover:shadow-xl group relative',
-      cat.grad,
-      cat.glow,
-    )}>
-
-      {/* ── Badges overlaid on hero ──────────────────────────────────────── */}
+    <div
+      className={cn(
+        'group relative flex flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-[#080810]',
+        'transition-all duration-300 hover:-translate-y-1.5',
+        'hover:shadow-2xl hover:border-white/[0.12]',
+        cfg.border,
+        cfg.glow,
+      )}
+    >
+      {/* ── Hero ─────────────────────────────────────────────────── */}
       <div className="relative">
-        <ProductHero product={product} overlayGrad={cat.overlayGrad} />
+        <ProductHero product={product} />
 
-        {/* top-left: product badge */}
+        {/* badge top-left */}
         {product.badge && (
           <span className={cn(
-            'absolute top-3 left-3 z-10 px-2.5 py-0.5 rounded-full text-xs font-black',
-            'border backdrop-blur-sm',
-            cat.accent,
+            'absolute top-3 left-3 z-10 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase',
+            'bg-black/60 backdrop-blur-sm border border-white/10 text-white',
           )}>
             {product.badge}
           </span>
         )}
 
-        {/* top-right: category tag */}
+        {/* category top-right */}
         <span className={cn(
-          'absolute top-3 right-3 z-10 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold',
-          'border backdrop-blur-sm',
-          cat.accent,
+          'absolute top-3 right-3 z-10 flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase backdrop-blur-sm border',
+          cfg.tag,
         )}>
-          <CategoryIcon category={product.category} />
+          <CatIcon category={product.category} />
           {product.category}
         </span>
+
+        {/* price overlaid at bottom of image */}
+        <div className="absolute bottom-3 right-4 z-10">
+          <span className="font-black font-mono text-white text-xl tracking-tight" style={{ textShadow: '0 2px 12px rgba(0,0,0,0.9)' }}>
+            {formatCurrency(product.price)}
+          </span>
+        </div>
       </div>
 
-      {/* ── Product name + tagline ───────────────────────────────────────── */}
-      <div className="px-5 pt-4 pb-3">
-        <h3 className="font-black text-white text-base leading-tight group-hover:text-white/70 transition-colors">
-          {product.name}
-        </h3>
-        {product.tagline && (
-          <p className="text-xs font-semibold text-white/70 mt-0.5">{product.tagline}</p>
-        )}
-        <p className="text-xs text-xc-muted mt-1.5 line-clamp-2 leading-relaxed">{product.description}</p>
-      </div>
-
-      {/* ── Feature badges ───────────────────────────────────────────────── */}
-      {product.features && product.features.length > 0 && (
-        <div className="px-5 pb-3 flex flex-wrap gap-1.5">
-          {product.features.map((f) => (
-            <span key={f} className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-xc-muted">
-              {f}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* ── Specs grid ───────────────────────────────────────────────────── */}
-      {product.specs && Object.keys(product.specs).length > 0 && (
-        <div className="mx-5 mb-3 grid grid-cols-2 gap-x-4 gap-y-2 bg-black/20 rounded-xl px-4 py-3 border border-white/5">
-          {Object.entries(product.specs).map(([k, v]) => (
-            <div key={k}>
-              <div className="text-[9px] uppercase tracking-widest text-xc-muted font-semibold">{k}</div>
-              <div className="text-xs font-black text-white mt-0.5">{v}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── Price ────────────────────────────────────────────────────────── */}
-      <div className="px-5 pb-3 border-b border-white/5">
-        <div className="flex items-baseline justify-between">
-          <span className="text-2xl font-black font-mono text-white">{formatCurrency(product.price)}</span>
-          {product.investmentSuggestion && (
-            <span className="text-xs font-bold text-xc-green">
-              +{product.investmentSuggestion.percentage}% invested
-            </span>
+      {/* ── Body ─────────────────────────────────────────────────── */}
+      <div className="flex flex-col flex-1 p-5">
+        {/* name + tagline */}
+        <div className="mb-3">
+          <h3 className="font-black text-white text-[15px] leading-snug tracking-tight mb-0.5">
+            {product.name}
+          </h3>
+          {product.tagline && (
+            <p className={cn('text-[11px] font-bold tracking-wide', cfg.accent)}>{product.tagline}</p>
           )}
         </div>
-      </div>
 
-      {/* ── Investment bundle ────────────────────────────────────────────── */}
-      {product.investmentSuggestion && (
-        <div className="px-5 py-3 bg-emerald-950/20 border-b border-emerald-900/20">
-          <div className="flex items-center gap-2 mb-1">
-            <TrendingUp className="w-3.5 h-3.5 text-xc-green flex-shrink-0" />
-            <span className="text-xs font-bold text-xc-green">Commerce ↔ Investment Bundle</span>
+        {/* description */}
+        <p className="text-[12px] text-white/40 leading-relaxed mb-4 line-clamp-2">
+          {product.description}
+        </p>
+
+        {/* specs grid */}
+        {product.specs && Object.keys(product.specs).length > 0 && (
+          <div className="grid grid-cols-3 gap-x-3 gap-y-2.5 mb-4 bg-white/[0.03] rounded-xl p-3 border border-white/[0.05]">
+            {Object.entries(product.specs).slice(0, 6).map(([k, v]) => (
+              <div key={k} className="min-w-0">
+                <div className="text-[8px] uppercase tracking-widest text-white/25 font-semibold leading-none mb-0.5">{k}</div>
+                <div className="text-[11px] font-black text-white leading-tight">{v}</div>
+              </div>
+            ))}
           </div>
-          <p className="text-xs text-xc-muted leading-relaxed">
-            Auto-invest{' '}
-            <span className="text-white font-semibold">{formatCurrency(product.investmentSuggestion.amount)}</span>
-            {' '}in{' '}
-            <span className="text-white/70 font-semibold">
-              ${product.investmentSuggestion.symbol} — {product.investmentSuggestion.name}
-            </span>
-            {' '}simultaneously.
-          </p>
-        </div>
-      )}
+        )}
 
-      {/* ── CTA ──────────────────────────────────────────────────────────── */}
-      <div className="px-5 py-4 mt-auto">
-        <Button
-          variant="primary"
-          fullWidth
-          onClick={() => onCheckout(product)}
-          icon={<ShoppingCart className="w-4 h-4" />}
-          className="font-black tracking-wide"
-        >
-          Buy + Invest
-        </Button>
+        {/* feature badges */}
+        {product.features && product.features.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-4">
+            {product.features.slice(0, 4).map((f) => (
+              <span key={f} className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-white/40 tracking-wide">
+                {f}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* investment bundle strip */}
+        {product.investmentSuggestion && (
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-950/20 border border-emerald-900/20 mb-4">
+            <TrendingUp className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <div className="text-[11px] text-emerald-300/80 leading-tight">
+              <span className="font-bold text-emerald-300">{formatCurrency(product.investmentSuggestion.amount)}</span>
+              {' auto-invested in '}
+              <span className="font-bold text-white">${product.investmentSuggestion.symbol}</span>
+            </div>
+          </div>
+        )}
+
+        {/* CTA */}
+        <div className="mt-auto pt-1">
+          <button
+            onClick={() => onCheckout(product)}
+            className={cn(
+              'w-full flex items-center justify-center gap-2 py-3 rounded-xl font-black text-[13px] tracking-wide transition-all duration-200',
+              'bg-white text-black hover:bg-white/90 hover:shadow-lg hover:shadow-white/10',
+            )}
+          >
+            Buy + Invest
+            <ArrowUpRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
