@@ -702,32 +702,38 @@ export const useStore = create<Store>()(
       updateUserById: (userId, updates) => {
         set((state) => {
           const target = state.registeredUsers.find((u) => u.id === userId);
+          if (!target && updates.balance === undefined) return state;
           const email = target?.email ?? "";
+
+          // Batch update: build new registeredUsers array once
           const registeredUsers = state.registeredUsers.map((u) =>
             u.id === userId ? { ...u, ...updates } : u,
           );
-          const base = { ...state, registeredUsers };
 
+          // When balance changes, use single atomic patch
           if (updates.balance !== undefined && email) {
             return patchBalanceForUser(
-              base,
+              state,
               userId,
               email,
               Number(updates.balance),
             );
           }
 
+          // Only merge session user when the update targets the logged-in user
           const sessionMatches =
             state.user &&
             (state.user.id === userId ||
               (target &&
                 state.user.email.toLowerCase() ===
                   target.email.toLowerCase()));
+          if (!sessionMatches) {
+            return { registeredUsers };
+          }
+
           return {
             registeredUsers,
-            user: sessionMatches
-              ? mergeUserFromRegistry(state.user, registeredUsers)
-              : state.user,
+            user: mergeUserFromRegistry(state.user, registeredUsers),
             wallet: state.wallet,
           };
         });
