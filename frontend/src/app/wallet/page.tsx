@@ -389,8 +389,10 @@ export default function WalletPage() {
   };
 
   const submitDeposit = async () => {
+    if (processing) return;
     const parsedAmount = parseFloat(amount);
     if (!parsedAmount || parsedAmount <= 0) return;
+    setProcessing(true);
 
     const details: Record<string, string> = {};
     let method: PendingTransaction["method"] = "wire";
