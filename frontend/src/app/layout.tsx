@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import TawkChat from "@/components/support/TawkChat";
 import SessionSync from "@/components/SessionSync";
+import XCapitalSplashLogo from "@/components/brand/XCapitalSplashLogo";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -172,12 +173,7 @@ export default function RootLayout({
             </div>
             {/* Logo */}
             <div className="xc-splash-logo">
-              <div className="xc-splash-icon flex items-center justify-center">
-                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" aria-hidden>
-                  <line x1="6" y1="6" x2="18" y2="18" stroke="white" strokeWidth="2.75" strokeLinecap="round" />
-                  <line x1="6" y1="18" x2="18" y2="6" stroke="#22c55e" strokeWidth="2.75" strokeLinecap="round" style={{ filter: "drop-shadow(0 0 8px rgba(34,197,94,0.6))" }} />
-                </svg>
-              </div>
+              <XCapitalSplashLogo />
             </div>
             {/* Loading bar */}
             <div className="xc-splash-bar-track">

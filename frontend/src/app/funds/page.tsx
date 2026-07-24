@@ -11,6 +11,7 @@ import {
 import { ENGINE_COPY } from "@/lib/xEngine";
 import { useXEngine } from "@/hooks/useXEngine";
 import { useStore } from "@/store/useStore";
+import { useStableBalance } from "@/hooks/useStableBalance";
 import { emitCapitalSignal } from "@/lib/capitalSignal";
 import type { PendingTransaction } from "@/store/useStore";
 import { NODE_LABELS } from "@/lib/nodeCopy";
@@ -119,7 +120,7 @@ export default function FundsPage() {
   const [investMsg, setInvestMsg] = useState<string | null>(null);
 
   const { isArmed } = useXEngine();
-  const cash = Number(wallet?.fiatBalance ?? user?.balance ?? 0);
+  const cash = useStableBalance();
 
   const filteredFunds = selectedCategory
     ? DEMO_FUNDS.filter((f) => f.category === selectedCategory)

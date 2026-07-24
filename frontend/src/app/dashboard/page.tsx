@@ -129,8 +129,15 @@ const CustomTooltip = ({
 };
 
 export default function DashboardPage() {
-  const { user, setPortfolio, setWallet, wallet, pendingTransactions } =
-    useStore();
+  const {
+    user,
+    setPortfolio,
+    setWallet,
+    wallet,
+    pendingTransactions,
+    syncWalletFromSession,
+    syncSessionFromApi,
+  } = useStore();
   const sessionUser = useSessionUser();
   const [portfolio, setLocalPortfolio] = useState<Portfolio | null>(null);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
@@ -217,6 +224,26 @@ export default function DashboardPage() {
     fetchData();
   }, [setPortfolio, setWallet]);
 
+  const stableBalance = useStableBalance();
+
+  useEffect(() => {
+    syncWalletFromSession();
+  }, [stableBalance, syncWalletFromSession]);
+
+  useEffect(() => {
+    const onFocus = () => {
+      void syncSessionFromApi();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [syncSessionFromApi]);
+
+  useEffect(() => {
+    setLocalPortfolio((prev) =>
+      prev ? { ...prev, cashBalance: stableBalance } : prev,
+    );
+  }, [stableBalance]);
+
   const pnlPct = portfolio
     ? portfolio.totalCost > 0
       ? (portfolio.totalPnL / portfolio.totalCost) * 100
@@ -233,8 +260,6 @@ export default function DashboardPage() {
         .filter(([key]) => key !== "rationale")
         .map(([name, value]) => ({ name, value: Number(value) }))
     : [];
-
-  const stableBalance = useStableBalance();
 
   // Live market prices (slow refresh — no UI twitch)
   const { prices: livePrices } = useMarketPrices({ refreshInterval: 120_000 });

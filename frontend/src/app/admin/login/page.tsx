@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store/useStore";
-import { Shield, Eye, EyeOff, Lock, Mail, AlertCircle } from "lucide-react";
+import { XCapitalLogoMark } from "@/components/brand/XCapitalLogo";
+import { Eye, EyeOff, Lock, Mail, AlertCircle } from "lucide-react";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -67,9 +68,7 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-sm relative">
         {/* Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/[0.06] border border-white/10 mb-4">
-            <Shield size={26} className="text-white" />
-          </div>
+          <XCapitalLogoMark size={52} className="mx-auto mb-4" />
           <h1 className="text-xl font-black text-white tracking-tight">
             X-CAPITAL{" "}
             <span className="text-white/40 font-normal text-sm ml-1">

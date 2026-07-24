@@ -60,10 +60,7 @@ export default function LoginPage() {
               href="/"
               className="inline-flex flex-col items-center gap-4 group"
             >
-              <XCapitalLogoMark
-                size={52}
-                className="mx-auto shadow-emerald-500/10 group-hover:shadow-emerald-500/20"
-              />
+              <XCapitalLogoMark size={52} className="mx-auto" />
               <div>
                 <div className="font-black text-2xl sm:text-3xl tracking-tight">
                   <span className="gradient-text">X-CAPITAL</span>

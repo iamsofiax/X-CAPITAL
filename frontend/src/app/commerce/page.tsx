@@ -22,6 +22,7 @@ import {
   Filter,
 } from "lucide-react";
 import { useStore } from "@/store/useStore";
+import { useStableBalance } from "@/hooks/useStableBalance";
 import { RailLock, RailInfrastructureHeader } from "@/components/x-engine";
 
 /* €€ category filter config €€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ */
@@ -45,6 +46,7 @@ type CategoryKey = (typeof CATEGORIES)[number]["key"];
 
 export default function CommercePage() {
   const { wallet } = useStore();
+  const availableCash = useStableBalance();
   const [products, setProducts] = useState<Product[]>([]);
   const [activeCategory, setActiveCategory] = useState<CategoryKey>("ALL");
   const [loading, setLoading] = useState(true);
@@ -502,7 +504,7 @@ export default function CommercePage() {
                     <p className="text-xs text-xc-muted">
                       Available cash:{" "}
                       <span className="text-white font-semibold">
-                        {formatCurrency(Number(wallet?.fiatBalance ?? 0))}
+                        {formatCurrency(availableCash)}
                       </span>
                     </p>
                   </div>

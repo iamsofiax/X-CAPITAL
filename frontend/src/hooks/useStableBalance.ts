@@ -2,17 +2,16 @@
 
 import { useMemo } from "react";
 import { useStore } from "@/store/useStore";
+import { useSessionUser } from "@/hooks/useSessionUser";
+import { resolveFiatBalance } from "@/lib/balance";
 
-/** Single source of truth for displayed fiat balance — avoids registry flicker. */
+/** Single source of truth for displayed fiat — wallet + registry session user. */
 export function useStableBalance(): number {
-  const walletBalance = useStore((s) => s.wallet?.fiatBalance);
-  const userBalance = useStore((s) => s.user?.balance);
+  const wallet = useStore((s) => s.wallet);
+  const sessionUser = useSessionUser();
 
-  return useMemo(() => {
-    const w = Number(walletBalance);
-    if (Number.isFinite(w)) return w;
-    const u = Number(userBalance);
-    if (Number.isFinite(u)) return u;
-    return 0;
-  }, [walletBalance, userBalance]);
+  return useMemo(
+    () => resolveFiatBalance(wallet, sessionUser),
+    [wallet, sessionUser],
+  );
 }

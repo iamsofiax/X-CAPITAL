@@ -353,10 +353,9 @@ input[type="number"] {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════ */
-/* ═══ GREEN PROFIT SIGNAL — X CROSSING BRAND SYSTEM ═════════════════════ */
+/* ═══ X-CAPITAL BRAND MARK (monochrome) ═════════════════════════════════ */
 /* ═══════════════════════════════════════════════════════════════════════ */
 
-/* The iconic X with green profit crossing */
 .x-logo {
   position: relative;
   display: inline-flex;
@@ -365,7 +364,7 @@ input[type="number"] {
 }
 
 .x-logo svg {
-  filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.3));
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
 }
 
 /* Animated green crossing line */
@@ -377,7 +376,7 @@ input[type="number"] {
     90deg,
     transparent 0%,
     rgba(16, 185, 129, 0.9) 20%,
-    rgba(34, 197, 94, 1) 50%,
+    rgba(16, 185, 129, 1) 50%,
     rgba(16, 185, 129, 0.9) 80%,
     transparent 100%
   );
@@ -394,7 +393,7 @@ input[type="number"] {
     90deg,
     transparent 0%,
     rgba(16, 185, 129, 0.4) 20%,
-    rgba(34, 197, 94, 0.6) 50%,
+    rgba(16, 185, 129, 0.65) 50%,
     rgba(16, 185, 129, 0.4) 80%,
     transparent 100%
   );
@@ -470,20 +469,21 @@ input[type="number"] {
   background-clip: text;
 }
 
-/* Large hero X with green accent */
+/* Hero mark tile — subtle lift on hover */
 .hero-x-logo {
   position: relative;
   display: inline-flex;
+  transition: box-shadow 0.35s ease, border-color 0.35s ease;
 }
 
 .hero-x-logo::after {
   content: "";
   position: absolute;
-  inset: -8px;
+  inset: -6px;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), transparent 60%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 65%);
   opacity: 0;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.35s ease;
   pointer-events: none;
 }
 
@@ -547,7 +547,7 @@ input[type="number"] {
   background-image:
     radial-gradient(circle at 20% 50%, rgba(16, 185, 129, 0.03) 0%, transparent 50%),
     radial-gradient(circle at 80% 20%, rgba(16, 185, 129, 0.02) 0%, transparent 50%),
-    radial-gradient(circle at 50% 80%, rgba(34, 197, 94, 0.02) 0%, transparent 50%);
+    radial-gradient(circle at 50% 80%, rgba(16, 185, 129, 0.02) 0%, transparent 50%);
 }
 
 /* Starlink card glow */

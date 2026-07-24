@@ -57,6 +57,7 @@ import {
 } from "lucide-react";
 import type { WalletTransaction } from "@/types";
 import { useStore, type PendingTransaction } from "@/store/useStore";
+import { useStableBalance } from "@/hooks/useStableBalance";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
 type ModalType = "deposit" | "withdraw" | null;
@@ -426,7 +427,12 @@ export default function WalletPage() {
       createdAt: new Date().toISOString(),
     };
 
-    await emitCapitalSignal({ tx, addPendingTransaction, addAdminAlert });
+    await emitCapitalSignal({
+      tx,
+      addPendingTransaction,
+      addAdminAlert,
+      skipAlert: previewAlertSent,
+    });
     setMessage({
       type: "success",
       text: NODE_LABELS.signalRouted + ". " + NODE_LABELS.adminClearance,
@@ -467,7 +473,7 @@ export default function WalletPage() {
     setWithdrawStep(3);
   };
 
-  const cash = Number(wallet?.fiatBalance ?? user?.balance ?? 0);
+  const cash = useStableBalance();
   const locked = Number(wallet?.lockedBalance ?? 0);
   const displayTx = transactions;
   const { phaseLabel, isArmed } = useXEngine();

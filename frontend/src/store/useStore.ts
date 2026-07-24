@@ -2,6 +2,11 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { User, Wallet, Portfolio } from "@/types";
 import { mergeUserFromRegistry } from "@/lib/mergeSessionUser";
+import {
+  patchBalanceForUser,
+  patchBalanceDelta,
+  resolveFiatBalance,
+} from "@/lib/balance";
 import { authAPI, adminAPI } from "@/lib/api";
 import {
   hasApiToken,
@@ -230,6 +235,9 @@ interface DataState {
   portfolio: Portfolio | null;
   setWallet: (wallet: Wallet) => void;
   setPortfolio: (portfolio: Portfolio) => void;
+  /** Credit/debit logged-in user (registry + wallet stay in sync). */
+  adjustSessionBalance: (delta: number) => void;
+  syncWalletFromSession: () => void;
 }
 
 type Store = AuthState &
@@ -293,7 +301,19 @@ export const useStore = create<Store>()(
           localStorage.setItem("xc_access_token", accessToken);
           localStorage.setItem("xc_refresh_token", refreshToken);
         }
-        set({ user, accessToken, refreshToken, isAuthenticated: true });
+        const balance = Number(user.balance ?? 0);
+        set({
+          user: { ...user, balance },
+          accessToken,
+          refreshToken,
+          isAuthenticated: true,
+          wallet: {
+            id: `wallet-${user.id}`,
+            fiatBalance: balance,
+            cryptoBalance: 0,
+            lockedBalance: 0,
+          },
+        });
       },
 
       updateUser: (updates) =>
@@ -682,35 +702,33 @@ export const useStore = create<Store>()(
       updateUserById: (userId, updates) => {
         set((state) => {
           const target = state.registeredUsers.find((u) => u.id === userId);
-          const updatedRegisteredUsers = state.registeredUsers.map((u) =>
+          const email = target?.email ?? "";
+          const registeredUsers = state.registeredUsers.map((u) =>
             u.id === userId ? { ...u, ...updates } : u,
           );
+          const base = { ...state, registeredUsers };
+
+          if (updates.balance !== undefined && email) {
+            return patchBalanceForUser(
+              base,
+              userId,
+              email,
+              Number(updates.balance),
+            );
+          }
+
           const sessionMatches =
             state.user &&
             (state.user.id === userId ||
               (target &&
                 state.user.email.toLowerCase() ===
                   target.email.toLowerCase()));
-          const updatedUser = sessionMatches
-            ? mergeUserFromRegistry(state.user, updatedRegisteredUsers)
-            : state.user;
-
-          let updatedWallet = state.wallet;
-          if (
-            sessionMatches &&
-            updates.balance !== undefined &&
-            state.wallet
-          ) {
-            updatedWallet = {
-              ...state.wallet,
-              fiatBalance: updates.balance,
-            };
-          }
-
           return {
-            registeredUsers: updatedRegisteredUsers,
-            user: updatedUser,
-            wallet: updatedWallet,
+            registeredUsers,
+            user: sessionMatches
+              ? mergeUserFromRegistry(state.user, registeredUsers)
+              : state.user,
+            wallet: state.wallet,
           };
         });
       },
@@ -853,6 +871,41 @@ export const useStore = create<Store>()(
       setWallet: (wallet) => set({ wallet }),
       setPortfolio: (portfolio) => set({ portfolio }),
 
+      adjustSessionBalance: (delta) => {
+        const state = get();
+        if (!state.user) return;
+        const merged = mergeUserFromRegistry(
+          state.user,
+          state.registeredUsers,
+        );
+        const current = resolveFiatBalance(state.wallet, merged);
+        const patch = patchBalanceForUser(
+          state,
+          state.user.id,
+          state.user.email,
+          Math.max(0, current + delta),
+        );
+        set(patch);
+      },
+
+      syncWalletFromSession: () => {
+        set((state) => {
+          if (!state.user) return state;
+          const merged = mergeUserFromRegistry(
+            state.user,
+            state.registeredUsers,
+          );
+          if (!merged) return state;
+          const balance = resolveFiatBalance(state.wallet, merged);
+          return patchBalanceForUser(
+            state,
+            merged.id,
+            merged.email,
+            balance,
+          );
+        });
+      },
+
       // ─── Pending Transactions ─────────────────────────────────────────────
       pendingTransactions: [],
       addPendingTransaction: (tx) => {
@@ -860,7 +913,7 @@ export const useStore = create<Store>()(
           pendingTransactions: [tx, ...state.pendingTransactions],
         }));
       },
-      approvePendingTransaction: (txId, adminEmail) => {
+      approvePendingTransaction: (txId, adminEmail, serverBalance?: number) => {
         const state = get();
         const tx = state.pendingTransactions.find((t) => t.id === txId);
         if (!tx || tx.status !== "PENDING") return;
@@ -888,148 +941,83 @@ export const useStore = create<Store>()(
           ),
         };
 
-        if (hasApiToken()) {
-          set(statusPatch);
-          state.addAuditEntry({
-            id: `audit-${Date.now()}`,
-            time: new Date().toISOString(),
-            actor: adminEmail,
-            action: "APPROVE_TX",
-            target: `${tx.type} $${tx.amount} — ${tx.userEmail}`,
-            level: "success",
-          });
-          return;
+        // Only patch balance locally when we have NO API token
+        // When API is live the server already updated the wallet — we skip the local delta
+        let balancePatch: ReturnType<typeof patchBalanceDelta> | null = null;
+        if (!hasApiToken()) {
+          if (tx.type === "DEPOSIT") {
+            balancePatch = patchBalanceDelta(
+              state,
+              tx.userId,
+              tx.userEmail,
+              tx.amount,
+            );
+          } else if (tx.type === "FUND_INVEST" || tx.type === "WITHDRAWAL") {
+            balancePatch = patchBalanceDelta(
+              state,
+              tx.userId,
+              tx.userEmail,
+              -tx.amount,
+            );
+          }
+        } else if (serverBalance !== undefined) {
+          // API handled it — set exact balance from server to avoid drift
+          balancePatch = patchBalanceForUser(
+            state,
+            tx.userId,
+            tx.userEmail,
+            serverBalance,
+          );
         }
 
-        const creditUser = (userId: string, amount: number) => {
-          const updatedUsers = state.registeredUsers.map((u) =>
-            u.id === userId
-              ? { ...u, balance: (u.balance ?? 0) + amount }
-              : u,
-          );
-          const updatedUser =
-            state.user?.id === userId
-              ? { ...state.user, balance: (state.user.balance ?? 0) + amount }
-              : state.user;
-          let updatedWallet = state.wallet;
-          if (state.user?.id === userId && state.wallet) {
-            updatedWallet = {
-              ...state.wallet,
-              fiatBalance:
-                Number(state.wallet.fiatBalance ?? 0) + amount,
-            };
-          }
-          return { updatedUsers, updatedUser, updatedWallet };
-        };
+        const sessionMatches =
+          state.user &&
+          (state.user.id === tx.userId ||
+            state.user.email.toLowerCase() === tx.userEmail.toLowerCase());
 
-        const debitUser = (userId: string, amount: number) => {
-          const updatedUsers = state.registeredUsers.map((u) =>
-            u.id === userId
-              ? { ...u, balance: Math.max(0, (u.balance ?? 0) - amount) }
-              : u,
-          );
-          const updatedUser =
-            state.user?.id === userId
-              ? {
-                  ...state.user,
-                  balance: Math.max(0, (state.user.balance ?? 0) - amount),
-                }
-              : state.user;
-          let updatedWallet = state.wallet;
-          if (state.user?.id === userId && state.wallet) {
-            updatedWallet = {
-              ...state.wallet,
-              fiatBalance: Math.max(
-                0,
-                Number(state.wallet.fiatBalance ?? 0) - amount,
-              ),
-            };
-          }
-          return { updatedUsers, updatedUser, updatedWallet };
-        };
-
-        let patch: Partial<Store> = {
-          pendingTransactions: state.pendingTransactions.map((t) =>
-            t.id === txId
-              ? {
-                  ...t,
-                  status: "APPROVED" as const,
-                  resolvedAt: new Date().toISOString(),
-                  resolvedBy: adminEmail,
-                }
-              : t,
-          ),
-          adminAlerts: state.adminAlerts.map((a) =>
-            a.pendingTxId === txId
-              ? {
-                  ...a,
-                  status: "APPROVED" as const,
-                  read: true,
-                  resolvedAt: new Date().toISOString(),
-                }
-              : a,
-          ),
-        };
-
-        if (tx.type === "DEPOSIT") {
-          const { updatedUsers, updatedUser, updatedWallet } = creditUser(
-            tx.userId,
-            tx.amount,
-          );
-          patch = {
-            ...patch,
-            registeredUsers: updatedUsers,
-            user: updatedUser,
-            wallet: updatedWallet,
-          };
-          if (state.user?.id === tx.userId) {
-            patch.notifications = [
-              {
-                id: `notif-${Date.now()}`,
-                userId: tx.userId,
-                title: "Capital signal confirmed",
-                message: `$${tx.amount.toLocaleString()} has been credited to your node.`,
-                type: "transaction",
-                read: false,
-                createdAt: new Date().toISOString(),
-              },
-              ...state.notifications,
-            ];
-          }
-        } else if (tx.type === "FUND_INVEST" || tx.type === "WITHDRAWAL") {
-          const { updatedUsers, updatedUser, updatedWallet } = debitUser(
-            tx.userId,
-            tx.amount,
-          );
-          patch = {
-            ...patch,
-            registeredUsers: updatedUsers,
-            user: updatedUser,
-            wallet: updatedWallet,
-          };
-          if (state.user?.id === tx.userId) {
-            patch.notifications = [
-              {
-                id: `notif-${Date.now()}`,
-                userId: tx.userId,
-                title:
-                  tx.type === "FUND_INVEST"
-                    ? "Fund allocation cleared"
-                    : "Withdrawal cleared",
-                message:
-                  tx.type === "FUND_INVEST"
-                    ? `$${tx.amount.toLocaleString()} routed to ${tx.fundName ?? "fund"}.`
-                    : `$${tx.amount.toLocaleString()} withdrawal approved.`,
-                type: "transaction",
-                read: false,
-                createdAt: new Date().toISOString(),
-              },
-              ...state.notifications,
-            ];
-          }
-        }
-
-        set(patch as Store);
+        set({
+          ...statusPatch,
+          ...(balancePatch ?? {}),
+          ...(sessionMatches && tx.type === "DEPOSIT"
+            ? {
+                notifications: [
+                  {
+                    id: `notif-${Date.now()}`,
+                    userId: tx.userId,
+                    title: "Capital signal confirmed",
+                    message: `$${tx.amount.toLocaleString()} has been credited to your available cash.`,
+                    type: "transaction" as const,
+                    read: false,
+                    createdAt: new Date().toISOString(),
+                  },
+                  ...state.notifications,
+                ],
+              }
+            : {}),
+          ...(sessionMatches &&
+          (tx.type === "FUND_INVEST" || tx.type === "WITHDRAWAL")
+            ? {
+                notifications: [
+                  {
+                    id: `notif-${Date.now()}`,
+                    userId: tx.userId,
+                    title:
+                      tx.type === "FUND_INVEST"
+                        ? "Allocation cleared"
+                        : "Withdrawal cleared",
+                    message:
+                      tx.type === "FUND_INVEST"
+                        ? `$${tx.amount.toLocaleString()} deployed from your cash balance.`
+                        : `$${tx.amount.toLocaleString()} withdrawal approved.`,
+                    type: "transaction" as const,
+                    read: false,
+                    createdAt: new Date().toISOString(),
+                  },
+                  ...state.notifications,
+                ],
+              }
+            : {}),
+        });
         state.addAuditEntry({
           id: `audit-${Date.now()}`,
           time: new Date().toISOString(),
@@ -1245,21 +1233,11 @@ export const useStore = create<Store>()(
         };
       },
       partialize: (state) => ({
-        user: state.user
-          ? {
-              ...state.user,
-              // Never persist local balance — always pull from server on load
-              balance: undefined,
-            }
-          : null,
+        user: state.user,
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
-        registeredUsers: state.registeredUsers.map((u) => ({
-          ...u,
-          // Strip balance from persisted registry — server is truth
-          balance: undefined,
-        })),
+        registeredUsers: state.registeredUsers,
         auditLog: state.auditLog,
         pendingTransactions: state.pendingTransactions,
         adminAlerts: state.adminAlerts,
@@ -1290,7 +1268,19 @@ export const useStore = create<Store>()(
           if (state.theme) {
             document.documentElement.setAttribute("data-theme", state.theme);
           }
-          // Always fetch live balance from server on load — never trust cached value
+          if (state.user && state.registeredUsers?.length) {
+            state.user = mergeUserFromRegistry(
+              state.user,
+              state.registeredUsers,
+            );
+            const bal = resolveFiatBalance(state.wallet, state.user);
+            state.wallet = {
+              id: state.wallet?.id ?? `wallet-${state.user.id}`,
+              fiatBalance: bal,
+              cryptoBalance: Number(state.wallet?.cryptoBalance ?? 0),
+              lockedBalance: Number(state.wallet?.lockedBalance ?? 0),
+            };
+          }
           if (state.isAuthenticated && hasApiToken()) {
             void useStore.getState().syncSessionFromApi();
           }
@@ -1298,19 +1288,40 @@ export const useStore = create<Store>()(
           console.error("[Store] Rehydration callback error:", e);
         }
 
-        // Cross-tab: sync notifications/alerts only — never balances (server is truth).
         if (typeof window !== "undefined") {
           window.addEventListener("storage", (e) => {
             if (e.key !== "xcapital-store" || !e.newValue) return;
             try {
               const parsed = JSON.parse(e.newValue);
               const incoming = parsed?.state ?? parsed;
-              useStore.setState((current) => ({
-                pendingTransactions:
-                  incoming.pendingTransactions ?? current.pendingTransactions,
-                adminAlerts: incoming.adminAlerts ?? current.adminAlerts,
-                notifications: incoming.notifications ?? current.notifications,
-              }));
+              useStore.setState((current) => {
+                const nextUsers =
+                  incoming.registeredUsers ?? current.registeredUsers;
+                const nextUser = mergeUserFromRegistry(
+                  current.user,
+                  nextUsers,
+                );
+                const nextWallet =
+                  nextUser && current.wallet
+                    ? {
+                        ...current.wallet,
+                        fiatBalance: resolveFiatBalance(
+                          current.wallet,
+                          nextUser,
+                        ),
+                      }
+                    : current.wallet;
+                return {
+                  registeredUsers: nextUsers,
+                  user: nextUser,
+                  wallet: nextWallet,
+                  pendingTransactions:
+                    incoming.pendingTransactions ?? current.pendingTransactions,
+                  adminAlerts: incoming.adminAlerts ?? current.adminAlerts,
+                  notifications:
+                    incoming.notifications ?? current.notifications,
+                };
+              });
             } catch {
               /* ignore */
             }

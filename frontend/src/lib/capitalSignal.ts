@@ -9,34 +9,38 @@ type EmitParams = {
   ) => string;
 };
 
-/** Hybrid: API when live, always local admin alert + pending queue */
+/** Hybrid: API when live, always local admin alert + pending queue.
+ *  Pass `skipAlert: true` if a preview alert was already emitted (prevents duplicates). */
 export async function emitCapitalSignal({
   tx,
   addPendingTransaction,
   addAdminAlert,
-}: EmitParams): Promise<void> {
+  skipAlert = false,
+}: EmitParams & { skipAlert?: boolean }): Promise<void> {
   addPendingTransaction(tx);
 
-  addAdminAlert({
-    type:
-      tx.type === "FUND_INVEST"
-        ? "FUND_INVEST"
-        : tx.type === "WITHDRAWAL"
-          ? "WITHDRAW"
-          : "DEPOSIT",
-    userId: tx.userId,
-    userEmail: tx.userEmail,
-    userName: tx.userName,
-    amount: tx.amount,
-    method: tx.method,
-    priority: "HIGH",
-    pendingTxId: tx.id,
-    metadata: {
-      ...tx.details,
-      fundId: tx.fundId ?? "",
-      fundName: tx.fundName ?? "",
-    },
-  });
+  if (!skipAlert) {
+    addAdminAlert({
+      type:
+        tx.type === "FUND_INVEST"
+          ? "FUND_INVEST"
+          : tx.type === "WITHDRAWAL"
+            ? "WITHDRAW"
+            : "DEPOSIT",
+      userId: tx.userId,
+      userEmail: tx.userEmail,
+      userName: tx.userName,
+      amount: tx.amount,
+      method: tx.method,
+      priority: "HIGH",
+      pendingTxId: tx.id,
+      metadata: {
+        ...tx.details,
+        fundId: tx.fundId ?? "",
+        fundName: tx.fundName ?? "",
+      },
+    });
+  }
 
   if (tx.type === "DEPOSIT") {
     try {

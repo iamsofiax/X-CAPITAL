@@ -20,6 +20,7 @@ import {
   Radio,
 } from "lucide-react";
 import { useStore } from "@/store/useStore";
+import { XCapitalLogo } from "@/components/brand/XCapitalLogo";
 import { useXEngine } from "@/hooks/useXEngine";
 import { cn } from "@/lib/utils";
 import type { EngineRail } from "@/lib/xEngine";
@@ -124,8 +125,8 @@ export default function Sidebar() {
             className="flex items-center gap-3"
             onClick={() => setSidebarOpen(false)}
           >
-            <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center shrink-0 shadow-[0_0_16px_rgba(255,255,255,0.08)]">
-              <span className="text-black font-black text-sm tracking-tighter">X</span>
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-zinc-950 to-black border border-white/10 flex items-center justify-center shrink-0 shadow-[0_2px_12px_rgba(0,0,0,0.45)]">
+              <XCapitalLogo size={20} />
             </div>
             <div className="md:hidden lg:block min-w-0">
               <span className="font-black text-sm text-white tracking-widest block leading-none">CAPITAL</span>

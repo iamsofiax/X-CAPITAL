@@ -13,6 +13,7 @@ import {
 } from "@/components/x-engine";
 import { ENGINE_COPY } from "@/lib/xEngine";
 import { useXEngine } from "@/hooks/useXEngine";
+import { useStableBalance } from "@/hooks/useStableBalance";
 import { useStore } from "@/store/useStore";
 import { portfolioAPI } from "@/lib/api";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
@@ -118,6 +119,7 @@ function generateMonthlyReturns() {
 
 export default function PortfolioPage() {
   const { user, wallet, pendingTransactions } = useStore();
+  const stableBalance = useStableBalance();
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [perfData, setPerfData] = useState<
     Array<{ date: string; value: number }>
@@ -147,7 +149,7 @@ export default function PortfolioPage() {
           totalValue: 0,
           totalCost: 0,
           totalPnL: 0,
-          cashBalance: Number(wallet?.fiatBalance ?? user?.balance ?? 0),
+          cashBalance: stableBalance,
           riskScore: 0,
           performanceYTD: 0,
           holdings: [],
@@ -195,6 +197,20 @@ export default function PortfolioPage() {
       };
     });
   }, [livePrices]);
+
+  useEffect(() => {
+    setPortfolio((prev) =>
+      prev
+        ? {
+            ...prev,
+            cashBalance: stableBalance,
+            totalValue:
+              prev.holdings.reduce((s, h) => s + Number(h.currentValue), 0) +
+              stableBalance,
+          }
+        : prev,
+    );
+  }, [stableBalance]);
 
   // Holdings refresh only when live prices arrive — no random interval tick
   useEffect(() => {
