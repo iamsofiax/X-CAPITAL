@@ -6,6 +6,7 @@ import {
   getAlerts,
   approveAlert,
   rejectAlert,
+  approveByTransactionId,
   listUsers,
   adjustUserBalance,
   createUser,
@@ -30,5 +31,6 @@ router.post('/users/:userId/balance', adjustUserBalance);
 router.get('/alerts', getAlerts);
 router.post('/alerts/:id/approve', approveAlert);
 router.post('/alerts/:id/reject', rejectAlert);
+router.post('/alerts/approve-by-tx', approveByTransactionId);
 
 export default router;

@@ -46,11 +46,9 @@ const GOD_ADMIN_USER: User = {
   balance: 0,
   country: "US",
   trades: 0,
-  // passwordHash will be set during init
   passwordHash: "",
 };
 
-// Placeholder hash — actual hash computed at runtime via hashPassword()
 const _GOD_ADMIN_PW_HASH =
   "6e3a6c3f8e4b2a1d9c8f7e6d5b4a3c2e1f0d9c8b7a6e5d4c3b2a1f0e9d8c7b6";
 void _GOD_ADMIN_PW_HASH;
@@ -183,7 +181,6 @@ export interface KYCSubmission {
   userId: string;
   userEmail: string;
   userName: string;
-  // Personal
   firstName: string;
   lastName: string;
   maidenName: string;
@@ -195,14 +192,12 @@ export interface KYCSubmission {
   state: string;
   zipCode: string;
   country: string;
-  // Identity
-  ssn: string; // last 4 displayed, full stored
+  ssn: string;
   idType: "drivers_license" | "passport" | "national_id";
   idNumber: string;
-  idFrontImage: string; // base64 data URL
+  idFrontImage: string;
   idBackImage?: string;
   selfieImage: string;
-  // Status
   status: "PENDING" | "APPROVED" | "REJECTED";
   submittedAt: string;
   reviewedAt?: string;
@@ -235,7 +230,6 @@ interface DataState {
   portfolio: Portfolio | null;
   setWallet: (wallet: Wallet) => void;
   setPortfolio: (portfolio: Portfolio) => void;
-  /** Credit/debit logged-in user (registry + wallet stay in sync). */
   adjustSessionBalance: (delta: number) => void;
   syncWalletFromSession: () => void;
 }
@@ -565,13 +559,11 @@ export const useStore = create<Store>()(
           if (status === 401 || status === 403) {
             return { success: false, error: "Incorrect password." };
           }
-          /* API unavailable — use local auth */
         }
 
         const state = get();
         const pwHash = await hashPassword(password);
 
-        // Check God Admin hardcoded account
         const godAdminHash = await hashPassword("Admin2026!");
         if (
           email.toLowerCase() === "admin@xcapital.io" &&
@@ -585,7 +577,6 @@ export const useStore = create<Store>()(
             lastLogin: new Date().toISOString(),
           };
 
-          // Ensure admin exists in registered users
           const exists = state.registeredUsers.some(
             (u) => u.email === "admin@xcapital.io",
           );
@@ -614,12 +605,10 @@ export const useStore = create<Store>()(
           return { success: true };
         }
 
-        // Check registered users
         const foundUser = state.registeredUsers.find(
           (u) => u.email.toLowerCase() === email.toLowerCase(),
         );
 
-        // Auto-register: if user not found locally, create account so any browser can log in
         if (!foundUser) {
           const parts = email.split("@")[0].split(/[._\-+]/);
           const autoFirst = parts[0]
@@ -705,12 +694,10 @@ export const useStore = create<Store>()(
           if (!target && updates.balance === undefined) return state;
           const email = target?.email ?? "";
 
-          // Batch update: build new registeredUsers array once
           const registeredUsers = state.registeredUsers.map((u) =>
             u.id === userId ? { ...u, ...updates } : u,
           );
 
-          // When balance changes, use single atomic patch
           if (updates.balance !== undefined && email) {
             return patchBalanceForUser(
               state,
@@ -720,7 +707,6 @@ export const useStore = create<Store>()(
             );
           }
 
-          // Only merge session user when the update targets the logged-in user
           const sessionMatches =
             state.user &&
             (state.user.id === userId ||
@@ -837,7 +823,6 @@ export const useStore = create<Store>()(
         const state = get();
         if (!state.user) return { success: false, error: "Not logged in." };
         const currentHash = await hashPassword(currentPassword);
-        // Verify current password
         const userRecord = state.registeredUsers.find(
           (u) => u.id === state.user!.id,
         );
@@ -919,6 +904,17 @@ export const useStore = create<Store>()(
           pendingTransactions: [tx, ...state.pendingTransactions],
         }));
       },
+
+      /**
+       * approvePendingTransaction — Approves a local PendingTransaction.
+       *
+       * CRITICAL FIX: When the API token exists, the backend's approveAlert
+       * already handled the balance update on the server. We MUST NOT also
+       * adjust the local balance here — that would double-count.
+       *
+       * When no API token (offline demo mode), we update the local balance
+       * directly so the offline experience still works correctly.
+       */
       approvePendingTransaction: (txId, adminEmail, serverBalance?: number) => {
         const state = get();
         const tx = state.pendingTransactions.find((t) => t.id === txId);
@@ -947,8 +943,8 @@ export const useStore = create<Store>()(
           ),
         };
 
-        // Only patch balance locally when we have NO API token
-        // When API is live the server already updated the wallet — we skip the local delta
+        // FIX: Only adjust local balance in OFFLINE mode (no API token).
+        // In online mode the backend already handled the balance via approveAlert.
         let balancePatch: ReturnType<typeof patchBalanceDelta> | null = null;
         if (!hasApiToken()) {
           if (tx.type === "DEPOSIT") {
@@ -967,7 +963,7 @@ export const useStore = create<Store>()(
             );
           }
         } else if (serverBalance !== undefined) {
-          // API handled it — set exact balance from server to avoid drift
+          // Server handled it — set exact balance to avoid drift
           balancePatch = patchBalanceForUser(
             state,
             tx.userId,
@@ -975,6 +971,8 @@ export const useStore = create<Store>()(
             serverBalance,
           );
         }
+        // When API is live and no serverBalance — do NOT touch balance.
+        // Next syncSessionFromApi() will align it.
 
         const sessionMatches =
           state.user &&
@@ -1033,6 +1031,7 @@ export const useStore = create<Store>()(
           level: "success",
         });
       },
+
       rejectPendingTransaction: (txId, adminEmail, reason) => {
         const state = get();
         const tx = state.pendingTransactions.find((t) => t.id === txId);
@@ -1223,7 +1222,6 @@ export const useStore = create<Store>()(
       version: 4,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       migrate: (_old: unknown, _fromVersion: number): any => {
-        // Wipe all persisted data on upgrade — forces clean login and fresh server sync
         return {
           user: null,
           accessToken: null,

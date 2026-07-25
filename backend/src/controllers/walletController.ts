@@ -137,27 +137,35 @@ export const withdrawFunds = async (
       return;
     }
 
-    const transaction = await prisma.$transaction(async (tx) => {
-      await tx.wallet.update({
-        where: { userId },
-        data: { fiatBalance: { decrement: amount } },
-      });
+    // FIX: Do NOT deduct balance immediately — wait for admin approval
+    // Balance will be deducted by adminController.approveAlert when APPROVED
+    // This prevents lost funds if admin rejects the withdrawal
+    const transaction = await prisma.transaction.create({
+      data: {
+        userId,
+        walletId: wallet.id,
+        amount,
+        type: "WITHDRAWAL",
+        status: "PENDING",
+        metadata: { bankAccountId },
+      },
+    });
 
-      return tx.transaction.create({
-        data: {
-          userId,
-          walletId: wallet.id,
-          amount,
-          type: "WITHDRAWAL",
-          status: "PENDING",
-          metadata: { bankAccountId },
-        },
-      });
+    // Create admin alert so admin can approve/reject
+    await prisma.adminAlert.create({
+      data: {
+        type: "WITHDRAW",
+        userId,
+        amount,
+        method: bankAccountId ? "wire" : "crypto",
+        transactionId: transaction.id,
+        metadata: { bankAccountId },
+      },
     });
 
     res.json({
       success: true,
-      message: `Withdrawal of $${amount} initiated (1-3 business days)`,
+      message: `Withdrawal of $${amount} sent for admin clearance. Funds will be released once approved.`,
       data: transaction,
     });
   } catch (error) {

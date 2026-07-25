@@ -32,6 +32,14 @@ export const getAlerts = async (
   }
 };
 
+/**
+ * approveAlert — Handles all funding pipeline operations atomically:
+ *
+ * DEPOSIT  → credits wallet balance, marks transaction COMPLETED
+ * WITHDRAW → debits wallet balance, marks transaction COMPLETED
+ * FUND_INVEST → debits wallet, creates UserInvestment, increments fund AUM,
+ *               marks transaction COMPLETED
+ */
 export const approveAlert = async (
   req: AuthRequest,
   res: Response,
@@ -41,7 +49,7 @@ export const approveAlert = async (
     const { id } = req.params;
     const alert = await prisma.adminAlert.findUnique({ where: { id } });
     if (!alert || alert.status !== 'PENDING') {
-      res.status(404).json({ success: false, message: 'Alert not found' });
+      res.status(404).json({ success: false, message: 'Alert not found or already resolved' });
       return;
     }
 
@@ -53,11 +61,14 @@ export const approveAlert = async (
       return;
     }
 
+    const amount = Number(alert.amount);
+
     await prisma.$transaction(async (tx) => {
       if (alert.type === 'DEPOSIT') {
+        // Credit the wallet
         await tx.wallet.update({
           where: { userId: alert.userId },
-          data: { fiatBalance: { increment: alert.amount } },
+          data: { fiatBalance: { increment: amount } },
         });
         if (alert.transactionId) {
           await tx.transaction.update({
@@ -65,14 +76,17 @@ export const approveAlert = async (
             data: { status: 'COMPLETED' },
           });
         }
-      } else if (alert.type === 'FUND_INVEST' || alert.type === 'WITHDRAW') {
-        const bal = Number(wallet.fiatBalance);
-        if (bal < Number(alert.amount)) {
+      } else if (alert.type === 'WITHDRAW') {
+        // Verify sufficient balance
+        const walletNow = await tx.wallet.findUnique({ where: { userId: alert.userId } });
+        const balNow = Number(walletNow?.fiatBalance ?? 0);
+        if (balNow < amount) {
           throw new Error('Insufficient balance');
         }
+        // Debit the wallet
         await tx.wallet.update({
           where: { userId: alert.userId },
-          data: { fiatBalance: { decrement: alert.amount } },
+          data: { fiatBalance: { decrement: amount } },
         });
         if (alert.transactionId) {
           await tx.transaction.update({
@@ -80,32 +94,50 @@ export const approveAlert = async (
             data: { status: 'COMPLETED' },
           });
         }
-        if (alert.type === 'FUND_INVEST') {
-          const meta = alert.metadata as { fundId?: string } | null;
-          if (meta?.fundId) {
-            const fund = await tx.investment.findUnique({
-              where: { id: meta.fundId },
+      } else if (alert.type === 'FUND_INVEST') {
+        // Verify sufficient balance
+        const walletNow = await tx.wallet.findUnique({ where: { userId: alert.userId } });
+        const balNow = Number(walletNow?.fiatBalance ?? 0);
+        if (balNow < amount) {
+          throw new Error('Insufficient balance');
+        }
+        // Debit the wallet
+        await tx.wallet.update({
+          where: { userId: alert.userId },
+          data: { fiatBalance: { decrement: amount } },
+        });
+        if (alert.transactionId) {
+          await tx.transaction.update({
+            where: { id: alert.transactionId },
+            data: { status: 'COMPLETED' },
+          });
+        }
+        // Create UserInvestment + update fund AUM
+        const meta = alert.metadata as { fundId?: string } | null;
+        if (meta?.fundId) {
+          const fund = await tx.investment.findUnique({
+            where: { id: meta.fundId },
+          });
+          if (fund) {
+            const maturesAt = new Date();
+            maturesAt.setDate(maturesAt.getDate() + fund.lockPeriodDays);
+            await tx.userInvestment.create({
+              data: {
+                userId: alert.userId,
+                investmentId: meta.fundId,
+                amount: amount,
+                maturesAt,
+              },
             });
-            if (fund) {
-              const maturesAt = new Date();
-              maturesAt.setDate(maturesAt.getDate() + fund.lockPeriodDays);
-              await tx.userInvestment.create({
-                data: {
-                  userId: alert.userId,
-                  investmentId: meta.fundId,
-                  amount: alert.amount,
-                  maturesAt,
-                },
-              });
-              await tx.investment.update({
-                where: { id: meta.fundId },
-                data: { currentAUM: { increment: alert.amount } },
-              });
-            }
+            await tx.investment.update({
+              where: { id: meta.fundId },
+              data: { currentAUM: { increment: amount } },
+            });
           }
         }
       }
 
+      // Mark alert as resolved
       await tx.adminAlert.update({
         where: { id },
         data: { status: 'APPROVED', resolvedAt: new Date() },
@@ -113,6 +145,52 @@ export const approveAlert = async (
     });
 
     res.json({ success: true, message: 'Alert approved and balance updated' });
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Insufficient balance') {
+      res.status(400).json({ success: false, message: 'Insufficient balance to complete this operation' });
+      return;
+    }
+    next(error);
+  }
+};
+
+/**
+ * rejectAlert — Rejects a pending alert.
+ *
+ * DEPOSIT   → no balance change (was never credited). Marks transaction CANCELLED.
+ * WITHDRAW  → no balance change (was never debited). Marks transaction CANCELLED.
+ * FUND_INVEST → no balance change (was never debited). Marks transaction CANCELLED.
+ */
+/**
+ * approveByTransactionId — Finds the admin alert linked to a transaction and approves it.
+ * This bridges the gap between frontend PendingTransaction objects (which know the tx ID)
+ * and backend AdminAlert records (which are keyed by alert ID).
+ */
+export const approveByTransactionId = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { transactionId } = req.body as { transactionId: string };
+    if (!transactionId) {
+      res.status(400).json({ success: false, message: 'transactionId is required' });
+      return;
+    }
+
+    // Find the alert linked to this transaction
+    const alert = await prisma.adminAlert.findFirst({
+      where: { transactionId, status: 'PENDING' },
+    });
+
+    if (!alert) {
+      res.status(404).json({ success: false, message: 'No pending alert found for this transaction' });
+      return;
+    }
+
+    // Now call the existing approveAlert logic by rewriting params
+    req.params.id = alert.id;
+    return approveAlert(req, res, next);
   } catch (error) {
     next(error);
   }
@@ -129,23 +207,27 @@ export const rejectAlert = async (
 
     const alert = await prisma.adminAlert.findUnique({ where: { id } });
     if (!alert || alert.status !== 'PENDING') {
-      res.status(404).json({ success: false, message: 'Alert not found' });
+      res.status(404).json({ success: false, message: 'Alert not found or already resolved' });
       return;
     }
 
     await prisma.$transaction(async (tx) => {
+      // Mark the transaction CANCELLED
       if (alert.transactionId) {
+        const existingMeta = alert.metadata as Record<string, unknown> | null;
         await tx.transaction.update({
           where: { id: alert.transactionId },
           data: {
             status: 'CANCELLED',
             metadata: {
-              ...(typeof alert.metadata === 'object' ? alert.metadata : {}),
+              ...(existingMeta ?? {}),
               rejectionReason: reason ?? 'Rejected by admin',
+              rejectedAt: new Date().toISOString(),
             },
           },
         });
       }
+      // Mark alert as rejected
       await tx.adminAlert.update({
         where: { id },
         data: { status: 'REJECTED', resolvedAt: new Date() },
@@ -390,6 +472,7 @@ export const requestFundInvest = async (
       },
     });
 
+    // Do NOT debit balance — let admin approval handle it
     await prisma.adminAlert.create({
       data: {
         type: 'FUND_INVEST',

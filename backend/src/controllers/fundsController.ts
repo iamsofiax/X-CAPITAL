@@ -76,6 +76,10 @@ export const investInFund = async (req: AuthRequest, res: Response, next: NextFu
       return;
     }
 
+    // FIX: Do NOT debit balance here — creating a PENDING transaction + admin alert.
+    // The balance will be debited atomically by adminController.approveAlert when approved.
+    // This prevents fund investment double-debits and ensures the UserInvestment record
+    // is created in the same transaction as the debit.
     const transaction = await prisma.transaction.create({
       data: {
         userId,
