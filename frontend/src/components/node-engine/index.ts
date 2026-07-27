@@ -7,3 +7,4 @@ export { default as CapitalTrajectory } from "./CapitalTrajectory";
 export { default as StructuralBlock } from "./StructuralBlock";
 export { default as NodeIntelligence } from "./NodeIntelligence";
 export { default as NodeEmptyState } from "./NodeEmptyState";
+export { default as PulseTerminal } from "./PulseTerminal";

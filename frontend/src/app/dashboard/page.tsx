@@ -341,16 +341,27 @@ export default function DashboardPage() {
         {/* Institutional command overview */}
         <section className="border border-white/[0.08] rounded-2xl bg-[#0a0a0f] overflow-hidden">
           <div className="grid lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-white/[0.06]">
-            <div className="lg:col-span-5 p-6 sm:p-8">
-              <p className="text-[11px] font-mono uppercase tracking-[0.32em] text-white/40 mb-3">
-                Capital overview
-              </p>
-              <p className="text-3xl sm:text-4xl font-black text-white tabular-nums tracking-tight">
-                {formatCurrency(portfolioValue)}
-              </p>
-              <p className="text-sm text-white/50 mt-2 max-w-md leading-relaxed">
-                Net account value. Balances sync from the server so every device shows the same figure after admin actions.
-              </p>
+            <div className="lg:col-span-5 p-6 sm:p-8 relative overflow-hidden">
+              {/* Animated gradient substrate */}
+              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-emerald-900/10 pointer-events-none" />
+              <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-emerald-500/5 blur-3xl animate-pulse-slow pointer-events-none" />
+              <div className="relative z-10">
+                <p className="text-[11px] font-mono uppercase tracking-[0.32em] text-white/40 mb-3 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Capital overview
+                </p>
+                <p className="text-3xl sm:text-4xl font-black text-white tabular-nums tracking-tight">
+                  {formatCurrency(portfolioValue)}
+                </p>
+                <div className="flex items-center gap-3 mt-2">
+                  <span className="text-[10px] font-mono text-emerald-400/70 tracking-wider px-2 py-0.5 rounded-full bg-emerald-950/40 border border-emerald-800/30">
+                    SETTLED
+                  </span>
+                  <span className="text-[10px] font-mono text-white/30 tracking-wider">
+                    REAL-TIME · AUDITED
+                  </span>
+                </div>
+              </div>
             </div>
             <div className="lg:col-span-3 p-6 sm:p-8 flex flex-col justify-center">
               <p className="text-[11px] font-mono uppercase tracking-[0.28em] text-white/40 mb-2">
