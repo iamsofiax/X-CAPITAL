@@ -11,7 +11,7 @@ import { emitCapitalSignal } from "@/lib/capitalSignal";
 import {
   NodeStat,
 } from "@/components/node-engine";
-import { MissionPanel } from "@/components/x-engine";
+import { MissionPanel, YieldGrowthVisualizer } from "@/components/x-engine";
 import { ENGINE_COPY } from "@/lib/xEngine";
 import { useXEngine } from "@/hooks/useXEngine";
 import {
@@ -666,6 +666,14 @@ export default function WalletPage() {
             </div>
           </div>
         )}
+
+        {/* ── REAL-TIME YIELD GROWTH VISUALIZER ── */}
+        <YieldGrowthVisualizer
+          balance={cash}
+          dailyRate={0.015}
+          tier="Node"
+          isArmed={isArmed && cash > 0}
+        />
 
         {/* ── Balance History + Tx Breakdown Charts ── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
