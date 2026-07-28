@@ -32,13 +32,10 @@ import {
   Zap,
   Target,
   Rocket,
-  Shield,
   Globe,
   Cpu as CpuIcon,
-  Radio,
   Clock,
   Newspaper,
-  ExternalLink,
   Satellite,
   BrainCircuit,
   Car,
@@ -46,7 +43,6 @@ import {
   Building2,
   Wallet,
   ArrowRight,
-  ChevronRight,
   Timer,
 } from "lucide-react";
 import { portfolioAPI, walletAPI, oracleAPI, tradingAPI } from "@/lib/api";
@@ -56,7 +52,6 @@ import {
   formatPercent,
   cn,
   getChangeColor,
-  getAssetTypeColor,
 } from "@/lib/utils";
 import { useStore } from "@/store/useStore";
 import { useProfitEngine } from "@/store/useProfitEngine";
@@ -132,7 +127,7 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [topAssets, setTopAssets] = useState<Asset[]>([]);
   const [allocation, setAllocation] = useState<OptimalAllocation | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [perfData, setPerfData] = useState<Array<{ date: string; value: number }>>([]);
   const [showAllTx, setShowAllTx] = useState(false);
 
@@ -236,7 +231,7 @@ export default function DashboardPage() {
     return data;
   }, []);
 
-  const { phase, isArmed } = useXEngine();
+  const { isArmed } = useXEngine();
   const portfolioValue = portfolio?.totalValue ?? stableBalance;
   const liquidCash = stableBalance;
 
