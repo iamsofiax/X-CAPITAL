@@ -12,6 +12,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { adminAPI } from "@/lib/api";
 import { hasApiToken } from "@/lib/apiUser";
 import { MissionControl } from "@/components/x-engine";
+import BullishSpikeControls from "@/components/admin/BullishSpikeControls";
 import type { User, Transaction } from "@/types";
 import {
   Shield,
@@ -71,7 +72,8 @@ type AdminTab =
   | "tos"
   | "audit"
   | "create"
-  | "rails";
+  | "rails"
+  | "bullish";
 
 // ── Toast ───────────────────────────────────────────────────────────────────
 function Toast({
@@ -861,6 +863,7 @@ export default function AdminPage() {
             { key: "audit" as const, label: "Audit Log", icon: Clock },
             { key: "create" as const, label: "Create User", icon: UserPlus },
             { key: "rails" as const, label: "Rail Access", icon: Unlock },
+            { key: "bullish" as const, label: "Bullish Spikes", icon: TrendingUp },
           ].map((t) => (
             <button
               key={t.key}
@@ -1714,6 +1717,24 @@ export default function AdminPage() {
                 Create User
               </button>
             </div>
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* BULLISH SPIKES TAB                                               */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {activeTab === "bullish" && (
+          <div className="max-w-3xl mx-auto">
+            <div className="bg-[#12121a] border border-white/5 rounded-xl p-6 mb-6">
+              <div className="flex items-center gap-3 mb-4">
+                <TrendingUp className="w-5 h-5 text-amber-400" />
+                <div>
+                  <h3 className="text-sm font-semibold text-white">Bullish Spike Controls</h3>
+                  <p className="text-xs text-gray-500">Apply temporary yield boosts, configure daily profit rates, and manage active spikes per user.</p>
+                </div>
+              </div>
+            </div>
+            <BullishSpikeControls />
           </div>
         )}
       </main>

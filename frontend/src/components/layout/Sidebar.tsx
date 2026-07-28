@@ -34,13 +34,13 @@ const navItems: {
   railIndex: number;
 }[] = [
   { href: "/dashboard",  icon: Home,       label: "Overview",   code: "OPS-00", rail: "engine",    railIndex: 0 },
+  { href: "/wallet",     icon: Wallet,      label: "Uplink",     code: "UPL-07",  rail: "wallet",    railIndex: 7 },
   { href: "/trading",    icon: BarChart3,   label: "Execution",  code: "EXEC-01", rail: "trading",   railIndex: 1 },
   { href: "/portfolio",  icon: Briefcase,   label: "Holdings",   code: "HOLD-02", rail: "portfolio", railIndex: 2 },
   { href: "/funds",      icon: Globe,       label: "Funds",      code: "FUND-03", rail: "funds",     railIndex: 3 },
   { href: "/commerce",   icon: ShoppingBag, label: "Commerce",   code: "COMM-04", rail: "commerce",  railIndex: 4 },
   { href: "/oracle",     icon: Cpu,         label: "Oracle",     code: "INF-05",  rail: "oracle",    railIndex: 5 },
   { href: "/engine",     icon: Zap,         label: "Engine",     code: "CORE-06", rail: "engine",    railIndex: 6 },
-  { href: "/wallet",     icon: Wallet,      label: "Uplink",     code: "UPL-07",  rail: "wallet",    railIndex: 7 },
 ];
 
 // Rail accent colours matching the 7-rail system
@@ -176,7 +176,7 @@ export default function Sidebar() {
 
         {/* ── NAVIGATION ──────────────────────────────────────── */}
         <nav className="flex-1 py-2 px-2 space-y-0.5 overflow-y-auto">
-          {navItems.map(({ href, icon: Icon, label, code, rail, railIndex }) => {
+          {navItems.map(({ href, icon: Icon, label, rail, railIndex }) => {
             const active = pathname === href || pathname.startsWith(href + "/");
             const locked = !canAccess(rail);
             const adminLive =
