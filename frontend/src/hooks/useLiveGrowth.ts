@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import { useProfitEngine } from "@/store/useProfitEngine";
+import { useProfitEngine, NodeGrowth, LiveTxBreakdown } from "@/store/useProfitEngine";
 import { useStore } from "@/store/useStore";
 
 /**
@@ -54,6 +54,67 @@ export function projectReturns(
 }
 
 /**
+ * Catch up all missed compound ticks since the last recorded compound.
+ *
+ * Reads the ProfitEngine store directly (non-hook context via getState())
+ * so it can be called from anywhere — inside useLiveGrowth, or from other
+ * components that need to catch up a specific node on mount.
+ *
+ * @param nodeId - The profit engine node to catch up.
+ * @returns The updated NodeGrowth, or null if the node doesn't exist.
+ */
+export function catchUpMissedCompounds(nodeId: string): NodeGrowth | null {
+  const state = useProfitEngine.getState();
+  const node = state.nodeGrowths[nodeId];
+  if (!node || node.balance <= 0) return null;
+
+  const now = Date.now();
+  const last = new Date(node.lastCompoundAt).getTime();
+  const elapsedHours = Math.max(0, (now - last) / (1000 * 60 * 60));
+
+  // No catch‑up needed if less than one hour has passed
+  if (elapsedHours < 1) return node;
+
+  // Apply the real compound formula across the entire missed period
+  const dailyRate = node.dailyRate;
+  const compoundFactor = Math.pow(1 + dailyRate, elapsedHours / 24);
+  const rawBalance = node.balance * compoundFactor;
+  const rawYield = rawBalance - node.balance;
+
+  // Apply any active bullish spike for this node
+  const spike = state.bullishSpikes.find(
+    (s) => s.targetUserId === nodeId && s.active,
+  );
+  const spikeMultiplier = spike ? 1 + spike.percentage / 100 : 1;
+  const finalBalance = node.balance + rawYield * spikeMultiplier;
+  const finalYield = rawYield * spikeMultiplier;
+
+  const updated: NodeGrowth = {
+    ...node,
+    balance: finalBalance,
+    lastCompoundAt: new Date().toISOString(),
+    compoundCount: node.compoundCount + 1,
+    totalYieldGenerated: node.totalYieldGenerated + finalYield,
+  };
+
+  const tx: LiveTxBreakdown = {
+    id: `catchup-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    time: new Date().toISOString(),
+    type: "PROFIT",
+    amount: finalYield,
+    balanceAfter: finalBalance,
+    source: "catch-up",
+  };
+
+  useProfitEngine.setState((s) => ({
+    nodeGrowths: { ...s.nodeGrowths, [nodeId]: updated },
+    txBreakdown: [tx, ...s.txBreakdown].slice(0, 500),
+  }));
+
+  return updated;
+}
+
+/**
  * Live compounding hook — initialises the profit engine node, ticks
  * every 60s, and syncs growth back to the main store wallet.
  *
@@ -84,7 +145,7 @@ export function useLiveGrowth() {
     });
   }, []);
 
-  // Initialise node and start ticking
+  // Initialise node, catch up missed compounds, and start ticking
   useEffect(() => {
     if (!user || balance <= 0) return;
 
@@ -92,6 +153,15 @@ export function useLiveGrowth() {
       DAILY_VARIANCE.reduce((a, b) => a + b, 0) / DAILY_VARIANCE.length - 1;
     initNode(nodeId, balance, avgDailyRate);
 
+    // ── Catch up any missed compounds since last visit ──────────────
+    // This runs before the interval so the balance is correct instantly
+    // when the user returns to the tab after hours away.
+    const caughtUp = catchUpMissedCompounds(nodeId);
+    if (caughtUp) {
+      syncGrowthToWallet(nodeId);
+    }
+
+    // ── Start the ongoing 60s compounding interval ──────────────────
     if (!intervalRef.current) {
       tickCompound(nodeId);
       intervalRef.current = setInterval(() => {

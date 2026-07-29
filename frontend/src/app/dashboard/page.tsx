@@ -74,6 +74,12 @@ import { useSessionUser } from "@/hooks/useSessionUser";
 import { useStableBalance } from "@/hooks/useStableBalance";
 import { useLiveGrowth, projectCompound } from "@/hooks/useLiveGrowth";
 import YieldGrowthVisualizer from "@/components/x-engine/YieldGrowthVisualizer";
+import {
+  OpportunityCostVisualizer,
+  CompoundingEscalator,
+  NextCivilizationScore,
+  ElonHorizon,
+} from "@/components/retention";
 
 function generatePerformanceData(baseValue: number, days: number) {
   const data = [];
@@ -130,6 +136,8 @@ export default function DashboardPage() {
   const [, setLoading] = useState(true);
   const [perfData, setPerfData] = useState<Array<{ date: string; value: number }>>([]);
   const [showAllTx, setShowAllTx] = useState(false);
+  const [showCatchUpBanner, setShowCatchUpBanner] = useState(false);
+  const [missedTicks, setMissedTicks] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -181,6 +189,22 @@ export default function DashboardPage() {
   useEffect(() => {
     setLocalPortfolio((prev) => (prev ? { ...prev, cashBalance: stableBalance } : prev));
   }, [stableBalance]);
+
+  // Detect compounding catch-up after absence
+  useEffect(() => {
+    if (txBreakdown.length === 0) return;
+    const now = Date.now();
+    const recentTime = new Date(txBreakdown[0]?.time ?? now).getTime();
+    const gap = now - recentTime;
+    // If gap > 10 minutes, assume compounding was paused and caught up
+    if (gap > 600_000) {
+      const estimatedMissedTicks = Math.floor(gap / 15000); // roughly every 15s
+      setMissedTicks(estimatedMissedTicks);
+      setShowCatchUpBanner(true);
+      const timer = setTimeout(() => setShowCatchUpBanner(false), 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [txBreakdown]);
 
   const pnlPct = portfolio ? (portfolio.totalCost > 0 ? (portfolio.totalPnL / portfolio.totalCost) * 100 : 0) : 0;
   const base = portfolio?.totalValue ?? stableBalance;
@@ -323,9 +347,8 @@ export default function DashboardPage() {
         <PhaseTrack />
         <RailAccessStrip />
 
-        <RailLock rail="portfolio">
-          {/* ─── SECTION 2: Capital Uplink (raised to #2) ─── */}
-          <section className="border border-white/[0.08] rounded-2xl bg-[#0a0a0f] overflow-hidden">
+        {/* ─── SECTION 2: Capital Uplink (always visible — position #2) ─── */}
+        <section className="border border-white/[0.08] rounded-2xl bg-[#0a0a0f] overflow-hidden">
             <div className="p-4 sm:p-6 md:p-8">
               <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
                 <div className="flex items-center gap-3">
@@ -389,6 +412,13 @@ export default function DashboardPage() {
                     {showAllTx ? "Less" : `View All (${txBreakdown.length + transactions.length})`}
                   </button>
                 </div>
+
+                {showCatchUpBanner && missedTicks > 0 && (
+                  <div className="mb-3 flex items-center gap-2 rounded-lg border border-emerald-900/40 bg-emerald-950/20 px-4 py-2.5 text-[11px] text-emerald-400/80 font-mono animate-slide-in">
+                    <Zap className="w-3.5 h-3.5 text-emerald-400" />
+                    Compounding resumed — <span className="font-bold text-emerald-300">{missedTicks}</span> missed ticks caught up
+                  </div>
+                )}
 
                 {liveTxFeed.length === 0 ? (
                   <div className="text-center py-8 text-xc-muted text-sm">
@@ -908,6 +938,32 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+
+          {/* Retention Intelligence — 2×2 grid */}
+          <section className="border border-white/[0.08] rounded-2xl bg-[#0a0a0f] overflow-hidden p-6">
+            <div className="mb-6">
+              <p className="text-[11px] font-mono uppercase tracking-[0.32em] text-white/40">Capital Retention Intelligence</p>
+              <p className="text-xs text-xc-muted mt-1">What you stand to gain by staying deployed</p>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <OpportunityCostVisualizer
+                currentBalance={stableBalance}
+                dailyRate={dailyRate}
+              />
+              <CompoundingEscalator
+                currentBalance={stableBalance}
+                dailyRate={dailyRate}
+              />
+              <NextCivilizationScore
+                daysSinceFirstDeposit={user?.createdAt ? Math.floor((Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24)) : 1}
+                completedDeposits={transactions.filter(t => t.type === "DEPOSIT").length || 1}
+                totalDeployed={stableBalance}
+              />
+              <ElonHorizon
+                projected90dValue={proj90d}
+              />
+            </div>
+          </section>
 
           {/* Chairman mandate */}
           <section className="border border-white/[0.08] rounded-2xl overflow-hidden bg-[#08080c]">
