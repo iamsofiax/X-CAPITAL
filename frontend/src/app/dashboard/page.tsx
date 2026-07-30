@@ -1042,3 +1042,4 @@ const NEWS_FEED: Array<{ headline: string; summary: string; time: string; source
   { headline: "NVIDIA cuts Q2 guidance on supply constraints — AI capex remains strong", summary: "Supply bottleneck for B200 GPUs delays shipments by 4-6 weeks. Demand remains at 2x supply. xAI and Tesla among largest buyers.", time: "1d ago", source: "CNBC", ticker: "NVDA", sentiment: "neutral" as const, icon: CpuIcon, bgColor: "bg-green-900/40", iconColor: "text-green-400" },
   { headline: "Boring Company awarded $4.2B contract for Las Vegas-to-LA hyperloop feasibility study", summary: "Nevada DOT and Caltrans jointly funding the largest infrastructure study for high-speed underground transit. Construction could begin 2028.", time: "2d ago", source: "Wall Street Journal", ticker: "Boring Co", sentiment: "bullish" as const, icon: Building2, bgColor: "bg-white/[0.04]/40", iconColor: "text-white/50" },
 ];
+ 
