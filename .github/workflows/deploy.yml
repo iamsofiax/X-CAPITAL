@@ -1,9 +1,5 @@
 name: Deploy to GitHub Pages
 
-# Billing lock? GitHub won't start runners. Deploy locally instead:
-#   Windows: .\scripts\deploy-pages.ps1
-#   Linux/Mac: ./scripts/deploy-pages.sh
-
 on:
   push:
     branches: [main]
