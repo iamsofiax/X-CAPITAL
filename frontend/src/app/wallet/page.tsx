@@ -11,7 +11,11 @@ import { emitCapitalSignal } from "@/lib/capitalSignal";
 import {
   NodeStat,
 } from "@/components/node-engine";
-import { MissionPanel, YieldGrowthVisualizer } from "@/components/x-engine";
+import {
+  MissionPanel,
+  YieldGrowthVisualizer,
+  CompoundingGlobe3D,
+} from "@/components/x-engine";
 import { ENGINE_COPY } from "@/lib/xEngine";
 import { useXEngine } from "@/hooks/useXEngine";
 import {
@@ -59,6 +63,7 @@ import type { WalletTransaction } from "@/types";
 import { useStore, type PendingTransaction } from "@/store/useStore";
 import { useStableBalance } from "@/hooks/useStableBalance";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
+import Retirement401kConnect from "@/components/retirement/Retirement401kConnect";
 
 type ModalType = "deposit" | "withdraw" | null;
 type DepositTab = "wire" | "crypto" | "card";
@@ -667,12 +672,34 @@ export default function WalletPage() {
           </div>
         )}
 
-        {/* ── REAL-TIME YIELD GROWTH VISUALIZER ── */}
+        {/* ── 3D COMPOUNDING CENTERPIECE ── */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-[10px] font-mono uppercase tracking-[0.32em] text-white/40 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Real-Time Compounding · 3D
+              </p>
+              <p className="text-xs text-xc-muted mt-1">
+                A = P(1 + r)<sup>t</sup> — your balance grows every tick, live in 3D
+              </p>
+            </div>
+          </div>
+          <CompoundingGlobe3D
+            balance={cash}
+            dailyRate={0.015}
+            isArmed={isArmed && cash > 0}
+            nodeId={user?.id}
+          />
+        </div>
+
+        {/* ── COMPACT PROJECTION STRIP (2D) ── */}
         <YieldGrowthVisualizer
           balance={cash}
           dailyRate={0.015}
           tier="Node"
           isArmed={isArmed && cash > 0}
+          compact
         />
 
         {/* ── Balance History + Tx Breakdown Charts ── */}
@@ -964,6 +991,9 @@ export default function WalletPage() {
             Withdraw
           </Button>
         </div>
+
+        {/* ── 401(k) Connect — senior-friendly ── */}
+        <Retirement401kConnect />
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════════

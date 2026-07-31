@@ -1,0 +1,6 @@
+npm notice run x-capital-frontend@1.0.0 npx
+npm notice run tsc --noEmit
+src/app/dashboard/page.tsx(455,95): error TS2345: Argument of type 'number | {}' is not assignable to parameter of type 'number'.
+  Type '{}' is not assignable to type 'number'.
+src/components/node-engine/PulseTerminal.tsx(5,31): error TS2307: Cannot find module 'three/examples/jsm/controls/OrbitControls' or its corresponding type declarations.
+src/store/useStore.ts(1282,49): error TS18047: 'state.user' is possibly 'null'.

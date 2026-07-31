@@ -152,7 +152,12 @@ export interface UserNotification {
 interface PendingTxState {
   pendingTransactions: PendingTransaction[];
   addPendingTransaction: (tx: PendingTransaction) => void;
-  approvePendingTransaction: (txId: string, adminEmail: string) => void;
+  approvePendingTransaction: (
+    txId: string,
+    adminEmail: string,
+    serverBalance?: number,
+    forceLocal?: boolean,
+  ) => void;
   rejectPendingTransaction: (
     txId: string,
     adminEmail: string,
@@ -914,8 +919,16 @@ export const useStore = create<Store>()(
        *
        * When no API token (offline demo mode), we update the local balance
        * directly so the offline experience still works correctly.
+       *
+       * forceLocal — used by admin fallback: server call failed but the admin
+       * approved, so we MUST credit/debit locally to avoid a stuck approval.
        */
-      approvePendingTransaction: (txId, adminEmail, serverBalance?: number) => {
+      approvePendingTransaction: (
+        txId,
+        adminEmail,
+        serverBalance?: number,
+        forceLocal?: boolean,
+      ) => {
         const state = get();
         const tx = state.pendingTransactions.find((t) => t.id === txId);
         if (!tx || tx.status !== "PENDING") return;
@@ -943,10 +956,12 @@ export const useStore = create<Store>()(
           ),
         };
 
-        // FIX: Only adjust local balance in OFFLINE mode (no API token).
-        // In online mode the backend already handled the balance via approveAlert.
+        // FIX: Only adjust local balance in OFFLINE mode (no API token),
+        // or when the admin explicitly forced a local fallback because the
+        // server call failed. Double-counting is avoided because the server
+        // path is skipped entirely when forceLocal is set.
         let balancePatch: ReturnType<typeof patchBalanceDelta> | null = null;
-        if (!hasApiToken()) {
+        if (!hasApiToken() || forceLocal) {
           if (tx.type === "DEPOSIT") {
             balancePatch = patchBalanceDelta(
               state,
@@ -971,8 +986,8 @@ export const useStore = create<Store>()(
             serverBalance,
           );
         }
-        // When API is live and no serverBalance — do NOT touch balance.
-        // Next syncSessionFromApi() will align it.
+        // When API is live, server succeeded, and no serverBalance —
+        // do NOT touch balance. Next syncSessionFromApi() will align it.
 
         const sessionMatches =
           state.user &&

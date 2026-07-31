@@ -1,8 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import { useProfitEngine, NodeGrowth, LiveTxBreakdown } from "@/store/useProfitEngine";
+import {
+  useProfitEngine,
+  NodeGrowth,
+  LiveTxBreakdown,
+  DEFAULT_DAILY_RATE,
+} from "@/store/useProfitEngine";
 import { useStore } from "@/store/useStore";
+import { mergeUserFromRegistry } from "@/lib/mergeSessionUser";
 
 /**
  * REAL COMPOUND MATH — A = P(1 + r)^t
@@ -53,6 +59,37 @@ export function projectReturns(
   return { gross: projected, netReturn, netPct };
 }
 
+/** Tick interval — steady, slow, but visibly alive */
+export const COMPOUND_TICK_MS = 15_000;
+
+/**
+ * Resolve the effective daily rate for a node.
+ *
+ * Single source of truth, in priority order:
+ * 1. Admin bullish-spike admin override via rateOverrides (already applied to the node)
+ * 2. Admin per-user profitRate × profitMultiplier
+ * 3. Node rate already recorded
+ * 4. Base default 1.5%
+ */
+export function resolveNodeDailyRate(
+  nodeId: string,
+  user: { profitRate?: number; profitMultiplier?: number } | null,
+): number {
+  const state = useProfitEngine.getState();
+  const override = state.rateOverrides[nodeId];
+  if (override != null && override > 0) return override;
+
+  const node = state.nodeGrowths[nodeId];
+  if (node && node.dailyRate > 0) return node.dailyRate;
+
+  if (user && user.profitRate != null && user.profitRate > 0) {
+    const multiplier = Math.max(0.1, user.profitMultiplier ?? 1);
+    return (user.profitRate / 100) * multiplier;
+  }
+
+  return DEFAULT_DAILY_RATE;
+}
+
 /**
  * Catch up all missed compound ticks since the last recorded compound.
  *
@@ -72,8 +109,8 @@ export function catchUpMissedCompounds(nodeId: string): NodeGrowth | null {
   const last = new Date(node.lastCompoundAt).getTime();
   const elapsedHours = Math.max(0, (now - last) / (1000 * 60 * 60));
 
-  // No catch‑up needed if less than one hour has passed
-  if (elapsedHours < 1) return node;
+  // No catch‑up needed if less than one tick has passed
+  if (elapsedHours < COMPOUND_TICK_MS / (1000 * 60 * 60)) return node;
 
   // Apply the real compound formula across the entire missed period
   const dailyRate = node.dailyRate;
@@ -95,6 +132,7 @@ export function catchUpMissedCompounds(nodeId: string): NodeGrowth | null {
     lastCompoundAt: new Date().toISOString(),
     compoundCount: node.compoundCount + 1,
     totalYieldGenerated: node.totalYieldGenerated + finalYield,
+    accruedPending: 0,
   };
 
   const tx: LiveTxBreakdown = {
@@ -116,18 +154,23 @@ export function catchUpMissedCompounds(nodeId: string): NodeGrowth | null {
 
 /**
  * Live compounding hook — initialises the profit engine node, ticks
- * every 60s, and syncs growth back to the main store wallet.
+ * every 15s, and syncs growth back to the main store wallet.
  *
  * Call once per dashboard session.
  */
 export function useLiveGrowth() {
   const user = useStore((s) => s.user);
+  const registeredUsers = useStore((s) => s.registeredUsers);
   const wallet = useStore((s) => s.wallet);
-  const { initNode, tickCompound, nodeGrowths } = useProfitEngine();
+  const { initNode, resetNode, tickCompound, hydrateDeposit, nodeGrowths } =
+    useProfitEngine();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Merged session user (admin edits flow through automatically)
+  const mergedUser = user ? mergeUserFromRegistry(user, registeredUsers) : null;
+
   const nodeId = user?.id ?? "anon";
-  const balance = Number(wallet?.fiatBalance ?? user?.balance ?? 0);
+  const balance = Number(wallet?.fiatBalance ?? mergedUser?.balance ?? 0);
   const growth = nodeGrowths[nodeId];
 
   // Sync profit engine growth back to main store wallet
@@ -149,19 +192,18 @@ export function useLiveGrowth() {
   useEffect(() => {
     if (!user || balance <= 0) return;
 
-    const avgDailyRate =
-      DAILY_VARIANCE.reduce((a, b) => a + b, 0) / DAILY_VARIANCE.length - 1;
-    initNode(nodeId, balance, avgDailyRate);
+    const dailyRate = resolveNodeDailyRate(nodeId, mergedUser);
+    if (!useProfitEngine.getState().nodeGrowths[nodeId]) {
+      initNode(nodeId, balance, dailyRate);
+    }
 
     // ── Catch up any missed compounds since last visit ──────────────
-    // This runs before the interval so the balance is correct instantly
-    // when the user returns to the tab after hours away.
     const caughtUp = catchUpMissedCompounds(nodeId);
     if (caughtUp) {
       syncGrowthToWallet(nodeId);
     }
 
-    // ── Start the ongoing 60s compounding interval ──────────────────
+    // ── Start the ongoing 15s compounding interval ──────────────────
     if (!intervalRef.current) {
       tickCompound(nodeId);
       intervalRef.current = setInterval(() => {
@@ -169,7 +211,7 @@ export function useLiveGrowth() {
         if (updated) {
           syncGrowthToWallet(nodeId);
         }
-      }, 60_000);
+      }, COMPOUND_TICK_MS);
     }
 
     return () => {
@@ -178,16 +220,22 @@ export function useLiveGrowth() {
         intervalRef.current = null;
       }
     };
-  }, [nodeId, balance > 0, initNode, tickCompound, syncGrowthToWallet]);
+  }, [nodeId, balance > 0, initNode, tickCompound, syncGrowthToWallet, mergedUser]);
 
-  // Re-init if balance changes significantly
+  // Re-init if balance changes significantly (e.g. admin funded)
   useEffect(() => {
     if (!growth || balance === growth.balance) return;
     const diff = Math.abs(balance - growth.balance);
     if (diff > 1) {
-      initNode(nodeId, balance, growth.dailyRate);
+      if (balance > growth.balance) {
+        // Funds were added — hydrate the node instantly + emit DEPOSIT tx
+        hydrateDeposit(nodeId, balance, balance - growth.balance);
+        syncGrowthToWallet(nodeId);
+      } else {
+        resetNode(nodeId, balance);
+      }
     }
-  }, [balance, growth, initNode, nodeId]);
+  }, [balance, growth, hydrateDeposit, resetNode, nodeId, syncGrowthToWallet]);
 
   return {
     growth,
@@ -197,3 +245,4 @@ export function useLiveGrowth() {
     nodeGrowth: growth,
   };
 }
+

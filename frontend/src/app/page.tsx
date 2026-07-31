@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Rocket } from "lucide-react";
 import { OrbitalHero } from "@/components/node-engine";
 
 /* eslint-disable react/no-unescaped-entities */
@@ -172,6 +172,24 @@ export default function LandingPage() {
       </nav>
 
       <section className="relative min-h-screen flex items-center overflow-hidden bg-[#000000]" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        {/* Background video — orbital launch loop */}
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          poster="/og-image.png"
+          className="absolute inset-0 w-full h-full object-cover opacity-[0.18] pointer-events-none"
+          src="/videos/hero-hd.mp4"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black pointer-events-none" />
+        {/* Floating rockets */}
+        <div className="absolute top-[12%] right-[8%] pointer-events-none animate-float-rocket hidden lg:block">
+          <Rocket className="w-10 h-10 text-white/15" style={{ filter: "drop-shadow(0 0 12px rgba(16,185,129,0.25))" }} />
+        </div>
+        <div className="absolute bottom-[18%] left-[6%] pointer-events-none animate-float-rocket-delayed hidden lg:block">
+          <Rocket className="w-7 h-7 text-white/10 rotate-45" style={{ filter: "drop-shadow(0 0 10px rgba(16,185,129,0.2))" }} />
+        </div>
         <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
         <div className="relative z-10 max-w-7xl mx-auto px-6 w-full">
           <div className="grid lg:grid-cols-2 gap-12 items-center pt-28 pb-20">
@@ -287,6 +305,21 @@ export default function LandingPage() {
         }
         .animate-ticker:hover {
           animation-play-state: paused;
+        }
+
+        @keyframes floatRocket {
+          0%, 100% { transform: translateY(0) rotate(-4deg); }
+          50% { transform: translateY(-18px) rotate(4deg); }
+        }
+        @keyframes floatRocketDelayed {
+          0%, 100% { transform: translateY(-10px) rotate(50deg); }
+          50% { transform: translateY(6px) rotate(40deg); }
+        }
+        .animate-float-rocket {
+          animation: floatRocket 6s ease-in-out infinite;
+        }
+        .animate-float-rocket-delayed {
+          animation: floatRocketDelayed 7s ease-in-out infinite;
         }
       `}</style>
     </div>

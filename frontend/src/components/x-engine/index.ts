@@ -10,3 +10,4 @@ export { default as RailAccessStrip } from "./RailAccessStrip";
 export { default as RailInfrastructureHeader } from "./RailInfrastructureHeader";
 export { default as VelocityMultiplier } from "./VelocityMultiplier";
 export { default as YieldGrowthVisualizer } from "./YieldGrowthVisualizer";
+export { default as CompoundingGlobe3D } from "./CompoundingGlobe3D";

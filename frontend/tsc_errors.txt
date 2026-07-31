@@ -1,0 +1,7 @@
+npm notice run x-capital-frontend@1.0.0 npx
+npm notice run tsc --noEmit
+src/app/dashboard/page.tsx(993,11): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/app/dashboard/page.tsx(994,9): error TS17002: Expected corresponding JSX closing tag for 'DashboardLayout'.
+src/app/dashboard/page.tsx(995,7): error TS1005: ')' expected.
+src/app/dashboard/page.tsx(1005,5): error TS1128: Declaration or statement expected.
+src/app/dashboard/page.tsx(1006,3): error TS1109: Expression expected.
