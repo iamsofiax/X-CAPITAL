@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useMemo, useCallback } from "react";
 import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { formatCurrency } from "@/lib/utils";
 
 /* ═══════════════════════════════════════════════════════════════

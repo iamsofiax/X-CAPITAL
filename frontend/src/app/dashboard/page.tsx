@@ -452,7 +452,7 @@ export default function DashboardPage() {
                             <span className={cn("text-sm font-black font-mono", color)}>
                               {isProfitable ? "+" : "-"}{formatCurrency(tx.amount)}
                             </span>
-                            <p className="text-[9px] font-mono text-white/15">{formatCurrency(tx.balanceAfter)} balance</p>
+                            <p className="text-[9px] font-mono text-white/15">{formatCurrency(Number(tx.balanceAfter))} balance</p>
                           </div>
                         </div>
                       );
@@ -624,7 +624,7 @@ export default function DashboardPage() {
                 <BarChart data={volumeData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
                   <XAxis dataKey="date" tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
                   <YAxis tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(Number(v ?? 0) / 1000).toFixed(0)}k`} />
-                  <Tooltip contentStyle={{ background: "#0d0d1e", border: "1px solid #1a1a3a", borderRadius: 8, fontSize: 12 }} formatter={(v: number, name: string) => [name === "volume" ? formatCurrency(Number(v ?? 0)) : v, name === "volume" ? "Volume" : "Trades"]} />
+                  <Tooltip contentStyle={{ background: "#0d0d1e", border: "1px solid #1a1a3a", borderRadius: 8, fontSize: 12 }} formatter={(v, name) => [name === "volume" ? formatCurrency(Number(v ?? 0)) : v, name === "volume" ? "Volume" : "Trades"]} />
                   <Bar dataKey="volume" radius={[4, 4, 0, 0]}>
                     {volumeData.map((_, i) => <Cell key={i} fill={"#7c3aed"} opacity={i === volumeData.length - 1 ? 0.9 : 0.4} />)}
                   </Bar>
@@ -990,7 +990,6 @@ export default function DashboardPage() {
               </div>
             </div>
           </section>
-        </RailLock>
       </div>
       {/* Global style for slide-in animation */}
       <style jsx global>{`
@@ -1042,4 +1041,3 @@ const NEWS_FEED: Array<{ headline: string; summary: string; time: string; source
   { headline: "NVIDIA cuts Q2 guidance on supply constraints — AI capex remains strong", summary: "Supply bottleneck for B200 GPUs delays shipments by 4-6 weeks. Demand remains at 2x supply. xAI and Tesla among largest buyers.", time: "1d ago", source: "CNBC", ticker: "NVDA", sentiment: "neutral" as const, icon: CpuIcon, bgColor: "bg-green-900/40", iconColor: "text-green-400" },
   { headline: "Boring Company awarded $4.2B contract for Las Vegas-to-LA hyperloop feasibility study", summary: "Nevada DOT and Caltrans jointly funding the largest infrastructure study for high-speed underground transit. Construction could begin 2028.", time: "2d ago", source: "Wall Street Journal", ticker: "Boring Co", sentiment: "bullish" as const, icon: Building2, bgColor: "bg-white/[0.04]/40", iconColor: "text-white/50" },
 ];
- 

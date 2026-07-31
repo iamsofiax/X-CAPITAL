@@ -11,7 +11,6 @@ import { authAPI, adminAPI } from "@/lib/api";
 import {
   hasApiToken,
   mapAuthLoginUser,
-  mapMeToUser,
   mergeUsersFromServer,
   type ApiUserRow,
 } from "@/lib/apiUser";
@@ -821,10 +820,11 @@ export const useStore = create<Store>()(
 
       changePassword: async (currentPassword, newPassword) => {
         const state = get();
-        if (!state.user) return { success: false, error: "Not logged in." };
+        const currentUser = state.user;
+        if (!currentUser) return { success: false, error: "Not logged in." };
         const currentHash = await hashPassword(currentPassword);
         const userRecord = state.registeredUsers.find(
-          (u) => u.id === state.user!.id,
+          (u) => u.id === currentUser.id,
         );
         if (!userRecord) return { success: false, error: "User not found." };
         if (userRecord.passwordHash !== currentHash)
@@ -837,9 +837,9 @@ export const useStore = create<Store>()(
         const newHash = await hashPassword(newPassword);
         set({
           registeredUsers: state.registeredUsers.map((u) =>
-            u.id === state.user!.id ? { ...u, passwordHash: newHash } : u,
+            u.id === currentUser.id ? { ...u, passwordHash: newHash } : u,
           ),
-          user: { ...state.user, passwordHash: newHash },
+          user: { ...currentUser, passwordHash: newHash },
         });
         return { success: true };
       },
@@ -1273,13 +1273,15 @@ export const useStore = create<Store>()(
             document.documentElement.setAttribute("data-theme", state.theme);
           }
           if (state.user && state.registeredUsers?.length) {
-            state.user = mergeUserFromRegistry(
+            const hydratedUser = mergeUserFromRegistry(
               state.user,
               state.registeredUsers,
             );
-            const bal = resolveFiatBalance(state.wallet, state.user);
+            if (!hydratedUser) return;
+            state.user = hydratedUser;
+            const bal = resolveFiatBalance(state.wallet, hydratedUser);
             state.wallet = {
-              id: state.wallet?.id ?? `wallet-${state.user.id}`,
+              id: state.wallet?.id ?? `wallet-${hydratedUser.id}`,
               fiatBalance: bal,
               cryptoBalance: Number(state.wallet?.cryptoBalance ?? 0),
               lockedBalance: Number(state.wallet?.lockedBalance ?? 0),

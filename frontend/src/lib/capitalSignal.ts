@@ -76,6 +76,7 @@ export function detectCapitalSignalPreview(
 
   addAdminAlert({
     type,
+    
     userId: user.id,
     userEmail: user.email,
     userName: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
