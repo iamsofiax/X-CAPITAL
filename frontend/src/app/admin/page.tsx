@@ -1645,7 +1645,7 @@ export default function AdminPage() {
                         </button>
                       </div>
                     </div>
-                    <div className="grid grid-cols-5 gap-2">
+                    <div className="grid grid-cols-2 min-[420px]:grid-cols-3 sm:grid-cols-5 gap-2">
                       {RAILS.map((rail) => {
                         const isOn = unlocked.includes(rail);
                         return (

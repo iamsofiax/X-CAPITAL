@@ -148,6 +148,280 @@ input[type="number"] {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════ */
+/* ═══ X-CAPITAL SPLASH SCREEN — INSTITUTIONAL BOOT SEQUENCE ═════════════ */
+/* Styles the #xc-splash element mounted in root layout.tsx.              */
+/* Institutional: black field, grid, drifting particles, X mark,          */
+/* system-check readout and an emerald scan bar.                          */
+/* ═══════════════════════════════════════════════════════════════════════ */
+
+#xc-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: opacity 0.6s ease, visibility 0.6s ease;
+}
+
+#xc-splash.xc-splash-exit {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.xc-splash-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+  z-index: 2;
+}
+
+/* Boot grid — faint engineering-field background */
+.xc-splash-grid {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 1;
+  mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.9) 0%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.9) 0%, transparent 80%);
+}
+
+/* Drifting particle field */
+.xc-splash-particles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.xc-splash-dot {
+  position: absolute;
+  bottom: -8px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.7);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+  animation: splashRise linear infinite;
+  opacity: 0;
+}
+
+@keyframes splashRise {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  85% {
+    opacity: 0.3;
+  }
+  100% {
+    transform: translateY(-105vh) scale(0.5);
+    opacity: 0;
+  }
+}
+
+/* X mark tile */
+.xc-splash-icon {
+  width: 84px;
+  height: 84px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, 0.06) 0%, transparent 55%),
+    rgba(10, 10, 10, 0.9);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  position: relative;
+  animation: splashTilePulse 2.4s ease-in-out infinite;
+}
+
+.xc-splash-icon::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, transparent 40%, rgba(16, 185, 129, 0.25) 50%, transparent 60%);
+  animation: splashScan 2.6s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes splashTilePulse {
+  0%, 100% {
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  50% {
+    box-shadow: 0 24px 80px rgba(16, 185, 129, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+}
+
+@keyframes splashScan {
+  0% {
+    transform: translateX(-120%) rotate(0deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(120%) rotate(0deg);
+  }
+}
+
+/* Wordmark + institutional line */
+.xc-splash-title {
+  font-family: "Inter", system-ui, sans-serif;
+  font-weight: 900;
+  font-size: 22px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #ffffff;
+  margin-top: 4px;
+}
+
+.xc-splash-subtitle {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.3);
+  margin-top: -8px;
+}
+
+/* Emerald loading bar */
+.xc-splash-bar-track {
+  width: 240px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 14px;
+  position: relative;
+}
+
+.xc-splash-bar-fill {
+  height: 100%;
+  width: 40%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, #10b981, #34d399, #10b981, transparent);
+  background-size: 200% 100%;
+  animation: splashBar 1.6s ease-in-out infinite;
+}
+
+@keyframes splashBar {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(310%);
+  }
+}
+
+/* Status readout — "INITIALIZING SYSTEMS" with live dots */
+.xc-splash-status {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.3em;
+  color: rgba(16, 185, 129, 0.75);
+  text-transform: uppercase;
+}
+
+.xc-splash-dots::after {
+  content: "";
+  animation: splashDots 1.4s steps(4, end) infinite;
+}
+
+@keyframes splashDots {
+  0% { content: ""; }
+  25% { content: "."; }
+  50% { content: ".."; }
+  75% { content: "..."; }
+  100% { content: ""; }
+}
+
+/* System check row — Goldman-grade boot telemetry */
+.xc-splash-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 6px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 8px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.xc-splash-checks .xc-splash-check {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  opacity: 0;
+  animation: splashCheckIn 0.3s ease forwards;
+}
+
+.xc-splash-checks .xc-splash-check span:last-child {
+  color: #10b981;
+  font-weight: 500;
+}
+
+@keyframes splashCheckIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 767px) {
+  .xc-splash-title {
+    font-size: 18px;
+    letter-spacing: 0.24em;
+  }
+  .xc-splash-subtitle {
+    font-size: 8px;
+    letter-spacing: 0.2em;
+  }
+  .xc-splash-icon {
+    width: 68px;
+    height: 68px;
+    border-radius: 16px;
+  }
+  .xc-splash-bar-track {
+    width: 200px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #xc-splash * {
+    animation: none !important;
+  }
+  .xc-splash-checks .xc-splash-check {
+    opacity: 1;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════ */
 /* ═══ X-CAPITAL BRAND MARK (monochrome) ═════════════════════════════════ */
 /* ═══════════════════════════════════════════════════════════════════════ */
 
@@ -1397,3 +1671,29 @@ body[data-admin-route="true"] iframe[title*="chat" i] {
   font-feature-settings: "tnum";
 }
 
+/* ═══════════════════════════════════════════════════════════════════════ */
+/* ═══ MOBILE WORD-PROTECTION — prevent text overlap & overflow ══════════ */
+/* ═══════════════════════════════════════════════════════════════════════ */
+
+/* Dense 4-column compact readouts collapse to 2 columns on phones so
+   labels never collide or clip. */
+@media (max-width: 639px) {
+  .compact-4col {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .compact-4col {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Prevent 8px telemetry text from wrapping mid-token on tiny screens */
+@media (max-width: 420px) {
+  .engine-mono,
+  .node-telemetry,
+  .engine-readout {
+    letter-spacing: 0.05em;
+  }
+}

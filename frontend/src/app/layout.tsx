@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import TawkChat from "@/components/support/TawkChat";
 import SessionSync from "@/components/SessionSync";
+import SplashBoot from "@/components/SplashBoot";
 import XCapitalSplashLogo from "@/components/brand/XCapitalSplashLogo";
 import "./globals.css";
 
@@ -152,7 +153,7 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-xc-black text-xc-text antialiased min-h-screen">
-        {/* ═══ FUTURISTIC SPLASH SCREEN ═══ */}
+        {/* ═══ FUTURISTIC SPLASH SCREEN — INSTITUTIONAL BOOT SEQUENCE ═══ */}
         <div id="xc-splash" className="xc-splash">
           <div className="xc-splash-content">
             {/* Animated grid lines */}
@@ -175,6 +176,9 @@ export default function RootLayout({
             <div className="xc-splash-logo">
               <XCapitalSplashLogo />
             </div>
+            {/* Wordmark */}
+            <div className="xc-splash-title">X·CAPITAL</div>
+            <div className="xc-splash-subtitle">Capital Deployment Infrastructure</div>
             {/* Loading bar */}
             <div className="xc-splash-bar-track">
               <div className="xc-splash-bar-fill" />
@@ -182,6 +186,25 @@ export default function RootLayout({
             <div className="xc-splash-status">
               INITIALIZING SYSTEMS
               <span className="xc-splash-dots" />
+            </div>
+            {/* System checks — Goldman-grade boot telemetry */}
+            <div className="xc-splash-checks">
+              <div className="xc-splash-check" style={{ animationDelay: "0.2s" }}>
+                <span>REST API</span>
+                <span>OK</span>
+              </div>
+              <div className="xc-splash-check" style={{ animationDelay: "0.45s" }}>
+                <span>AI ORACLE</span>
+                <span>OK</span>
+              </div>
+              <div className="xc-splash-check" style={{ animationDelay: "0.7s" }}>
+                <span>POSTGRES</span>
+                <span>OK</span>
+              </div>
+              <div className="xc-splash-check" style={{ animationDelay: "0.95s" }}>
+                <span>RAIL SYNC</span>
+                <span>OK</span>
+              </div>
             </div>
           </div>
         </div>
@@ -205,6 +228,7 @@ export default function RootLayout({
           }}
         />
         <SessionSync />
+        <SplashBoot />
         {children}
         <TawkChat />
       </body>

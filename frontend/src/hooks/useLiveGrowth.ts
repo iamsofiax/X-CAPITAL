@@ -9,54 +9,51 @@ import {
 } from "@/store/useProfitEngine";
 import { useStore } from "@/store/useStore";
 import { mergeUserFromRegistry } from "@/lib/mergeSessionUser";
+import {
+  realCompound,
+  projectCompoundVariance as varianceProjection,
+  projectReturns as rateAwareProjectReturns,
+} from "@/lib/compoundMath";
 
 /**
  * REAL COMPOUND MATH — A = P(1 + r)^t
+ * Single source of truth lives in @/lib/compoundMath — these re-exports keep
+ * the original hook API stable for existing callers.
  */
 export function projectCompound(
   principal: number,
   dailyRate: number,
   days: number,
 ): number {
-  return principal * Math.pow(1 + dailyRate, days);
+  return realCompound(principal, dailyRate, days);
 }
 
-/**
- * Deterministic daily variance seeds — ~25% of days have slight drawdowns
- * for institutional credibility, but net trend is strongly positive.
- */
-const DAILY_VARIANCE: number[] = [
-  1.015, 1.022, 0.997, 1.018, 1.024, 0.998, 1.016, 1.021, 1.013, 0.996,
-  1.019, 1.025, 1.012, 1.017, 0.995, 1.023, 1.014, 1.020, 0.999, 1.026,
-  1.011, 1.018, 1.022, 1.015, 0.997, 1.024, 1.016, 1.013, 1.021, 1.019,
-  1.010, 1.023, 1.017, 1.014, 0.998, 1.020, 1.025, 1.012, 1.018, 1.016,
-];
-
-function getDailyFactor(daysElapsed: number): number {
-  return DAILY_VARIANCE[daysElapsed % DAILY_VARIANCE.length];
-}
-
-/** Compound with realistic daily variance */
+/** Compound with realistic daily variance (admin-rate aware). */
 export function projectCompoundVariance(principal: number, days: number): number {
-  let value = principal;
-  for (let i = 0; i < days; i++) {
-    value *= getDailyFactor(days - i);
-  }
-  return value;
+  return varianceProjection(principal, DEFAULT_DAILY_RATE, days);
 }
 
-/** Deterministic projection with net return and percentage */
+/** Deterministic projection with net return and percentage. */
 export function projectReturns(
   balance: number,
   days: number,
 ): { gross: number; netReturn: number; netPct: number } {
-  if (balance <= 0 || days <= 0) {
-    return { gross: 0, netReturn: 0, netPct: 0 };
-  }
-  const projected = projectCompoundVariance(balance, days);
-  const netReturn = projected - balance;
-  const netPct = (netReturn / balance) * 100;
-  return { gross: projected, netReturn, netPct };
+  return rateAwareProjectReturns(balance, DEFAULT_DAILY_RATE, days);
+}
+
+/**
+ * Rate-aware projection helper used by the dashboard's Capital Uplink.
+ * Falls back to the live node rate (which already absorbs admin overrides).
+ */
+export function projectReturnsForNode(
+  balance: number,
+  days: number,
+  nodeId: string,
+): { gross: number; netReturn: number; netPct: number } {
+  const state = useProfitEngine.getState();
+  const node = state.nodeGrowths[nodeId];
+  const dailyRate = node && node.dailyRate > 0 ? node.dailyRate : DEFAULT_DAILY_RATE;
+  return rateAwareProjectReturns(balance, dailyRate, days);
 }
 
 /** Tick interval — steady, slow, but visibly alive */
@@ -245,4 +242,3 @@ export function useLiveGrowth() {
     nodeGrowth: growth,
   };
 }
-

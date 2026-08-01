@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ArrowRight, Rocket } from "lucide-react";
-import { OrbitalHero } from "@/components/node-engine";
+import { ArrowRight, ShieldCheck, Lock, Landmark, FileCheck2 } from "lucide-react";
+import HeroRocket from "@/components/brand/HeroRocket";
 
 /* eslint-disable react/no-unescaped-entities */
 
@@ -172,30 +172,31 @@ export default function LandingPage() {
       </nav>
 
       <section className="relative min-h-screen flex items-center overflow-hidden bg-[#000000]" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-        {/* Background video — orbital launch loop */}
+        {/* Background video — orbital launch loop (raised opacity for 4K legibility) */}
         <video
           autoPlay
           muted
           loop
           playsInline
           poster="/og-image.png"
-          className="absolute inset-0 w-full h-full object-cover opacity-[0.18] pointer-events-none"
+          className="absolute inset-0 w-full h-full object-cover opacity-[0.38] pointer-events-none"
           src="/videos/hero-hd.mp4"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black pointer-events-none" />
-        {/* Floating rockets */}
-        <div className="absolute top-[12%] right-[8%] pointer-events-none animate-float-rocket hidden lg:block">
-          <Rocket className="w-10 h-10 text-white/15" style={{ filter: "drop-shadow(0 0 12px rgba(16,185,129,0.25))" }} />
-        </div>
-        <div className="absolute bottom-[18%] left-[6%] pointer-events-none animate-float-rocket-delayed hidden lg:block">
-          <Rocket className="w-7 h-7 text-white/10 rotate-45" style={{ filter: "drop-shadow(0 0 10px rgba(16,185,129,0.2))" }} />
-        </div>
+        {/* Readability vignette over the brighter video */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/40 to-black pointer-events-none" />
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(ellipse 90% 70% at 50% 40%, transparent 0%, rgba(0,0,0,0.55) 80%, rgba(0,0,0,0.92) 100%)",
+          }}
+        />
         <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
         <div className="relative z-10 max-w-7xl mx-auto px-6 w-full">
           <div className="grid lg:grid-cols-2 gap-12 items-center pt-28 pb-20">
             <div>
               <p className="text-[10px] font-mono text-white/30 tracking-[0.3em] mb-6 uppercase">Multiplanetary Capital Deployment</p>
-              <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black text-white leading-[0.95] tracking-[-0.03em]">
+              <h1 className="text-5xl sm:text-6xl md:text-7xl font-black text-white leading-[0.95] tracking-[-0.03em]" style={{ fontSize: "clamp(3rem, 9vw, 11rem)" }}>
                 Capital<br />Deployed<br /><span className="text-white/40">Into The Future</span>
               </h1>
               <p className="text-sm md:text-base text-white/40 max-w-md mt-6 leading-relaxed">One engine. Seven rails. Ground station clears capital — deploy across markets, funds, blockchain, and orbital infrastructure at full velocity.</p>
@@ -210,8 +211,37 @@ export default function LandingPage() {
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               </div>
             </div>
-            <div className="flex items-center justify-center lg:justify-end">
-              <OrbitalHero dense showStats={false} className="w-full max-w-md border-white/[0.08]" />
+            <div className="flex flex-col items-center gap-6 lg:items-end">
+              {/* Mobile rocket mark — sits below the headline, no overlap */}
+              <div className="lg:hidden">
+                <HeroRocket mobile />
+              </div>
+              {/* Desktop rocket — 4K-native vector, right column */}
+              <div className="hidden lg:flex animate-float-rocket">
+                <HeroRocket height={400} />
+              </div>
+              {/* Institutional integrity strip — Goldman-grade trust telemetry */}
+              <div className="w-full max-w-sm rounded-xl border border-white/[0.08] bg-white/[0.02] backdrop-blur px-5 py-4">
+                <p className="text-[9px] font-mono text-white/30 tracking-[0.28em] uppercase mb-3">Institutional Integrity</p>
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] font-mono text-white/40">
+                  <span className="flex items-center gap-1.5">
+                    <Landmark className="w-3 h-3 text-emerald-400/70" /> SEC / FINRA
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <ShieldCheck className="w-3 h-3 text-emerald-400/70" /> SOC 2 II
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <FileCheck2 className="w-3 h-3 text-emerald-400/70" /> D&B Verified
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Lock className="w-3 h-3 text-emerald-400/70" /> Custody 1:1
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/[0.05] text-[9px] font-mono text-white/25">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  REALTIME MARKET INFRASTRUCTURE · EST. 2026
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -288,10 +318,40 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── INSTITUTIONAL TRUST BAR ── */}
+      <div className="border-t border-white/[0.05] bg-[#000000]">
+        <div className="max-w-6xl mx-auto px-6 py-5 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-[10px] font-mono uppercase tracking-wider text-white/25">
+          <span className="flex items-center gap-2">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500/60" /> SOC 2 Type II Audited
+          </span>
+          <span className="hidden sm:inline text-white/10">·</span>
+          <span className="flex items-center gap-2">
+            <Lock className="w-3.5 h-3.5 text-emerald-500/60" /> Bank-Grade Custody
+          </span>
+          <span className="hidden sm:inline text-white/10">·</span>
+          <span>SEC / FINRA REGISTERED ENTITIES</span>
+          <span className="hidden sm:inline text-white/10">·</span>
+          <span>D&B VERIFIED</span>
+          <span className="hidden sm:inline text-white/10">·</span>
+          <span className="text-white/40">RESERVES 1:1</span>
+          <span className="hidden sm:inline text-white/10">·</span>
+          <span>EST. 2026</span>
+        </div>
+      </div>
+
       <footer className="border-t border-white/[0.05] py-10 px-6 bg-[#000000]">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-white/20">
           <span>&copy; 2026 X·CAPITAL. All rights reserved.</span>
           <span>Multiplanetary capital deployment. Seven rails. One command center.</span>
+        </div>
+        <div className="max-w-6xl mx-auto mt-6 pt-6 border-t border-white/[0.04]">
+          <p className="text-[10px] leading-relaxed text-white/15 max-w-4xl">
+            Disclosure: X·CAPITAL operates as a technology platform enabling access to diversified investment vehicles.
+            All investment products carry risk, including possible loss of principal. Past performance is not indicative of
+            future results. Projected yield figures are illustrative modelling outputs based on platform assumptions and do
+            not constitute a guarantee or offer of return. Securities offered through registered broker-dealers and
+            regulated entities. Not FDIC insured. Digital asset products are not bank deposits.
+          </p>
         </div>
       </footer>
 

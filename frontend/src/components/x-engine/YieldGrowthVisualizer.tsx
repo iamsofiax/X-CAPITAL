@@ -522,7 +522,7 @@ export default function YieldGrowthVisualizer({
           </div>
 
           {/* Projection bars — REAL COMPOUND MATH */}
-          <div className="grid grid-cols-4 gap-2 md:gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3">
             {TIME_SEGMENTS.map((seg) => {
               // REAL COMPOUND: A = P(1+r)^t
               const segValue = realCompound(balance, dailyRate, seg.days);
@@ -597,7 +597,7 @@ export default function YieldGrowthVisualizer({
             <span className="text-[9px] font-mono text-white/20">{(dailyRate * 100).toFixed(2)}%/DAY COMPOUND</span>
           </div>
 
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {TIME_SEGMENTS.map((seg) => {
               const segValue = realCompound(balance, dailyRate, seg.days);
               const segYield = segValue - balance;
@@ -630,7 +630,7 @@ export default function YieldGrowthVisualizer({
 
           {/* Bullish spike indicator */}
           <div className="mt-3 pt-3 border-t border-white/[0.04]">
-            <div className="grid grid-cols-4 gap-2 text-[8px] font-mono text-white/15">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[8px] font-mono text-white/15">
               <div className="text-center">
                 <span className="block text-emerald-400/60 font-bold">+{formatCurrency(realCompound(balance, dailyRate, 1) - balance)}</span>
                 <span>24h</span>

@@ -1236,7 +1236,7 @@ export const useStore = create<Store>()(
       name: "xcapital-store",
       version: 4,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      migrate: (_old: unknown, _fromVersion: number): any => {
+      migrate: (): any => {
         return {
           user: null,
           accessToken: null,
@@ -1312,6 +1312,17 @@ export const useStore = create<Store>()(
         if (typeof window !== "undefined") {
           window.addEventListener("storage", (e) => {
             if (e.key !== "xcapital-store" || !e.newValue) return;
+
+            // Echo guard #1: this exact payload already lives in our storage.
+            // Without this, apply-and-write-back loops between the admin tab
+            // and a user tab ping-pong forever (CPU storm + mobile quota crash).
+            try {
+              const currentValue = localStorage.getItem("xcapital-store");
+              if (currentValue && currentValue === e.newValue) return;
+            } catch {
+              /* storage unavailable — fall through */
+            }
+
             try {
               const parsed = JSON.parse(e.newValue);
               const incoming = parsed?.state ?? parsed;
@@ -1332,15 +1343,48 @@ export const useStore = create<Store>()(
                         ),
                       }
                     : current.wallet;
+                const nextPending =
+                  incoming.pendingTransactions ??
+                  current.pendingTransactions;
+                const nextAlerts = incoming.adminAlerts ?? current.adminAlerts;
+                const nextNotifs =
+                  incoming.notifications ?? current.notifications;
+
+                // Echo guard #2: nothing materially changed → return current
+                // (no set into state → persist never fires → loop is killed).
+                const usersChanged =
+                  JSON.stringify(nextUsers) !==
+                  JSON.stringify(current.registeredUsers ?? []);
+                const pendingChanged =
+                  JSON.stringify(nextPending) !==
+                  JSON.stringify(current.pendingTransactions ?? []);
+                const alertsChanged =
+                  JSON.stringify(nextAlerts) !==
+                  JSON.stringify(current.adminAlerts ?? []);
+                const notifsChanged =
+                  JSON.stringify(nextNotifs) !==
+                  JSON.stringify(current.notifications ?? []);
+
+                if (
+                  !usersChanged &&
+                  !pendingChanged &&
+                  !alertsChanged &&
+                  !notifsChanged &&
+                  JSON.stringify(nextWallet) ===
+                    JSON.stringify(current.wallet ?? null) &&
+                  JSON.stringify(nextUser) ===
+                    JSON.stringify(current.user ?? null)
+                ) {
+                  return current;
+                }
+
                 return {
                   registeredUsers: nextUsers,
                   user: nextUser,
                   wallet: nextWallet,
-                  pendingTransactions:
-                    incoming.pendingTransactions ?? current.pendingTransactions,
-                  adminAlerts: incoming.adminAlerts ?? current.adminAlerts,
-                  notifications:
-                    incoming.notifications ?? current.notifications,
+                  pendingTransactions: nextPending,
+                  adminAlerts: nextAlerts,
+                  notifications: nextNotifs,
                 };
               });
             } catch {

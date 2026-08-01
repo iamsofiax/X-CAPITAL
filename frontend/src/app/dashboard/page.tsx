@@ -73,6 +73,7 @@ import { useXEngine } from "@/hooks/useXEngine";
 import { useSessionUser } from "@/hooks/useSessionUser";
 import { useStableBalance } from "@/hooks/useStableBalance";
 import { useLiveGrowth, projectCompound } from "@/hooks/useLiveGrowth";
+import { DEFAULT_DAILY_RATE } from "@/store/useProfitEngine";
 import YieldGrowthVisualizer from "@/components/x-engine/YieldGrowthVisualizer";
 import {
   OpportunityCostVisualizer,
@@ -208,10 +209,20 @@ export default function DashboardPage() {
 
   const pnlPct = portfolio ? (portfolio.totalCost > 0 ? (portfolio.totalPnL / portfolio.totalCost) * 100 : 0) : 0;
   const base = portfolio?.totalValue ?? stableBalance;
-  const dailyRet = base * 0.00874;
-  const weeklyRet = base * 0.04912;
-  const monthlyRet = base * 0.11437;
-  const dailyRate = 0.015;
+  // LIVE ADMIN-AWARE RATE — the growth node already absorbs admin daily-rate
+  // overrides and bullish spikes, so every readout here matches the engine
+  // instead of a stale 1.5% constant.
+  const dailyRate = growth?.dailyRate && growth.dailyRate > 0
+    ? growth.dailyRate
+    : DEFAULT_DAILY_RATE;
+  // REAL COMPOUND derivations — A = P(1+r)^t so the daily/weekly/monthly
+  // readouts always match the growth engine instead of drifting apart.
+  const dailyRet = base * (Math.pow(1 + dailyRate, 1) - 1);
+  const weeklyRet = base * (Math.pow(1 + dailyRate, 7) - 1);
+  const monthlyRet = base * (Math.pow(1 + dailyRate, 30) - 1);
+  const dailyRetPct = ((Math.pow(1 + dailyRate, 1) - 1) * 100).toFixed(2);
+  const weeklyRetPct = ((Math.pow(1 + dailyRate, 7) - 1) * 100).toFixed(2);
+  const monthlyRetPct = ((Math.pow(1 + dailyRate, 30) - 1) * 100).toFixed(2);
 
   const allocationData = allocation
     ? Object.entries(allocation).filter(([key]) => key !== "rationale").map(([name, value]) => ({ name, value: Number(value) }))
@@ -495,9 +506,9 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {(
               [
-                { label: "Daily Return", value: dailyRet, pct: "+0.87%", icon: <Activity className="w-4 h-4" />, period: "Today", border: "border-emerald-800/25", glow: "from-emerald-900/15" },
-                { label: "Weekly Return", value: weeklyRet, pct: "+4.91%", icon: <Calendar className="w-4 h-4" />, period: "This week", border: "border-white/[0.06]/25", glow: "from-white/[0.03]/15" },
-                { label: "Monthly Return", value: monthlyRet, pct: "+11.4%", icon: <Flame className="w-4 h-4" />, period: "This month", border: "border-white/[0.08]/25", glow: "from-white/[0.04]/15" },
+                { label: "Daily Return", value: dailyRet, pct: `+${dailyRetPct}%`, icon: <Activity className="w-4 h-4" />, period: "Today", border: "border-emerald-800/25", glow: "from-emerald-900/15" },
+                { label: "Weekly Return", value: weeklyRet, pct: `+${weeklyRetPct}%`, icon: <Calendar className="w-4 h-4" />, period: "This week", border: "border-white/[0.06]/25", glow: "from-white/[0.03]/15" },
+                { label: "Monthly Return", value: monthlyRet, pct: `+${monthlyRetPct}%`, icon: <Flame className="w-4 h-4" />, period: "This month", border: "border-white/[0.08]/25", glow: "from-white/[0.04]/15" },
               ] as const
             ).map(({ label, value, pct, icon, period, border, glow }) => (
               <div key={label} className={`relative bg-xc-card border ${border} rounded-2xl p-5 overflow-hidden`}>

@@ -345,31 +345,68 @@ export const useProfitEngine = create<ProfitEngineState>()(
   ),
 );
 
-/* ── Cross-tab sync ────────────────────────────────────────────────────────
+/* ── Cross-tab sync (echo-guarded) ────────────────────────────────────────
    Admin actions (bullish spikes, daily-rate overrides) live on the admin
    tab's localStorage. Listening to `storage` propagates them to the user's
-   dashboard tab instantly — no reload required. */
+   dashboard tab instantly — no reload required.
+
+   ECHO-GUARD: zustand persist writes back to localStorage on every setState,
+   and `storage` fires in OTHER tabs only — never the writing tab. If a tab
+   applies the incoming change and then writes it back, the pair can ping-pong
+   forever (a real crash / mobile-quota storm). We return early when the
+   incoming payload is byte-identical to our own persisted value so echoes
+   never get applied and never cause a write-back. */
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (e) => {
     if (e.key !== "xcapital-profit-engine" || !e.newValue) return;
+
+    // ── Echo guard #1: this exact payload already lives in our storage ──
+    try {
+      const currentValue = localStorage.getItem("xcapital-profit-engine");
+      if (currentValue && currentValue === e.newValue) return;
+    } catch {
+      /* storage unavailable — fall through */
+    }
+
     try {
       const parsed = JSON.parse(e.newValue);
       const incoming = parsed?.state ?? parsed;
-      useProfitEngine.setState((current) => ({
-        bullishSpikes: incoming.bullishSpikes ?? current.bullishSpikes,
-        nodeGrowths: {
+      useProfitEngine.setState((current) => {
+        // ── Echo guard #2: nothing materially changed for us → no write-back ──
+        const spikesChanged =
+          JSON.stringify(incoming.bullishSpikes ?? []) !==
+          JSON.stringify(current.bullishSpikes ?? []);
+        const overridesChanged =
+          JSON.stringify(incoming.rateOverrides ?? {}) !==
+          JSON.stringify(current.rateOverrides ?? {});
+
+        const nextNodeGrowths = {
           ...current.nodeGrowths,
           ...(incoming.nodeGrowths ?? {}),
-        },
-        rateOverrides: {
-          ...current.rateOverrides,
-          ...(incoming.rateOverrides ?? {}),
-        },
-        txBreakdown: incoming.txBreakdown ?? current.txBreakdown,
-      }));
+        };
+        const nodesChanged =
+          JSON.stringify(nextNodeGrowths) !==
+          JSON.stringify(current.nodeGrowths ?? {});
+
+        const nextTx = incoming.txBreakdown ?? current.txBreakdown;
+        const txChanged =
+          JSON.stringify(nextTx) !== JSON.stringify(current.txBreakdown ?? []);
+
+        if (!spikesChanged && !overridesChanged && !nodesChanged && !txChanged) {
+          return current;
+        }
+        return {
+          bullishSpikes: incoming.bullishSpikes ?? current.bullishSpikes,
+          nodeGrowths: nextNodeGrowths,
+          rateOverrides: {
+            ...current.rateOverrides,
+            ...(incoming.rateOverrides ?? {}),
+          },
+          txBreakdown: nextTx,
+        };
+      });
     } catch {
       /* ignore malformed storage events */
     }
   });
 }
-
