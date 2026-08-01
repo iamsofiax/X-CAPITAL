@@ -7,9 +7,11 @@ import walletRoutes from './wallet';
 import commerceRoutes from './commerce';
 import oracleRoutes from './oracle';
 import adminRoutes from './admin';
+import { getSystemHealth } from '../controllers/healthController';
 
 const router = Router();
 
+router.get('/health', getSystemHealth);
 router.use('/auth', authRoutes);
 router.use('/trading', tradingRoutes);
 router.use('/portfolio', portfolioRoutes);

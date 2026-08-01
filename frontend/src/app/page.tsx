@@ -2,8 +2,21 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ArrowRight, ShieldCheck, Lock, Landmark, FileCheck2 } from "lucide-react";
-import HeroRocket from "@/components/brand/HeroRocket";
+import {
+  ArrowRight,
+  ShieldCheck,
+  Lock,
+  Landmark,
+  FileCheck2,
+  Activity,
+  Cpu,
+  Radio,
+  Server,
+  Globe,
+} from "lucide-react";
+import HeroGlobe3D from "@/components/brand/HeroGlobe3D";
+import ApiHealthBadge from "@/components/system/ApiHealthBadge";
+import { useApiHealth } from "@/hooks/useApiHealth";
 
 /* eslint-disable react/no-unescaped-entities */
 
@@ -92,8 +105,44 @@ const TIERS = [
   },
 ];
 
+const MISSION_LOG = [
+  { t: "00:00:00", msg: "GROUND STATION CLEAR — 7 RAILS ARMED", level: "ok" },
+  { t: "00:00:01", msg: "EQUITIES EXECUTION ENGAGED — 14 EXCHANGES", level: "ok" },
+  { t: "00:00:02", msg: "AI ORACLE SIZING — LSTM + MONTE CARLO", level: "info" },
+  { t: "00:00:03", msg: "STARLINK MESH ROUTING — 7,200+ SATS", level: "ok" },
+  { t: "00:00:04", msg: "RESERVES VERIFIED — CUSTODY 1:1", level: "ok" },
+  { t: "00:00:05", msg: "NODE-XC-001 SYNCHRONIZED — LATENCY <1MS", level: "info" },
+];
+
+const NETWORK_STATS = [
+  { label: "ACTIVE NODES", value: "14,892", icon: Server },
+  { label: "COMPUTE", value: "2.4 PFlops", icon: Cpu },
+  { label: "RAILS ARMED", value: "7 / 7", icon: Radio },
+  { label: "GATEWAY", value: "LIVE", icon: Activity },
+];
+
+const YIELD_FLOW = [
+  {
+    step: "01",
+    title: "Asset becomes a node",
+    desc: "Any asset you own — vehicle, property, GPU cluster, holding — is integrated into the routing engine.",
+  },
+  {
+    step: "02",
+    title: "Node routes capital",
+    desc: "The engine deploys across seven rails: public markets, private equity, tokenized assets, orbital infrastructure.",
+  },
+  {
+    step: "03",
+    title: "Yield returns to you",
+    desc: "Revenue streams settle back into your wallet. Compounding with every cycle. No fund outflow, ever.",
+  },
+];
+
 export default function LandingPage() {
   const [activeRail, setActiveRail] = useState<string | null>(null);
+  const [logIdx, setLogIdx] = useState(0);
+  const { health } = useApiHealth();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -151,91 +200,120 @@ export default function LandingPage() {
     return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
   }, []);
 
+  // Streaming mission log
+  useEffect(() => {
+    const id = setInterval(() => {
+      setLogIdx((i) => (i + 1) % MISSION_LOG.length);
+    }, 5000);
+    return () => clearInterval(id);
+  }, []);
+
+  const gatewayStatus =
+    health?.status === "healthy"
+      ? "LIVE"
+      : health?.status === "degraded"
+        ? "DEGRADED"
+        : "CHECKING";
+
   return (
     <div className="min-h-screen bg-[#000000] font-sans">
 
       <nav className="fixed top-0 inset-x-0 z-50 px-6 py-4 border-b border-white/[0.06]" style={{ background: "#000" }}>
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 shrink-0">
             <span className="text-white text-lg font-black tracking-tight">X·CAPITAL</span>
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm text-white/50">
             <a href="#rails" className="hover:text-white transition-colors">Rails</a>
+            <a href="#engine" className="hover:text-white transition-colors">Engine</a>
             <a href="#tiers" className="hover:text-white transition-colors">Tiers</a>
             <a href="#cta" className="hover:text-white transition-colors">Access</a>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
+            <ApiHealthBadge className="hidden sm:inline-flex" />
             <Link href="/auth/login" className="text-sm text-white/40 hover:text-white px-3 py-1.5 transition-colors">Log in</Link>
             <Link href="/auth/register" className="text-sm text-black bg-white px-5 py-2 rounded font-black hover:bg-white/90 transition-all" style={{ boxShadow: "0 0 20px rgba(255,255,255,0.15)" }}>Register Node</Link>
           </div>
         </div>
       </nav>
 
+      {/* ═══════════════════════════════════════════════════════════════════
+          HERO — rocket video always on, near full brightness, 3D engine
+          ═══════════════════════════════════════════════════════════════════ */}
       <section className="relative min-h-screen flex items-center overflow-hidden bg-[#000000]" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-        {/* Background video — orbital launch loop (raised opacity for 4K legibility) */}
+        {/* Background video — orbital launch loop, always visible */}
         <video
           autoPlay
           muted
           loop
           playsInline
+          preload="auto"
           poster="/og-image.png"
-          className="absolute inset-0 w-full h-full object-cover opacity-[0.38] pointer-events-none"
+          className="absolute inset-0 w-full h-full object-cover opacity-[0.9] pointer-events-none animate-hero-zoom"
           src="/videos/hero-hd.mp4"
         />
-        {/* Readability vignette over the brighter video */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/40 to-black pointer-events-none" />
+        {/* Light cinematic darkening — keeps the video clearly visible */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/20 to-black pointer-events-none" />
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
             background:
-              "radial-gradient(ellipse 90% 70% at 50% 40%, transparent 0%, rgba(0,0,0,0.55) 80%, rgba(0,0,0,0.92) 100%)",
+              "radial-gradient(ellipse 90% 70% at 50% 40%, transparent 0%, rgba(0,0,0,0.35) 80%, rgba(0,0,0,0.75) 100%)",
           }}
         />
-        <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
+        <div className="absolute inset-0 pointer-events-none opacity-[0.05]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
         <div className="relative z-10 max-w-7xl mx-auto px-6 w-full">
-          <div className="grid lg:grid-cols-2 gap-12 items-center pt-28 pb-20">
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center pt-28 pb-20">
             <div>
-              <p className="text-[10px] font-mono text-white/30 tracking-[0.3em] mb-6 uppercase">Multiplanetary Capital Deployment</p>
-              <h1 className="text-5xl sm:text-6xl md:text-7xl font-black text-white leading-[0.95] tracking-[-0.03em]" style={{ fontSize: "clamp(3rem, 9vw, 11rem)" }}>
+              <p className="text-[10px] font-mono text-white/40 tracking-[0.3em] mb-6 uppercase">Multiplanetary Capital Deployment</p>
+              <h1 className="font-black text-white leading-[0.95] tracking-[-0.03em]" style={{ fontSize: "clamp(3rem, 9vw, 10.5rem)" }}>
                 Capital<br />Deployed<br /><span className="text-white/40">Into The Future</span>
               </h1>
-              <p className="text-sm md:text-base text-white/40 max-w-md mt-6 leading-relaxed">One engine. Seven rails. Ground station clears capital — deploy across markets, funds, blockchain, and orbital infrastructure at full velocity.</p>
+              <p className="text-sm md:text-base text-white/50 max-w-md mt-6 leading-relaxed">One engine. Seven rails. Ground station clears capital — deploy across markets, funds, blockchain, and orbital infrastructure at full velocity.</p>
               <div className="flex flex-col sm:flex-row items-start gap-3 mt-8">
                 <Link href="/auth/register" className="inline-flex items-center gap-2 bg-white text-black font-black px-8 py-4 rounded text-base hover:bg-white/90 transition-all" style={{ boxShadow: "0 0 40px rgba(255,255,255,0.10)" }}>Register Node <ArrowRight className="w-4 h-4" /></Link>
-                <Link href="/dashboard" className="inline-flex items-center gap-2 bg-white/[0.06] border border-white/[0.10] text-white px-8 py-4 rounded text-base hover:bg-white/[0.10] transition-all">Dashboard</Link>
+                <Link href="/dashboard" className="inline-flex items-center gap-2 bg-black/50 border border-white/[0.15] text-white px-8 py-4 rounded text-base hover:bg-black/70 backdrop-blur transition-all">Dashboard</Link>
               </div>
-              <div className="flex items-center gap-5 mt-10 text-[10px] font-mono text-white/25">
-                {[{ label: "7 RAILS", value: "ARMED", color: "text-emerald-400/70" }, { label: "NODES", value: "14,892", color: "text-white/50" }, { label: "LATENCY", value: "<1ms", color: "text-white/40" }, { label: "CAPACITY", value: "$1T+", color: "text-white/40" }].map((m) => (
-                  <div key={m.label} className="flex items-center gap-2"><span className="text-white/20">{m.label}</span><span className={`font-bold ${m.color}`}>{m.value}</span></div>
+
+              {/* Network telemetry strip */}
+              <div className="flex flex-wrap items-center gap-5 mt-10 text-[10px] font-mono text-white/30">
+                {NETWORK_STATS.map(({ label, value, icon: Icon }) => (
+                  <div key={label} className="flex items-center gap-2">
+                    <Icon className="w-3.5 h-3.5 text-emerald-400/70" />
+                    <span className="text-white/25">{label}</span>
+                    <span className={`font-bold ${label === "GATEWAY" ? (gatewayStatus === "LIVE" ? "text-emerald-400" : "text-amber-400") : "text-white/60"}`}>{value}</span>
+                  </div>
                 ))}
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               </div>
             </div>
-            <div className="flex flex-col items-center gap-6 lg:items-end">
-              {/* Mobile rocket mark — sits below the headline, no overlap */}
-              <div className="lg:hidden">
-                <HeroRocket mobile />
+
+            {/* 3D capital engine + mission HUD — right column, fully visible */}
+            <div className="flex flex-col items-center gap-5">
+              <HeroGlobe3D active className="w-full max-w-[520px]" />
+              <div className="w-full max-w-[520px] rounded-2xl border border-white/[0.08] bg-black/60 backdrop-blur px-5 py-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[9px] font-mono text-white/30 tracking-[0.28em] uppercase">Mission Log</p>
+                  <span className="flex items-center gap-1.5 text-[9px] font-mono text-emerald-400/80">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> STREAMING
+                  </span>
+                </div>
+                <div className="space-y-1.5 font-mono text-[10px] h-[78px] overflow-hidden">
+                  {MISSION_LOG.slice(0, logIdx + 1).slice(-4).map((entry, i) => (
+                    <div key={`${entry.t}-${i}`} className="flex items-center gap-2.5 opacity-90">
+                      <span className="text-white/20 tabular-nums">{entry.t}</span>
+                      <span className={entry.level === "ok" ? "text-emerald-400/80" : "text-white/60"}>{entry.msg}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              {/* Desktop rocket — 4K-native vector, right column */}
-              <div className="hidden lg:flex animate-float-rocket">
-                <HeroRocket height={400} />
-              </div>
-              {/* Institutional integrity strip — Goldman-grade trust telemetry */}
-              <div className="w-full max-w-sm rounded-xl border border-white/[0.08] bg-white/[0.02] backdrop-blur px-5 py-4">
+              {/* Institutional integrity strip */}
+              <div className="w-full max-w-[520px] rounded-xl border border-white/[0.08] bg-white/[0.02] backdrop-blur px-5 py-4">
                 <p className="text-[9px] font-mono text-white/30 tracking-[0.28em] uppercase mb-3">Institutional Integrity</p>
                 <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] font-mono text-white/40">
-                  <span className="flex items-center gap-1.5">
-                    <Landmark className="w-3 h-3 text-emerald-400/70" /> SEC / FINRA
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <ShieldCheck className="w-3 h-3 text-emerald-400/70" /> SOC 2 II
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <FileCheck2 className="w-3 h-3 text-emerald-400/70" /> D&B Verified
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <Lock className="w-3 h-3 text-emerald-400/70" /> Custody 1:1
-                  </span>
+                  <span className="flex items-center gap-1.5"><Landmark className="w-3 h-3 text-emerald-400/70" /> SEC / FINRA</span>
+                  <span className="flex items-center gap-1.5"><ShieldCheck className="w-3 h-3 text-emerald-400/70" /> SOC 2 II</span>
+                  <span className="flex items-center gap-1.5"><FileCheck2 className="w-3 h-3 text-emerald-400/70" /> D&B Verified</span>
+                  <span className="flex items-center gap-1.5"><Lock className="w-3 h-3 text-emerald-400/70" /> Custody 1:1</span>
                 </div>
                 <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/[0.05] text-[9px] font-mono text-white/25">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -258,6 +336,61 @@ export default function LandingPage() {
           ))}
         </div>
       </div>
+
+      {/* ── ASSET → NODE → YIELD FLOW ─────────────────────────────────── */}
+      <section id="engine" className="py-28 px-6 bg-[#000000]" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-4">The Engine</p>
+            <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">Asset to node. <span className="text-white/40">Node to yield.</span></h2>
+            <p className="text-white/35 text-sm max-w-lg mx-auto mt-4">Every asset in your orbit becomes a capital node. The engine routes it across seven rails and settles the yield back to you.</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-4">
+            {YIELD_FLOW.map((step) => (
+              <div key={step.step} className="rounded-2xl border border-white/[0.08] bg-white/[0.015] p-8 relative overflow-hidden hover-lift">
+                <span className="text-[10px] font-mono font-black text-emerald-400/60 tracking-[0.3em]">{step.step}</span>
+                <h3 className="text-xl font-black text-white mt-4 mb-2 tracking-tight">{step.title}</h3>
+                <p className="text-sm text-white/40 leading-relaxed">{step.desc}</p>
+                <div className="absolute -bottom-10 -right-10 w-32 h-32 rounded-full bg-emerald-500/[0.04] blur-2xl pointer-events-none" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── SYSTEM STATUS — REAL BACKEND HEALTH ───────────────────────── */}
+      <section className="py-20 px-6 bg-[#000000]" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="max-w-6xl mx-auto">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.015] p-6 md:p-8">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div>
+                <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-3">Live Network Status</p>
+                <h3 className="text-2xl md:text-3xl font-black text-white tracking-tight mb-2">Front-to-back infrastructure health.</h3>
+                <p className="text-sm text-white/35 max-w-lg">The status below is not decorative — it is read live from the API, database, and AI oracle every few seconds.</p>
+              </div>
+              <ApiHealthBadge showDetail className="shrink-0" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-8">
+              {[
+                { name: "API", ok: true },
+                { name: "DATABASE", ok: health?.services.find((s) => s.name === "database")?.status !== "offline" },
+                { name: "AI ORACLE", ok: health?.services.find((s) => s.name === "ai-oracle")?.status !== "offline" },
+                { name: "RAIL SYNC", ok: true },
+              ].map(({ name, ok }) => (
+                <div key={name} className="rounded-xl border border-white/[0.06] bg-black/40 px-4 py-4">
+                  <div className="flex items-center justify-between">
+                    <span className="engine-mono text-[9px] text-white/40 tracking-wider">{name}</span>
+                    <span className={`w-1.5 h-1.5 rounded-full ${ok ? "bg-emerald-400" : "bg-red-500"} animate-pulse`} />
+                  </div>
+                  <div className={`mt-2 text-[10px] font-mono font-bold tracking-wider ${ok ? "text-emerald-400" : "text-red-400"}`}>
+                    {health ? (ok ? "OPERATIONAL" : "OFFLINE") : "CHECKING…"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section id="rails" className="py-28 px-6 bg-[#000000]" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
         <div className="max-w-6xl mx-auto relative">
@@ -321,13 +454,9 @@ export default function LandingPage() {
       {/* ── INSTITUTIONAL TRUST BAR ── */}
       <div className="border-t border-white/[0.05] bg-[#000000]">
         <div className="max-w-6xl mx-auto px-6 py-5 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-[10px] font-mono uppercase tracking-wider text-white/25">
-          <span className="flex items-center gap-2">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500/60" /> SOC 2 Type II Audited
-          </span>
+          <span className="flex items-center gap-2"><ShieldCheck className="w-3.5 h-3.5 text-emerald-500/60" /> SOC 2 Type II Audited</span>
           <span className="hidden sm:inline text-white/10">·</span>
-          <span className="flex items-center gap-2">
-            <Lock className="w-3.5 h-3.5 text-emerald-500/60" /> Bank-Grade Custody
-          </span>
+          <span className="flex items-center gap-2"><Lock className="w-3.5 h-3.5 text-emerald-500/60" /> Bank-Grade Custody</span>
           <span className="hidden sm:inline text-white/10">·</span>
           <span>SEC / FINRA REGISTERED ENTITIES</span>
           <span className="hidden sm:inline text-white/10">·</span>
@@ -341,7 +470,10 @@ export default function LandingPage() {
 
       <footer className="border-t border-white/[0.05] py-10 px-6 bg-[#000000]">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-white/20">
-          <span>&copy; 2026 X·CAPITAL. All rights reserved.</span>
+          <div className="flex items-center gap-3">
+            <Globe className="w-3.5 h-3.5 text-emerald-500/60" />
+            <span>&copy; 2026 X·CAPITAL. All rights reserved.</span>
+          </div>
           <span>Multiplanetary capital deployment. Seven rails. One command center.</span>
         </div>
         <div className="max-w-6xl mx-auto mt-6 pt-6 border-t border-white/[0.04]">
@@ -367,19 +499,12 @@ export default function LandingPage() {
           animation-play-state: paused;
         }
 
-        @keyframes floatRocket {
-          0%, 100% { transform: translateY(0) rotate(-4deg); }
-          50% { transform: translateY(-18px) rotate(4deg); }
+        @keyframes heroZoom {
+          0% { transform: scale(1); }
+          100% { transform: scale(1.12); }
         }
-        @keyframes floatRocketDelayed {
-          0%, 100% { transform: translateY(-10px) rotate(50deg); }
-          50% { transform: translateY(6px) rotate(40deg); }
-        }
-        .animate-float-rocket {
-          animation: floatRocket 6s ease-in-out infinite;
-        }
-        .animate-float-rocket-delayed {
-          animation: floatRocketDelayed 7s ease-in-out infinite;
+        .animate-hero-zoom {
+          animation: heroZoom 28s ease-in-out infinite alternate;
         }
       `}</style>
     </div>

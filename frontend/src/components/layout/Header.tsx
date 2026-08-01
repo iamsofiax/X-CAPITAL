@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { Bell, Menu, Search, Activity, TrendingUp, TrendingDown } from "lucide-react";
+import ApiHealthBadge from "@/components/system/ApiHealthBadge";
 import { useStore } from "@/store/useStore";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -84,6 +85,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
           </div>
 
           <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
+            <ApiHealthBadge className="hidden xl:inline-flex" />
             <div className="hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02]">
               <span className="engine-mono text-[9px] text-white/35 font-bold">{ticker.sym}</span>
               <span className="engine-mono text-[10px] text-white/60 font-bold tabular-nums">{ticker.price}</span>

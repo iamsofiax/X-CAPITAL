@@ -1,0 +1,43 @@
+npm notice run x-capital-frontend@1.0.0 build
+npm notice run next build
+  ▲ Next.js 14.2.35
+  - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+   Generating static pages (0/18) ...
+   Generating static pages (4/18) 
+   Generating static pages (8/18) 
+   Generating static pages (13/18) 
+ ✓ Generating static pages (18/18)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    14.8 kB         345 kB
+├ ○ /_not-found                          876 B          88.5 kB
+├ ○ /admin                               18.2 kB         414 kB
+├ ○ /admin/login                         3.59 kB         124 kB
+├ ○ /auth/login                          4.18 kB         134 kB
+├ ○ /auth/register                       4.53 kB         134 kB
+├ ○ /commerce                            14.5 kB         424 kB
+├ ○ /dashboard                           19.9 kB         540 kB
+├ ○ /engine                              7.21 kB         419 kB
+├ ○ /funds                               6.29 kB         416 kB
+├ ○ /oracle                              7.37 kB         518 kB
+├ ○ /portfolio                           6.09 kB         523 kB
+├ ○ /settings                            4.28 kB         416 kB
+├ ○ /settings/kyc                        9.71 kB         419 kB
+├ ○ /trading                             7.41 kB         514 kB
+└ ○ /wallet                              15.2 kB         534 kB
++ First Load JS shared by all            87.6 kB
+  ├ chunks/117-448f5cfeeb5337f3.js       32 kB
+  ├ chunks/fd9d1056-387ce1f98fc0cacc.js  53.6 kB
+  └ other shared chunks (total)          2 kB
+
+
+○  (Static)  prerendered as static content
+

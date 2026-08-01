@@ -62,6 +62,32 @@ api.interceptors.response.use(
 
 // ─── API Modules ──────────────────────────────────────────────────────────────
 
+export interface SystemHealth {
+  status: 'healthy' | 'degraded' | 'offline';
+  service: string;
+  version: string;
+  environment: string;
+  uptimeSeconds: number;
+  timestamp: string;
+  latencyMs?: number;
+  services: Array<{
+    name: string;
+    status: 'operational' | 'degraded' | 'offline';
+    latencyMs?: number;
+    detail?: string;
+  }>;
+  summary: {
+    operational: number;
+    degraded: number;
+    offline: number;
+    total: number;
+  };
+}
+
+export const systemAPI = {
+  getHealth: () => api.get('/health'),
+};
+
 export const authAPI = {
   register: (data: { email: string; password: string; firstName: string; lastName: string }) =>
     api.post('/auth/register', data),

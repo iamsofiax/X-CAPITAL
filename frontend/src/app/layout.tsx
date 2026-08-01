@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import TawkChat from "@/components/support/TawkChat";
 import SessionSync from "@/components/SessionSync";
-import SplashBoot from "@/components/SplashBoot";
-import XCapitalSplashLogo from "@/components/brand/XCapitalSplashLogo";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -153,82 +151,7 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-xc-black text-xc-text antialiased min-h-screen">
-        {/* ═══ FUTURISTIC SPLASH SCREEN — INSTITUTIONAL BOOT SEQUENCE ═══ */}
-        <div id="xc-splash" className="xc-splash">
-          <div className="xc-splash-content">
-            {/* Animated grid lines */}
-            <div className="xc-splash-grid" />
-            {/* Particle field */}
-            <div className="xc-splash-particles">
-              {Array.from({ length: 20 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="xc-splash-dot"
-                  style={{
-                    left: `${5 + ((i * 4.7) % 90)}%`,
-                    animationDelay: `${i * 0.15}s`,
-                    animationDuration: `${1.5 + (i % 3) * 0.5}s`,
-                  }}
-                />
-              ))}
-            </div>
-            {/* Logo */}
-            <div className="xc-splash-logo">
-              <XCapitalSplashLogo />
-            </div>
-            {/* Wordmark */}
-            <div className="xc-splash-title">X·CAPITAL</div>
-            <div className="xc-splash-subtitle">Capital Deployment Infrastructure</div>
-            {/* Loading bar */}
-            <div className="xc-splash-bar-track">
-              <div className="xc-splash-bar-fill" />
-            </div>
-            <div className="xc-splash-status">
-              INITIALIZING SYSTEMS
-              <span className="xc-splash-dots" />
-            </div>
-            {/* System checks — Goldman-grade boot telemetry */}
-            <div className="xc-splash-checks">
-              <div className="xc-splash-check" style={{ animationDelay: "0.2s" }}>
-                <span>REST API</span>
-                <span>OK</span>
-              </div>
-              <div className="xc-splash-check" style={{ animationDelay: "0.45s" }}>
-                <span>AI ORACLE</span>
-                <span>OK</span>
-              </div>
-              <div className="xc-splash-check" style={{ animationDelay: "0.7s" }}>
-                <span>POSTGRES</span>
-                <span>OK</span>
-              </div>
-              <div className="xc-splash-check" style={{ animationDelay: "0.95s" }}>
-                <span>RAIL SYNC</span>
-                <span>OK</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        {/* Inline script to dismiss splash after load — no React dependency */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                var splash = document.getElementById('xc-splash');
-                if (!splash) return;
-                function dismiss() {
-                  splash.classList.add('xc-splash-exit');
-                  setTimeout(function() { splash.remove(); }, 600);
-                }
-                // Dismiss when page is interactive OR after 2.8s max
-                if (document.readyState === 'complete') { setTimeout(dismiss, 400); }
-                else { window.addEventListener('load', function() { setTimeout(dismiss, 400); }); }
-                setTimeout(dismiss, 2800);
-              })();
-            `,
-          }}
-        />
         <SessionSync />
-        <SplashBoot />
         {children}
         <TawkChat />
       </body>
