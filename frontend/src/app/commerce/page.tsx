@@ -45,9 +45,9 @@ const CATEGORIES = [
 type CategoryKey = (typeof CATEGORIES)[number]["key"];
 
 export default function CommercePage() {
-  const { wallet } = useStore();
+  const { wallet, products: storeProducts } = useStore();
   const availableCash = useStableBalance();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [serverProducts, setServerProducts] = useState<Product[] | null>(null);
   const [activeCategory, setActiveCategory] = useState<CategoryKey>("ALL");
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Product | null>(null);
@@ -63,20 +63,33 @@ export default function CommercePage() {
     text: string;
   } | null>(null);
 
+  // Admin-managed catalog from the store (persisted, instant cross-tab sync).
+  // Product edits in the admin Commerce Manager appear here immediately.
+  // The store is the source of truth; the API remains as a warm-up hint only.
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
         const res = await commerceAPI.getProducts();
-        setProducts(res.data.data.products ?? []);
+        const apiProducts = res.data.data.products ?? [];
+        if (apiProducts.length > 0) {
+          setServerProducts(apiProducts);
+        }
       } catch {
-        setProducts(DEMO_PRODUCTS);
+        /* keep store / demo products */
       } finally {
         setLoading(false);
       }
     };
-    load();
+    void load();
   }, []);
+
+  const products =
+    storeProducts.length > 0
+      ? storeProducts
+      : serverProducts && serverProducts.length > 0
+        ? serverProducts
+        : DEMO_PRODUCTS;
 
   const openCheckout = (product: Product) => {
     setSelected(product);

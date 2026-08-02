@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -13,6 +13,7 @@ import { adminAPI } from "@/lib/api";
 import { hasApiToken } from "@/lib/apiUser";
 import { MissionControl } from "@/components/x-engine";
 import BullishSpikeControls from "@/components/admin/BullishSpikeControls";
+import CommerceManager from "@/components/admin/CommerceManager";
 import type { User, Transaction } from "@/types";
 import {
   Shield,
@@ -49,6 +50,7 @@ import {
   CheckCircle2,
   Link as LinkIcon,
   MessageSquare,
+  Package,
 } from "lucide-react";
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -85,7 +87,8 @@ type AdminTab =
   | "audit"
   | "create"
   | "rails"
-  | "bullish";
+  | "bullish"
+  | "commerce";
 
 // ── Toast ───────────────────────────────────────────────────────────────────
 function Toast({
@@ -878,6 +881,7 @@ export default function AdminPage() {
             { key: "create" as const, label: "Create User", icon: UserPlus },
             { key: "rails" as const, label: "Rail Access", icon: Unlock },
             { key: "bullish" as const, label: "Bullish Spikes", icon: TrendingUp },
+            { key: "commerce" as const, label: "Commerce", icon: Package },
           ].map((t) => (
             <button
               key={t.key}
@@ -1734,9 +1738,8 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ═══════════════════════════════════════════════════════════════════ */}
         {/* BULLISH SPIKES TAB                                               */}
-        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* ═══════════════════════════════════════════════════════════════════════════════════ */}
         {activeTab === "bullish" && (
           <div className="max-w-3xl mx-auto">
             <div className="bg-[#12121a] border border-white/5 rounded-xl p-6 mb-6">
@@ -1751,9 +1754,27 @@ export default function AdminPage() {
             <BullishSpikeControls />
           </div>
         )}
+
+        {/* ====================================================================== */}
+        {/* COMMERCE TAB                                                     */}
+        {/* ====================================================================== */}
+        {activeTab === "commerce" && (
+          <div className="max-w-6xl mx-auto">
+            <div className="bg-[#12121a] border border-white/5 rounded-xl p-6 mb-6">
+              <div className="flex items-center gap-3 mb-4">
+                <Package className="w-5 h-5 text-emerald-400" />
+                <div>
+                  <h3 className="text-sm font-semibold text-white">Commerce Manager</h3>
+                  <p className="text-xs text-gray-500">Manage the live product catalog. Changes sync instantly to /commerce via the store.</p>
+                </div>
+              </div>
+            </div>
+            <CommerceManager />
+          </div>
+        )}
+
       </main>
 
-      {/* ═══════════════════════════════════════════════════════════════════════ */}
       {/* MODALS                                                                */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
 

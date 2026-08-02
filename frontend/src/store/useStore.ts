@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { User, Wallet, Portfolio } from "@/types";
+import type { Product } from "@/components/commerce/ProductCard";
 import { mergeUserFromRegistry } from "@/lib/mergeSessionUser";
 import {
   patchBalanceForUser,
@@ -229,6 +230,12 @@ interface UIState {
   setTheme: (theme: "black" | "light") => void;
 }
 
+interface ProductState {
+  products: Product[];
+  upsertProduct: (product: Product) => void;
+  deleteProduct: (productId: string) => void;
+}
+
 interface DataState {
   wallet: Wallet | null;
   portfolio: Portfolio | null;
@@ -245,7 +252,8 @@ type Store = AuthState &
   AdminAlertState &
   NotificationState &
   KYCState &
-  AdminContentState;
+  AdminContentState &
+  ProductState;
 
 const DEFAULT_TOS = `X-CAPITAL TERMS OF SERVICE
 
@@ -1231,6 +1239,24 @@ export const useStore = create<Store>()(
       // ─── Admin Content ────────────────────────────────────────────────────
       termsOfService: DEFAULT_TOS,
       setTermsOfService: (content) => set({ termsOfService: content }),
+
+      // ─── Commerce Product Catalog (persisted, admin-managed) ──────────────
+      products: [],
+      upsertProduct: (product) =>
+        set((state) => {
+          const exists = state.products.some((p) => p.id === product.id);
+          return {
+            products: exists
+              ? state.products.map((p) =>
+                  p.id === product.id ? product : p,
+                )
+              : [...state.products, product],
+          };
+        }),
+      deleteProduct: (productId) =>
+        set((state) => ({
+          products: state.products.filter((p) => p.id !== productId),
+        })),
     }),
     {
       name: "xcapital-store",
@@ -1264,6 +1290,7 @@ export const useStore = create<Store>()(
         kycSubmissions: state.kycSubmissions,
         termsOfService: state.termsOfService,
         theme: state.theme,
+        products: state.products,
       }),
       onRehydrateStorage: () => (state, error) => {
         if (error) {
@@ -1349,6 +1376,7 @@ export const useStore = create<Store>()(
                 const nextAlerts = incoming.adminAlerts ?? current.adminAlerts;
                 const nextNotifs =
                   incoming.notifications ?? current.notifications;
+                const nextProducts = incoming.products ?? current.products;
 
                 // Echo guard #2: nothing materially changed → return current
                 // (no set into state → persist never fires → loop is killed).
@@ -1364,12 +1392,16 @@ export const useStore = create<Store>()(
                 const notifsChanged =
                   JSON.stringify(nextNotifs) !==
                   JSON.stringify(current.notifications ?? []);
+                const productsChanged =
+                  JSON.stringify(nextProducts) !==
+                  JSON.stringify(current.products ?? []);
 
                 if (
                   !usersChanged &&
                   !pendingChanged &&
                   !alertsChanged &&
                   !notifsChanged &&
+                  !productsChanged &&
                   JSON.stringify(nextWallet) ===
                     JSON.stringify(current.wallet ?? null) &&
                   JSON.stringify(nextUser) ===
@@ -1385,6 +1417,7 @@ export const useStore = create<Store>()(
                   pendingTransactions: nextPending,
                   adminAlerts: nextAlerts,
                   notifications: nextNotifs,
+                  products: nextProducts,
                 };
               });
             } catch {
