@@ -6,6 +6,8 @@ import { StatCard } from "@/components/ui/Card";
 import { Modal, ModalFooter } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import SubmitButton from "@/components/system/SubmitButton";
+import TransactionReceipt from "@/components/system/TransactionReceipt";
 import { walletAPI } from "@/lib/api";
 import { emitCapitalSignal } from "@/lib/capitalSignal";
 import {
@@ -281,6 +283,7 @@ export default function WalletPage() {
   const [withdrawAddress, setWithdrawAddress] = useState("");
 
   const wireRef = useMemo(() => "XCAP-" + uid().toUpperCase(), []);
+  const withdrawRef = useMemo(() => "XCW-" + uid().toUpperCase(), []);
 
   // Live crypto prices from CoinGecko
   const { prices: livePrices } = useMarketPrices({
@@ -448,8 +451,10 @@ export default function WalletPage() {
   };
 
   const submitWithdraw = async () => {
+    if (processing) return;
     const parsedAmount = parseFloat(amount);
     if (!parsedAmount || parsedAmount <= 0) return;
+    setProcessing(true);
 
     const details: Record<string, string> = {};
 
@@ -1172,19 +1177,20 @@ export default function WalletPage() {
                       <div className="flex gap-3">
                         <Button
                           variant="ghost"
-                          onClick={() => setDepositStep(1)}
+                          onClick={() => setDepositStep(2)}
                           icon={<ArrowLeft className="w-4 h-4" />}
                         >
                           Back
                         </Button>
-                        <Button
-                          variant="primary"
-                          className="flex-1"
-                          onClick={() => setDepositStep(3)}
-                          icon={<ChevronRight className="w-4 h-4" />}
+                        <SubmitButton
+                          fullWidth
+                          loading={processing}
+                          loadingLabel="Routing Signal…"
+                          onClick={submitDeposit}
+                          icon={<ShieldCheck className="w-4 h-4" />}
                         >
-                          Review &amp; Submit
-                        </Button>
+                          Submit Deposit Request
+                        </SubmitButton>
                       </div>
                     </div>
                   )}
@@ -1242,14 +1248,15 @@ export default function WalletPage() {
                         >
                           Back
                         </Button>
-                        <Button
-                          variant="primary"
-                          className="flex-1"
+                        <SubmitButton
+                          fullWidth
+                          loading={processing}
+                          loadingLabel="Routing Signal…"
                           onClick={submitDeposit}
                           icon={<ShieldCheck className="w-4 h-4" />}
                         >
                           Submit Deposit Request
-                        </Button>
+                        </SubmitButton>
                       </div>
                     </div>
                   )}
@@ -1589,14 +1596,15 @@ export default function WalletPage() {
                         >
                           Back
                         </Button>
-                        <Button
-                          variant="primary"
-                          className="flex-1"
+                        <SubmitButton
+                          fullWidth
+                          loading={processing}
+                          loadingLabel="Routing Signal…"
                           onClick={submitDeposit}
                           icon={<ShieldCheck className="w-4 h-4" />}
                         >
                           Submit for Approval
-                        </Button>
+                        </SubmitButton>
                       </div>
                     </div>
                   )}
@@ -1849,14 +1857,15 @@ export default function WalletPage() {
                         >
                           Back
                         </Button>
-                        <Button
-                          variant="primary"
-                          className="flex-1"
+                        <SubmitButton
+                          fullWidth
+                          loading={processing}
+                          loadingLabel="Routing Signal…"
                           onClick={submitDeposit}
                           icon={<ShieldCheck className="w-4 h-4" />}
                         >
                           Submit Deposit Request
-                        </Button>
+                        </SubmitButton>
                       </div>
                     </div>
                   )}
@@ -1865,47 +1874,75 @@ export default function WalletPage() {
             </>
           )}
 
-          {/* ── SUCCESS / PENDING SCREEN ── */}
+          {/* ── SUCCESS / PENDING SCREEN + PRINTABLE RECEIPT ── */}
           {depositStep === 4 && (
-            <div className="text-center py-6 space-y-4">
-              <div className="w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto">
-                <Clock className="w-8 h-8 text-amber-400" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-white">
-                  Deposit Submitted
-                </h3>
-                <p className="text-sm text-xc-muted mt-1">
-                  Your deposit request has been submitted for admin approval.
-                </p>
-              </div>
-              <div className="bg-xc-dark/60 border border-xc-border rounded-xl p-4 space-y-2 text-left">
-                <div className="flex justify-between text-xs">
-                  <span className="text-xc-muted">Amount</span>
-                  <span className="text-white font-mono font-bold">
-                    {depositTab === "crypto"
-                      ? `${amount} ${selectedCrypto.symbol}`
-                      : formatCurrency(parseFloat(amount || "0"))}
-                  </span>
+            <div className="space-y-4">
+              <div className="text-center pt-4 space-y-3">
+                <div className="w-14 h-14 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto">
+                  <Clock className="w-7 h-7 text-amber-400" />
                 </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-xc-muted">Method</span>
-                  <span className="text-white">
-                    {depositTab === "wire"
-                      ? "Wire Transfer"
-                      : depositTab === "crypto"
-                        ? `${selectedCrypto.name}`
-                        : "Debit Card"}
-                  </span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-xc-muted">Status</span>
-                  <Badge variant="warning" size="sm">
-                    PENDING APPROVAL
-                  </Badge>
+                <div>
+                  <h3 className="text-lg font-bold text-white">
+                    Deposit Submitted
+                  </h3>
+                  <p className="text-sm text-xc-muted mt-1">
+                    Your deposit request has been routed for admin clearance.
+                  </p>
                 </div>
               </div>
-              <p className="text-xs text-xc-muted">
+              <TransactionReceipt
+                title="Deposit Signal Routed"
+                subtitle="Capital Injection"
+                reference={wireRef}
+                createdAt={new Date().toISOString()}
+                amountLabel="Deposit Amount"
+                amountValue={
+                  depositTab === "crypto"
+                    ? `${amount} ${selectedCrypto.symbol}`
+                    : formatCurrency(parseFloat(amount || "0"))
+                }
+                status="PENDING"
+                items={[
+                  {
+                    label: "Method",
+                    value:
+                      depositTab === "wire"
+                        ? "Bank / Wire Transfer"
+                        : depositTab === "crypto"
+                          ? `${selectedCrypto.name} (${selectedCrypto.symbol})`
+                          : `Debit Card ···· ${cardNumber.replace(/\s/g, "").slice(-4)}`,
+                  },
+                  {
+                    label: "USD Value",
+                    value:
+                      depositTab === "crypto"
+                        ? formatCurrency(
+                            parseFloat(amount || "0") * selectedCrypto.rate,
+                          )
+                        : formatCurrency(parseFloat(amount || "0")),
+                    mono: true,
+                  },
+                  ...(depositTab === "wire"
+                    ? [
+                        {
+                          label: "Sender Bank",
+                          value: wireSenderBank || "Not specified",
+                        },
+                        { label: "Reference", value: wireRef, mono: true },
+                      ]
+                    : depositTab === "crypto"
+                      ? [
+                          { label: "Network", value: selectedCrypto.network },
+                          {
+                            label: "Confirmations",
+                            value: String(selectedCrypto.confs),
+                          },
+                        ]
+                      : [{ label: "Fee", value: "$0 · waived" }]),
+                  { label: "Status", value: "PENDING ADMIN APPROVAL" },
+                ]}
+              />
+              <p className="text-xs text-xc-muted text-center pt-1">
                 You will be notified once an admin approves your transaction.
               </p>
             </div>
@@ -2176,56 +2213,89 @@ export default function WalletPage() {
                 >
                   Back
                 </Button>
-                <Button
-                  variant="primary"
-                  className="flex-1"
+                <SubmitButton
+                  fullWidth
+                  loading={processing}
+                  loadingLabel="Processing Withdrawal…"
                   onClick={submitWithdraw}
                   icon={<ShieldCheck className="w-4 h-4" />}
                 >
                   Submit Withdrawal
-                </Button>
+                </SubmitButton>
               </div>
             </div>
           )}
 
           {withdrawStep === 3 && (
-            <div className="text-center py-6 space-y-4">
-              <div className="w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto">
-                <Clock className="w-8 h-8 text-amber-400" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-white">
-                  Withdrawal Submitted
-                </h3>
-                <p className="text-sm text-xc-muted mt-1">
-                  Your withdrawal request has been submitted for admin approval.
-                </p>
-              </div>
-              <div className="bg-xc-dark/60 border border-xc-border rounded-xl p-4 space-y-2 text-left">
-                <div className="flex justify-between text-xs">
-                  <span className="text-xc-muted">Amount</span>
-                  <span className="text-white font-mono font-bold">
-                    {withdrawMethod === "wire"
-                      ? formatCurrency(parseFloat(amount || "0"))
-                      : `${amount} ${withdrawCrypto.symbol}`}
-                  </span>
+            <div className="space-y-4">
+              <div className="text-center pt-4 space-y-3">
+                <div className="w-14 h-14 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto">
+                  <Clock className="w-7 h-7 text-amber-400" />
                 </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-xc-muted">Method</span>
-                  <span className="text-white">
-                    {withdrawMethod === "wire"
-                      ? "Bank Wire"
-                      : withdrawCrypto.name}
-                  </span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-xc-muted">Status</span>
-                  <Badge variant="warning" size="sm">
-                    PENDING APPROVAL
-                  </Badge>
+                <div>
+                  <h3 className="text-lg font-bold text-white">
+                    Withdrawal Submitted
+                  </h3>
+                  <p className="text-sm text-xc-muted mt-1">
+                    Your withdrawal request has been routed for admin clearance.
+                  </p>
                 </div>
               </div>
-              <p className="text-xs text-xc-muted">
+              <TransactionReceipt
+                title="Withdrawal Signal Routed"
+                subtitle="Capital Withdrawal"
+                reference={withdrawRef}
+                createdAt={new Date().toISOString()}
+                amountLabel="Withdrawal Amount"
+                amountValue={
+                  withdrawMethod === "wire"
+                    ? formatCurrency(parseFloat(amount || "0"))
+                    : `${amount} ${withdrawCrypto.symbol}`
+                }
+                status="PENDING"
+                items={[
+                  {
+                    label: "Method",
+                    value:
+                      withdrawMethod === "wire"
+                        ? "Bank Wire (ACH)"
+                        : `${withdrawCrypto.name} (${withdrawCrypto.symbol})`,
+                  },
+                  ...(withdrawMethod === "wire"
+                    ? [
+                        { label: "Destination", value: "JPMorgan Chase ···· 8291" },
+                        { label: "SWIFT", value: "CHASUS33", mono: true },
+                        {
+                          label: "USD Value",
+                          value: formatCurrency(parseFloat(amount || "0")),
+                          mono: true,
+                        },
+                      ]
+                    : [
+                        {
+                          label: "Network",
+                          value: withdrawCrypto.network,
+                        },
+                        {
+                          label: "Address",
+                          value:
+                            withdrawAddress.slice(0, 10) +
+                            "···" +
+                            withdrawAddress.slice(-6),
+                          mono: true,
+                        },
+                        {
+                          label: "USD Value",
+                          value: formatCurrency(
+                            parseFloat(amount || "0") * withdrawCrypto.rate,
+                          ),
+                          mono: true,
+                        },
+                      ]),
+                  { label: "Status", value: "PENDING ADMIN APPROVAL" },
+                ]}
+              />
+              <p className="text-xs text-xc-muted text-center pt-1">
                 You will be notified once an admin approves your withdrawal.
               </p>
             </div>

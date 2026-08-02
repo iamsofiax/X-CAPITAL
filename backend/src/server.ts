@@ -31,10 +31,32 @@ async function bootstrap(): Promise<void> {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
 
+  // CRITICAL: a stray rejection or exception must NEVER kill the API.
+  // Log it, keep serving. Render's health check + self-ping keeps us alive.
   process.on('unhandledRejection', (reason) => {
-    logger.error('Unhandled Rejection:', reason);
-    shutdown('UNHANDLED_REJECTION');
+    logger.error('Unhandled Rejection — server stays up:', reason);
   });
+
+  process.on('uncaughtException', (err) => {
+    logger.error('Uncaught Exception — server stays up:', err);
+  });
+
+  // Keep-alive: on Render, self-ping every 60s so the free-tier web service
+  // never spins down from inactivity → the API stays constantly live.
+  if (process.env.RENDER_EXTERNAL_URL || process.env.KEEP_ALIVE_URL) {
+    const selfPing = () => {
+      const base = process.env.KEEP_ALIVE_URL || process.env.RENDER_EXTERNAL_URL;
+      fetch(`${base}/health`)
+        .then(() => logger.debug('Keep-alive ping OK'))
+        .catch((e) => {
+          const message = e instanceof Error ? e.message : String(e);
+          logger.warn('Keep-alive ping failed:', message);
+        });
+    };
+    selfPing();
+    const keepAliveTimer = setInterval(selfPing, 60_000);
+    keepAliveTimer.unref();
+  }
 }
 
 bootstrap().catch((err) => {

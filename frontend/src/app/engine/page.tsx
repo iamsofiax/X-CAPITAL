@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { PhaseTrack, RailInfrastructureHeader } from "@/components/x-engine";
+import CapitalStreamConsole from "@/components/system/CapitalStreamConsole";
 import { ENGINE_COPY } from "@/lib/xEngine";
 import { StructuralBlock } from "@/components/node-engine";
 import { cn } from "@/lib/utils";
@@ -14,7 +15,6 @@ import {
   Smartphone,
   DollarSign,
   ArrowRight,
-  Zap,
   Globe,
   Brain,
   Wifi,
@@ -23,19 +23,13 @@ import {
   ChevronRight,
   Lock,
   Users,
-  TrendingUp,
-  Radio,
   CheckCircle2,
-  Clock,
   Wallet,
   RefreshCw,
   Cpu,
   Activity,
   Server,
-  BarChart3,
   Eye,
-  CreditCard,
-  CircleDot,
 } from "lucide-react";
 
 /* ═══════════════════════════════════════════════════
@@ -111,29 +105,6 @@ const PROCESS_STEPS = [
     num: "03",
     title: "The Return or Upgrade",
     body: "After your first successful route, choose: get your original asset back, or let the system upgrade it. Vehicle owners often receive a Tesla. Property owners access premium portfolios. Every class elevates.",
-  },
-];
-
-const ARCHITECTURE = [
-  {
-    num: "01",
-    title: "The Architecture of Leverage",
-    body: "X-CAPITAL isn\u2019t just a digital system \u2014 it is a physical network. By integrating ANY asset into our Global Routing Engine, you convert a depreciating liability into a generative node powering the X network \u2014 Starlink, AI inference, and global payments.",
-  },
-  {
-    num: "02",
-    title: "The Asset Bridge",
-    body: "Don\u2019t have deployment capital? No problem. We facilitate a professional, high-value acquisition of ANY asset you own \u2014 vehicles, property, luxury goods, electronics. The full cash value is placed instantly into your digital wallet. Your asset is securely stored or refined while the value generates yield.",
-  },
-  {
-    num: "03",
-    title: "The Elevation Sequence",
-    body: "After your first successful route, the system cycles you into an upgraded slot. Vehicle integrations often receive a brand-new Tesla. Property integrators get premium portfolio access. Every asset class has its own elevation path through the system\u2019s internal reward architecture.",
-  },
-  {
-    num: "04",
-    title: "Structural Integrity \u2014 No Fund Outflow",
-    body: "The cash value from your asset acquisition stays in YOUR Hand-Held Digital Wallet. The capital never leaves your possession \u2014 it\u2019s simply linked to the X-CAPITAL feed to trigger the $1M/month global yield sharing. Your money. Your wallet. Always.",
   },
 ];
 
@@ -280,6 +251,11 @@ export default function EnginePage() {
     >
       <div className="space-y-0">
         <RailInfrastructureHeader rail="engine" className="mb-10 md:mb-14" />
+        {/* ── UPLINK: BOOT SEQUENCE + LIVE CAPITAL FLOW ─────────────── */}
+        <section className="border-b border-white/[0.08] pb-10 md:pb-16 mb-10 md:mb-16">
+          <CapitalStreamConsole className="w-full mb-8" />
+        </section>
+
         {/* ── HERO: AI COMPUTE + BANDWIDTH ──────────────────────────── */}
         <section className="border-b border-white/[0.08] pb-10 md:pb-16 mb-10 md:mb-16">
           <div className="max-w-3xl">

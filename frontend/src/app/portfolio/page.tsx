@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/ui/Card";
 import PortfolioChart from "@/components/portfolio/PortfolioChart";
@@ -17,6 +17,7 @@ import { useStableBalance } from "@/hooks/useStableBalance";
 import { useStore } from "@/store/useStore";
 import { portfolioAPI } from "@/lib/api";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
+import { useProfitEngine } from "@/store/useProfitEngine";
 import { formatCurrency, formatPercent, cn } from "@/lib/utils";
 import {
   AreaChart,
@@ -30,7 +31,6 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-  Legend,
 } from "recharts";
 import {
   TrendingUp,
@@ -39,11 +39,7 @@ import {
   Percent,
   ShieldCheck,
   BarChart3,
-  Flame,
-  Zap,
   Target,
-  ArrowUpRight,
-  ArrowDownRight,
   Activity,
 } from "lucide-react";
 import type { Portfolio } from "@/types";
@@ -118,8 +114,15 @@ function generateMonthlyReturns() {
 }
 
 export default function PortfolioPage() {
-  const { user, wallet, pendingTransactions } = useStore();
+  const { user } = useStore();
   const stableBalance = useStableBalance();
+  // Subscribe to the live compounding node — re-renders every tick.
+  // The global LiveCompoundingProvider ticks app-wide, so portfolio cash
+  // reflects the exact admin-rate-driven balance, not a hardcoded number.
+  const nodeGrowths = useProfitEngine((s) => s.nodeGrowths);
+  const liveNodeBalance = user ? nodeGrowths[user.id]?.balance : undefined;
+  const liveCash =
+    liveNodeBalance && liveNodeBalance > 0 ? liveNodeBalance : stableBalance;
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [perfData, setPerfData] = useState<
     Array<{ date: string; value: number }>
@@ -198,19 +201,25 @@ export default function PortfolioPage() {
     });
   }, [livePrices]);
 
+  // Recompute cash + total value + P&L on EVERY compounding tick.
+  // liveCash is the live-admin-rate-compounded node balance; the global
+  // LiveCompoundingProvider ticks app-wide so this re-renders every 15s.
   useEffect(() => {
-    setPortfolio((prev) =>
-      prev
-        ? {
-            ...prev,
-            cashBalance: stableBalance,
-            totalValue:
-              prev.holdings.reduce((s, h) => s + Number(h.currentValue), 0) +
-              stableBalance,
-          }
-        : prev,
-    );
-  }, [stableBalance]);
+    setPortfolio((prev) => {
+      if (!prev) return prev;
+      const holdingsValue = prev.holdings.reduce(
+        (s, h) => s + Number(h.currentValue),
+        0,
+      );
+      const totalVal = holdingsValue + liveCash;
+      return {
+        ...prev,
+        cashBalance: liveCash,
+        totalValue: totalVal,
+        totalPnL: totalVal - (prev.totalCost ?? 0),
+      };
+    });
+  }, [liveCash]);
 
   // Holdings refresh only when live prices arrive — no random interval tick
   useEffect(() => {
@@ -693,171 +702,3 @@ function riskLabel(score: number) {
   if (score < 75) return "Aggressive";
   return "High Risk";
 }
-
-const DEMO_HOLDINGS = [
-  {
-    id: "1",
-    portfolioId: "1",
-    assetId: "1",
-    quantity: 25,
-    avgCost: 198.5,
-    currentValue: 8554.5,
-    unrealizedPnL: 3591.5,
-    asset: {
-      id: "1",
-      symbol: "TSLA",
-      name: "Tesla, Inc.",
-      type: "STOCK" as const,
-      price: 342.18,
-      isTradable: true,
-    },
-  },
-  {
-    id: "2",
-    portfolioId: "1",
-    assetId: "2",
-    quantity: 8,
-    avgCost: 750.0,
-    currentValue: 7003.12,
-    unrealizedPnL: 1003.12,
-    asset: {
-      id: "2",
-      symbol: "NVDA",
-      name: "NVIDIA Corporation",
-      type: "STOCK" as const,
-      price: 875.39,
-      isTradable: true,
-    },
-  },
-  {
-    id: "3",
-    portfolioId: "1",
-    assetId: "3",
-    quantity: 15,
-    avgCost: 195.2,
-    currentValue: 3196.05,
-    unrealizedPnL: 268.05,
-    asset: {
-      id: "3",
-      symbol: "AAPL",
-      name: "Apple Inc.",
-      type: "STOCK" as const,
-      price: 213.07,
-      isTradable: true,
-    },
-  },
-  {
-    id: "4",
-    portfolioId: "1",
-    assetId: "4",
-    quantity: 200,
-    avgCost: 10.2,
-    currentValue: 50400,
-    unrealizedPnL: 48360,
-    asset: {
-      id: "4",
-      symbol: "XSPACE",
-      name: "SpaceX Pre-IPO Token",
-      type: "TOKEN" as const,
-      price: 252.0,
-      isTradable: true,
-    },
-  },
-  {
-    id: "5",
-    portfolioId: "1",
-    assetId: "5",
-    quantity: 1.2,
-    avgCost: 62000,
-    currentValue: 117411,
-    unrealizedPnL: 43011,
-    asset: {
-      id: "5",
-      symbol: "BTC",
-      name: "Bitcoin",
-      type: "CRYPTO" as const,
-      price: 97842.5,
-      isTradable: true,
-    },
-  },
-  {
-    id: "6",
-    portfolioId: "1",
-    assetId: "6",
-    quantity: 10,
-    avgCost: 450.0,
-    currentValue: 5139.2,
-    unrealizedPnL: 639.2,
-    asset: {
-      id: "6",
-      symbol: "META",
-      name: "Meta Platforms",
-      type: "STOCK" as const,
-      price: 513.92,
-      isTradable: true,
-    },
-  },
-  {
-    id: "7",
-    portfolioId: "1",
-    assetId: "7",
-    quantity: 50,
-    avgCost: 18.0,
-    currentValue: 1173.5,
-    unrealizedPnL: 273.5,
-    asset: {
-      id: "7",
-      symbol: "PLTR",
-      name: "Palantir Technologies",
-      type: "STOCK" as const,
-      price: 23.47,
-      isTradable: true,
-    },
-  },
-  {
-    id: "8",
-    portfolioId: "1",
-    assetId: "8",
-    quantity: 100,
-    avgCost: 120.0,
-    currentValue: 18000,
-    unrealizedPnL: 6000,
-    asset: {
-      id: "8",
-      symbol: "XAI",
-      name: "xAI Venture Token",
-      type: "TOKEN" as const,
-      price: 180.0,
-      isTradable: true,
-    },
-  },
-  {
-    id: "9",
-    portfolioId: "1",
-    assetId: "9",
-    quantity: 350,
-    avgCost: 42.5,
-    currentValue: 33437.5,
-    unrealizedPnL: 15087.5,
-    asset: {
-      id: "9",
-      symbol: "XLINK",
-      name: "Starlink Growth Token",
-      type: "TOKEN" as const,
-      price: 95.25,
-      isTradable: true,
-    },
-  },
-];
-
-const DEMO_ALLOCATION = [
-  { name: "TSLA", value: 8554 },
-  { name: "NVDA", value: 7003 },
-  { name: "AAPL", value: 3196 },
-  { name: "XSPACE", value: 50400 },
-  { name: "BTC", value: 117411 },
-  { name: "META", value: 5139 },
-  { name: "PLTR", value: 1173 },
-  { name: "XAI", value: 18000 },
-  { name: "Cash", value: 42500 },
-];

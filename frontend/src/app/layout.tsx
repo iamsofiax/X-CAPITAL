@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import TawkChat from "@/components/support/TawkChat";
 import SessionSync from "@/components/SessionSync";
+import LiveCompoundingProvider from "@/components/system/LiveCompoundingProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -152,7 +153,7 @@ export default function RootLayout({
       </head>
       <body className="bg-xc-black text-xc-text antialiased min-h-screen">
         <SessionSync />
-        {children}
+        <LiveCompoundingProvider>{children}</LiveCompoundingProvider>
         <TawkChat />
       </body>
     </html>

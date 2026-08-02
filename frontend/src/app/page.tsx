@@ -14,8 +14,8 @@ import {
   Server,
   Globe,
 } from "lucide-react";
-import HeroGlobe3D from "@/components/brand/HeroGlobe3D";
 import ApiHealthBadge from "@/components/system/ApiHealthBadge";
+import CapitalStreamConsole from "@/components/system/CapitalStreamConsole";
 import { useApiHealth } from "@/hooks/useApiHealth";
 
 /* eslint-disable react/no-unescaped-entities */
@@ -105,15 +105,6 @@ const TIERS = [
   },
 ];
 
-const MISSION_LOG = [
-  { t: "00:00:00", msg: "GROUND STATION CLEAR — 7 RAILS ARMED", level: "ok" },
-  { t: "00:00:01", msg: "EQUITIES EXECUTION ENGAGED — 14 EXCHANGES", level: "ok" },
-  { t: "00:00:02", msg: "AI ORACLE SIZING — LSTM + MONTE CARLO", level: "info" },
-  { t: "00:00:03", msg: "STARLINK MESH ROUTING — 7,200+ SATS", level: "ok" },
-  { t: "00:00:04", msg: "RESERVES VERIFIED — CUSTODY 1:1", level: "ok" },
-  { t: "00:00:05", msg: "NODE-XC-001 SYNCHRONIZED — LATENCY <1MS", level: "info" },
-];
-
 const NETWORK_STATS = [
   { label: "ACTIVE NODES", value: "14,892", icon: Server },
   { label: "COMPUTE", value: "2.4 PFlops", icon: Cpu },
@@ -141,7 +132,6 @@ const YIELD_FLOW = [
 
 export default function LandingPage() {
   const [activeRail, setActiveRail] = useState<string | null>(null);
-  const [logIdx, setLogIdx] = useState(0);
   const { health } = useApiHealth();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -198,14 +188,6 @@ export default function LandingPage() {
     };
     draw();
     return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
-  }, []);
-
-  // Streaming mission log
-  useEffect(() => {
-    const id = setInterval(() => {
-      setLogIdx((i) => (i + 1) % MISSION_LOG.length);
-    }, 5000);
-    return () => clearInterval(id);
   }, []);
 
   const gatewayStatus =
@@ -287,27 +269,11 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* 3D capital engine + mission HUD — right column, fully visible */}
+            {/* Live capital uplink — boot sequence + real-time money flow */}
             <div className="flex flex-col items-center gap-5">
-              <HeroGlobe3D active className="w-full max-w-[520px]" />
-              <div className="w-full max-w-[520px] rounded-2xl border border-white/[0.08] bg-black/60 backdrop-blur px-5 py-4">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-[9px] font-mono text-white/30 tracking-[0.28em] uppercase">Mission Log</p>
-                  <span className="flex items-center gap-1.5 text-[9px] font-mono text-emerald-400/80">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> STREAMING
-                  </span>
-                </div>
-                <div className="space-y-1.5 font-mono text-[10px] h-[78px] overflow-hidden">
-                  {MISSION_LOG.slice(0, logIdx + 1).slice(-4).map((entry, i) => (
-                    <div key={`${entry.t}-${i}`} className="flex items-center gap-2.5 opacity-90">
-                      <span className="text-white/20 tabular-nums">{entry.t}</span>
-                      <span className={entry.level === "ok" ? "text-emerald-400/80" : "text-white/60"}>{entry.msg}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <CapitalStreamConsole compact className="w-full" />
               {/* Institutional integrity strip */}
-              <div className="w-full max-w-[520px] rounded-xl border border-white/[0.08] bg-white/[0.02] backdrop-blur px-5 py-4">
+              <div className="w-full max-w-[420px] rounded-xl border border-white/[0.08] bg-white/[0.02] backdrop-blur px-5 py-4">
                 <p className="text-[9px] font-mono text-white/30 tracking-[0.28em] uppercase mb-3">Institutional Integrity</p>
                 <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] font-mono text-white/40">
                   <span className="flex items-center gap-1.5"><Landmark className="w-3 h-3 text-emerald-400/70" /> SEC / FINRA</span>
