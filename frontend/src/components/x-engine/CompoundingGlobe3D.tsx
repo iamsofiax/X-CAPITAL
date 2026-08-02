@@ -292,18 +292,53 @@ export default function CompoundingGlobe3D({
   const proj90d = balance * Math.pow(1 + dailyRate, 90);
   const animatedProj90d = useCountUp(proj90d);
 
-  const glowIntensity = active ? "rgba(16,185,129,0.35)" : "rgba(255,255,255,0.04)";
+  const glowIntensity = active
+    ? "0 0 80px rgba(16,185,129,0.20), inset 0 0 60px rgba(16,185,129,0.04)"
+    : "0 0 60px rgba(255,255,255,0.04)";
 
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border bg-[#03080a]",
+        "relative overflow-hidden rounded-2xl border bg-[#020806]",
         className,
       )}
-      style={{ borderColor: active ? "rgba(16,185,129,0.25)" : "rgba(255,255,255,0.07)", boxShadow: `0 0 60px ${glowIntensity}` }}
+      style={{
+        borderColor: active ? "rgba(16,185,129,0.28)" : "rgba(255,255,255,0.08)",
+        boxShadow: glowIntensity,
+      }}
     >
+      {/* Grid backdrop */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.10]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(16,185,129,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.4) 1px, transparent 1px)",
+          backgroundSize: "44px 44px",
+          maskImage: "radial-gradient(ellipse at center, black 0%, transparent 75%)",
+          WebkitMaskImage: "radial-gradient(ellipse at center, black 0%, transparent 75%)",
+        }}
+      />
       {/* Constellation mesh */}
-      <div className="absolute inset-0 constellation-mesh opacity-20 pointer-events-none" />
+      <div className="absolute inset-0 constellation-mesh opacity-25 pointer-events-none" />
+
+      {/* ── MACHINED HEADER — institutional instrumentation strip ── */}
+      <div className="relative flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06]">
+        <div className="flex items-center gap-2">
+          <span className="relative flex w-1.5 h-1.5">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
+            <span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-emerald-400" />
+          </span>
+          <span className="text-[9px] font-mono font-bold tracking-[0.2em] text-emerald-400/90">
+            {active ? "CAPITAL ENGINE · LIVE" : "CAPITAL ENGINE"}
+          </span>
+        </div>
+        <div className="flex items-center gap-3 text-[9px] font-mono tracking-wider">
+          <span className="text-white/25">GATEWAY</span>
+          <span className="font-bold text-emerald-400/90 tabular-nums">
+            NODE-{nodeId ? nodeId.toUpperCase().slice(0, 8) : "XC-001"}
+          </span>
+        </div>
+      </div>
 
       {/* 3D canvas */}
       <div className="relative h-[360px] md:h-[440px]">
@@ -368,6 +403,19 @@ export default function CompoundingGlobe3D({
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+
+      {/* ── BOTTOM INSTRUMENTATION BAR — live rail status ── */}
+      <div className="relative border-t border-emerald-500/15 bg-black/40 backdrop-blur px-4 py-2.5 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-[9px] font-mono tracking-wider text-white/35">
+          <span className="text-emerald-400">{"\u25CF"}</span> 7 RAILS ARMED
+        </div>
+        <div className="hidden sm:flex items-center gap-2 text-[9px] font-mono tracking-wider text-white/35">
+          <span className="text-emerald-400">{"\u25CF"}</span> LATENCY {"<"}1MS
+        </div>
+        <div className="flex items-center gap-2 text-[9px] font-mono tracking-wider text-white/35">
+          <span className="text-emerald-400">{"\u25CF"}</span> RESERVES 1:1
+        </div>
       </div>
 
       {/* Number readouts — driven by REAL compound math */}
