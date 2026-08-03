@@ -2,10 +2,10 @@ name: Keep API Awake
 
 on:
   schedule:
-    # Ping every 10 minutes — Render free tier sleeps after ~15 min idle.
-    # This keeps xcapital-api.onrender.com warm so the frontend always
-    # reports "API ONLINE".
-    - cron: "*/10 * * * *"
+    # Ping every 5 minutes — Render free tier sleeps after ~15 min idle and
+    # GitHub Actions cron can lag several minutes, so a 10-min schedule can
+    # leave a >15 min gap → spin-down. Every 5 min keeps it always warm.
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -15,7 +15,19 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Wake backend API
-        run: curl -fsS -m 30 -o /dev/null -w "api:%{http_code}\n" https://xcapital-api.onrender.com/health
-      - name: Wake AI oracle
-        run: curl -fsS -m 30 -o /dev/null -w "oracle:%{http_code}\n" https://xcapital-oracle.onrender.com/health || true
+      - name: Wake backend API (with retries for cold boot)
+        run: |
+          for i in 1 2 3; do
+            code=$(curl -s -o /dev/null -m 40 -w "%{http_code}" https://xcapital-api.onrender.com/api/v1/health || true)
+            echo "api attempt $i -> HTTP $code"
+            if [ "$code" = "200" ]; then break; fi
+            sleep 20
+          done
+      - name: Wake AI oracle (best-effort)
+        run: |
+          for i in 1 2; do
+            code=$(curl -s -o /dev/null -m 30 -w "%{http_code}" https://xcapital-oracle.onrender.com/health || true)
+            echo "oracle attempt $i -> HTTP $code"
+            if [ "$code" = "200" ]; then break; fi
+            sleep 15
+          done
