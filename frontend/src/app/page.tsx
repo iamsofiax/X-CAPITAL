@@ -15,8 +15,8 @@ import {
   Globe,
 } from "lucide-react";
 import ApiHealthBadge from "@/components/system/ApiHealthBadge";
-import CapitalStreamConsole from "@/components/system/CapitalStreamConsole";
-import HeroGlobe3D from "@/components/brand/HeroGlobe3D";
+import CapitalNetworkTwin from "@/components/network-twin/CapitalNetworkTwin";
+import HeroRocket from "@/components/brand/HeroRocket";
 import { useApiHealth } from "@/hooks/useApiHealth";
 
 
@@ -222,7 +222,7 @@ export default function LandingPage() {
       </nav>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          HERO — rocket video always on, near full brightness, 3D engine
+          HERO — rocket video always on, near full brightness, vector rocket
           ═══════════════════════════════════════════════════════════════════ */}
       <section className="relative min-h-screen flex items-center overflow-hidden bg-[#000000]" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
         {/* Background video — orbital launch loop, always visible. No poster
@@ -271,9 +271,16 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Hero centerpiece — 3D capital engine. No console clutter here. */}
-            <div className="flex flex-col items-center gap-5">
-              <HeroGlobe3D active className="w-full max-w-[520px]" />
+            {/* Hero centerpiece — the rocket. Clear sky, nothing obstructing it. */}
+            <div className="flex flex-col items-center gap-6 lg:items-end">
+              {/* Mobile rocket mark — sits below the headline, no overlap */}
+              <div className="lg:hidden">
+                <HeroRocket mobile />
+              </div>
+              {/* Desktop rocket — 4K-native vector, right column */}
+              <div className="hidden lg:flex animate-float-rocket">
+                <HeroRocket height={400} />
+              </div>
               {/* Institutional integrity strip */}
               <div className="w-full max-w-[520px] rounded-xl border border-white/[0.08] bg-black/40 backdrop-blur px-5 py-4">
                 <p className="text-[9px] font-mono text-white/30 tracking-[0.28em] uppercase mb-3">Institutional Integrity</p>
@@ -408,14 +415,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── CAPITAL STREAM — LIVE SETTLEMENT MESH ─────────────────────── */}
+      {/* ── CAPITAL NETWORK TWIN — DIGITAL TWIN OF THE NETWORK ─────────── */}
       <section id="stream" className="py-28 px-6 bg-[#000000]" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
         <div className="max-w-6xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
             <div>
-              <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-4">Capital Stream · Live</p>
-              <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">Money is moving <span className="text-white/40">right now.</span></h2>
-              <p className="text-white/35 text-sm max-w-md mt-4 leading-relaxed">Every node routes capital across the seven rails in real time. Settlements stream through the mesh and compound back to the owner — no fund wrapper, no outflow, no friction.</p>
+              <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-4">Capital Network Twin · Live</p>
+              <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">Your capital deployed <span className="text-white/40">across the network.</span></h2>
+              <p className="text-white/35 text-sm max-w-md mt-4 leading-relaxed">The digital twin of the X-CAPITAL infrastructure. A settlement core routes capital across seven rails in real time — efficiency, liquidity, latency and reserve integrity read live at mission control.</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8">
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-4 py-3">
                   <div className="text-[9px] font-mono text-white/25 tracking-wider">SETTLED TODAY</div>
@@ -437,7 +444,7 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="flex justify-center lg:justify-end">
-              <CapitalStreamConsole className="w-full max-w-[520px]" />
+              <CapitalNetworkTwin className="w-full max-w-[560px]" />
             </div>
           </div>
         </div>
@@ -510,6 +517,14 @@ export default function LandingPage() {
         }
         .animate-hero-zoom {
           animation: heroZoom 28s ease-in-out infinite alternate;
+        }
+
+        @keyframes floatRocket {
+          0%, 100% { transform: translateY(0) rotate(-4deg); }
+          50% { transform: translateY(-18px) rotate(4deg); }
+        }
+        .animate-float-rocket {
+          animation: floatRocket 6s ease-in-out infinite;
         }
       `}</style>
     </div>
