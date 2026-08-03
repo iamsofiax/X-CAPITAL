@@ -240,6 +240,9 @@ interface HeroGlobe3DProps {
   className?: string;
   /** Camera distance — larger = more of the orbit in frame (avoids clipping). */
   cameraDistance?: number;
+  /** Bare mode — render ONLY the 3D scene + WebGL guards. No card chrome,
+   *  status pills, or bottom readout bar. The parent owns all structure. */
+  bare?: boolean;
 }
 
 /** Static fallback ring used when WebGL is unavailable — keeps the panel intact. */
@@ -278,6 +281,7 @@ export default function HeroGlobe3D({
   active = true,
   className,
   cameraDistance = 5.0,
+  bare = false,
 }: HeroGlobe3DProps) {
   // ---- WebGL / layout guards ------------------------------------------
   // The Canvas must not mount while its container is hidden or 0-sized
@@ -336,48 +340,58 @@ export default function HeroGlobe3D({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-3xl border bg-[#020806]",
-        active ? "border-emerald-500/25" : "border-white/[0.08]",
+        "relative overflow-hidden",
+        bare ? "rounded-none border-0 bg-transparent" : "rounded-3xl border bg-[#020806]",
+        !bare && active && "border-emerald-500/25",
+        !bare && !active && "border-white/[0.08]",
         className,
       )}
-      style={{
-        boxShadow: active
-          ? "0 0 80px rgba(16,185,129,0.18), inset 0 0 60px rgba(16,185,129,0.04)"
-          : "0 0 60px rgba(255,255,255,0.04)",
-      }}
+      style={
+        bare
+          ? undefined
+          : {
+              boxShadow: active
+                ? "0 0 80px rgba(16,185,129,0.18), inset 0 0 60px rgba(16,185,129,0.04)"
+                : "0 0 60px rgba(255,255,255,0.04)",
+            }
+      }
     >
-      {/* Grid backdrop */}
-      <div
-        className="absolute inset-0 pointer-events-none opacity-[0.12]"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(16,185,129,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.4) 1px, transparent 1px)",
-          backgroundSize: "44px 44px",
-          maskImage: "radial-gradient(ellipse at center, black 0%, transparent 75%)",
-          WebkitMaskImage: "radial-gradient(ellipse at center, black 0%, transparent 75%)",
-        }}
-      />
-      {/* Constellation mesh */}
-      <div className="absolute inset-0 constellation-mesh opacity-25 pointer-events-none" />
+      {!bare && (
+        <>
+          {/* Grid backdrop */}
+          <div
+            className="absolute inset-0 pointer-events-none opacity-[0.12]"
+            style={{
+              backgroundImage:
+                "linear-gradient(rgba(16,185,129,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.4) 1px, transparent 1px)",
+              backgroundSize: "44px 44px",
+              maskImage: "radial-gradient(ellipse at center, black 0%, transparent 75%)",
+              WebkitMaskImage: "radial-gradient(ellipse at center, black 0%, transparent 75%)",
+            }}
+          />
+          {/* Constellation mesh */}
+          <div className="absolute inset-0 constellation-mesh opacity-25 pointer-events-none" />
 
-      {/* TOP-LEFT status */}
-      <div className="absolute top-3.5 left-3.5 z-10 flex items-center gap-2">
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 backdrop-blur">
-          <span className="relative flex w-1.5 h-1.5">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
-            <span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-emerald-400" />
-          </span>
-          <span className="text-[9px] font-mono font-bold tracking-wider text-emerald-400/90">
-            {active ? "CAPITAL ENGINE · LIVE" : "CAPITAL ENGINE"}
-          </span>
-        </div>
-      </div>
+          {/* TOP-LEFT status */}
+          <div className="absolute top-3.5 left-3.5 z-10 flex items-center gap-2">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 backdrop-blur">
+              <span className="relative flex w-1.5 h-1.5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
+                <span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-emerald-400" />
+              </span>
+              <span className="text-[9px] font-mono font-bold tracking-wider text-emerald-400/90">
+                {active ? "CAPITAL ENGINE · LIVE" : "CAPITAL ENGINE"}
+              </span>
+            </div>
+          </div>
 
-      {/* TOP-RIGHT telemetry */}
-      <div className="absolute top-3.5 right-3.5 z-10 text-right">
-        <div className="text-[9px] font-mono text-white/30 tracking-wider">GATEWAY</div>
-        <div className="text-[9px] font-mono font-bold text-emerald-400 tabular-nums">NODE-XC-001</div>
-      </div>
+          {/* TOP-RIGHT telemetry */}
+          <div className="absolute top-3.5 right-3.5 z-10 text-right">
+            <div className="text-[9px] font-mono text-white/30 tracking-wider">GATEWAY</div>
+            <div className="text-[9px] font-mono font-bold text-emerald-400 tabular-nums">NODE-XC-001</div>
+          </div>
+        </>
+      )}
 
       {/* 3D canvas — only mounts once sized & visible, with static fallback */}
       <div ref={containerRef} className="relative h-[260px] sm:h-[300px] lg:h-[400px]">
@@ -402,18 +416,20 @@ export default function HeroGlobe3D({
         {webglFailed && <StaticCore active={active} />}
       </div>
 
-      {/* BOTTOM readout bar */}
-      <div className="relative border-t border-emerald-500/15 bg-black/40 backdrop-blur px-4 py-2.5 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-[9px] font-mono tracking-wider text-white/35">
-          <span className="text-emerald-400">{"\u25CF"}</span> 7 RAILS ARMED
+      {!bare && (
+        /* BOTTOM readout bar */
+        <div className="relative border-t border-emerald-500/15 bg-black/40 backdrop-blur px-4 py-2.5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-[9px] font-mono tracking-wider text-white/35">
+            <span className="text-emerald-400">{"\u25CF"}</span> 7 RAILS ARMED
+          </div>
+          <div className="hidden sm:flex items-center gap-2 text-[9px] font-mono tracking-wider text-white/35">
+            <span className="text-emerald-400">{"\u25CF"}</span> LATENCY {"<"}1MS
+          </div>
+          <div className="flex items-center gap-2 text-[9px] font-mono tracking-wider text-white/35">
+            <span className="text-emerald-400">{"\u25CF"}</span> RESERVES 1:1
+          </div>
         </div>
-        <div className="hidden sm:flex items-center gap-2 text-[9px] font-mono tracking-wider text-white/35">
-          <span className="text-emerald-400">{"\u25CF"}</span> LATENCY {"<"}1MS
-        </div>
-        <div className="flex items-center gap-2 text-[9px] font-mono tracking-wider text-white/35">
-          <span className="text-emerald-400">{"\u25CF"}</span> RESERVES 1:1
-        </div>
-      </div>
+      )}
     </div>
   );
 }
