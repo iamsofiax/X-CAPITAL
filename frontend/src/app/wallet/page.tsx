@@ -17,7 +17,7 @@ import {
   MissionPanel,
   YieldGrowthVisualizer,
 } from "@/components/x-engine";
-import HeroGlobe3D from "@/components/brand/HeroGlobe3D";
+import { CompoundingHeroGlobe3D } from "@/components/x-engine";
 import { ENGINE_COPY } from "@/lib/xEngine";
 import { useXEngine } from "@/hooks/useXEngine";
 import {
@@ -690,7 +690,13 @@ export default function WalletPage() {
               </p>
             </div>
           </div>
-          <HeroGlobe3D active={isArmed && cash > 0} className="w-full" />
+          <CompoundingHeroGlobe3D
+            balance={cash}
+            dailyRate={0.015}
+            isArmed={isArmed && cash > 0}
+            nodeId={user?.id}
+            className="w-full"
+          />
         </div>
 
         {/* ── COMPACT PROJECTION STRIP (2D) ── */}

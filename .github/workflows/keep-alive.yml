@@ -1,0 +1,21 @@
+name: Keep API Awake
+
+on:
+  schedule:
+    # Ping every 10 minutes — Render free tier sleeps after ~15 min idle.
+    # This keeps xcapital-api.onrender.com warm so the frontend always
+    # reports "API ONLINE".
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake backend API
+        run: curl -fsS -m 30 -o /dev/null -w "api:%{http_code}\n" https://xcapital-api.onrender.com/health
+      - name: Wake AI oracle
+        run: curl -fsS -m 30 -o /dev/null -w "oracle:%{http_code}\n" https://xcapital-oracle.onrender.com/health || true

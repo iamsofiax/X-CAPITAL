@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+// Production API lives on Render. `.env.local` is gitignored, so the static
+// GitHub Pages build must default to the live endpoint — never localhost.
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || 'https://xcapital-api.onrender.com/api/v1';
 
 export const api = axios.create({
   baseURL: API_URL,
