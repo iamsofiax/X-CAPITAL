@@ -1,17 +1,22 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { cn } from "@/lib/utils";
 
 /* ══════════════════════════════════════════════════════════════════════════
-   HeroGlobe3D — the landing-page centerpiece.
+   HeroGlobe3D — the capital-engine centerpiece.
 
    A bright, cinematic 3D orbital engine: glowing emerald core, rotating
    capital-stream rings, orbiting satellites, rising yield particles, and a
-   deep starfield. Replaces the small SVG rocket as the platform mark.
-   Rendered with the already-installed three / @react-three/fiber.
+   deep starfield. Rendered with the already-installed three / fiber.
+
+   WebGL hardening: the Canvas only mounts once the container has real
+   dimensions AND the browser reports WebGL support. Mounting a WebGL context
+   on a 0×0 / hidden element throws "Error creating WebGL context" and can
+   white-screen the page (seen during splash boot and post-login page
+   transitions). If WebGL fails or is unavailable we render a static core.
    ══════════════════════════════════════════════════════════════════════════ */
 
 function OrbitalRing({
@@ -237,11 +242,97 @@ interface HeroGlobe3DProps {
   cameraDistance?: number;
 }
 
+/** Static fallback ring used when WebGL is unavailable — keeps the panel intact. */
+function StaticCore({ active }: { active: boolean }) {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center">
+      <div className="relative flex items-center justify-center">
+        {[220, 168, 120].map((size, i) => (
+          <div
+            key={size}
+            className={cn(
+              "absolute rounded-full border",
+              i === 0 ? "border-emerald-500/20" : i === 1 ? "border-emerald-500/30" : "border-emerald-400/40",
+            )}
+            style={{
+              width: size,
+              height: size,
+              animation: `spin ${18 - i * 4}s linear infinite${i > 0 ? " reverse" : ""}`,
+            }}
+          />
+        ))}
+        <div
+          className="rounded-full bg-emerald-500/10 border border-emerald-400/50"
+          style={{
+            width: 64,
+            height: 64,
+            boxShadow: active ? "0 0 60px rgba(16,185,129,0.5)" : "0 0 30px rgba(16,185,129,0.2)",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function HeroGlobe3D({
   active = true,
   className,
   cameraDistance = 5.0,
 }: HeroGlobe3DProps) {
+  // ---- WebGL / layout guards ------------------------------------------
+  // The Canvas must not mount while its container is hidden or 0-sized
+  // (splash boot overlay, post-login page transition). Mounting a WebGL
+  // context there throws "Error creating WebGL context" → broken page.
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [ready, setReady] = useState(false);
+  const [webglFailed, setWebglFailed] = useState(false);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    // Detect WebGL support up-front (Chrome/Edge sometimes block it when the
+    // GPU process crashed or under memory pressure).
+    let supported = false;
+    try {
+      const probe = document.createElement("canvas");
+      supported = !!(
+        probe.getContext("webgl2") ||
+        probe.getContext("webgl") ||
+        probe.getContext("experimental-webgl")
+      );
+    } catch {
+      supported = false;
+    }
+    if (!supported) {
+      setWebglFailed(true);
+      return;
+    }
+
+    let raf = 0;
+    let attempts = 0;
+    const check = () => {
+      attempts += 1;
+      const r = el.getBoundingClientRect();
+      const visible = el.offsetParent !== null;
+      if (r.width > 4 && r.height > 4 && visible) {
+        setReady(true);
+        setWebglFailed(false);
+        return;
+      }
+      // Keep waiting up to ~2.5s for the layout to settle; if it never
+      // becomes visible, fall back to the static core instead of mounting a
+      // doomed WebGL context.
+      if (attempts < 25) {
+        raf = requestAnimationFrame(check);
+      } else {
+        setWebglFailed(true);
+      }
+    };
+    raf = requestAnimationFrame(check);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
   return (
     <div
       className={cn(
@@ -288,11 +379,27 @@ export default function HeroGlobe3D({
         <div className="text-[9px] font-mono font-bold text-emerald-400 tabular-nums">NODE-XC-001</div>
       </div>
 
-      {/* 3D canvas — smaller on mobile so the full orbit stays in frame */}
-      <div className="relative h-[260px] sm:h-[300px] lg:h-[400px]">
-        <Canvas camera={{ position: [0, 0.2, cameraDistance], fov: 45 }} dpr={[1, 2]}>
-          <Scene active={active} />
-        </Canvas>
+      {/* 3D canvas — only mounts once sized & visible, with static fallback */}
+      <div ref={containerRef} className="relative h-[260px] sm:h-[300px] lg:h-[400px]">
+        {ready && !webglFailed && (
+          <Canvas
+            key={`${ready}-${webglFailed}`}
+            camera={{ position: [0, 0.2, cameraDistance], fov: 45 }}
+            dpr={[1, 2]}
+            gl={{ antialias: true, alpha: true, powerPreference: "high-performance", failIfMajorPerformanceCaveat: false }}
+            onCreated={({ gl }) => {
+              // If the browser lost WebGL after all, degrade gracefully.
+              const handleLost = (e: Event) => {
+                e.preventDefault();
+                setWebglFailed(true);
+              };
+              gl.domElement.addEventListener("webglcontextlost", handleLost);
+            }}
+          >
+            <Scene active={active} />
+          </Canvas>
+        )}
+        {webglFailed && <StaticCore active={active} />}
       </div>
 
       {/* BOTTOM readout bar */}

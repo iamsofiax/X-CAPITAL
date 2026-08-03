@@ -146,9 +146,15 @@ export default function LandingPage() {
     let t = 0;
 
     const resize = () => {
-      canvas.width = canvas.offsetWidth * devicePixelRatio;
-      canvas.height = canvas.offsetHeight * devicePixelRatio;
-      ctx.scale(devicePixelRatio, devicePixelRatio);
+      // Guard against zero-size init (canvas is hidden during splash boot) —
+      // calling ctx.scale on a 0×0 canvas throws "Canvas could not create
+      // basic draw target" and blanks the whole page.
+      const w = canvas.offsetWidth;
+      const h = canvas.offsetHeight;
+      if (w === 0 || h === 0) return;
+      canvas.width = w * devicePixelRatio;
+      canvas.height = h * devicePixelRatio;
+      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
     };
     resize();
     window.addEventListener("resize", resize);
