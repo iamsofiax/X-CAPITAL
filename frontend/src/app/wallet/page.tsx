@@ -18,6 +18,7 @@ import {
   YieldGrowthVisualizer,
 } from "@/components/x-engine";
 import { CompoundingHeroGlobe3D } from "@/components/x-engine";
+import { resolveNodeDailyRate } from "@/hooks/useLiveGrowth";
 import { ENGINE_COPY } from "@/lib/xEngine";
 import { useXEngine } from "@/hooks/useXEngine";
 import {
@@ -491,6 +492,15 @@ export default function WalletPage() {
   const { phaseLabel, isArmed } = useXEngine();
   const isUnfunded = cash <= 0 && myPending.length === 0;
 
+  // Admin-aware compounding: the daily rate resolves through the profit
+  // engine (bullish-spike override → admin profitRate × multiplier), and
+  // `profitHold` freezes accrual while keeping the balance visible.
+  const effectiveRate = useMemo(() => {
+    const mergedRate = resolveNodeDailyRate(user?.id ?? "anon", user);
+    return mergedRate > 0 ? mergedRate : 0.015;
+  }, [user]);
+  const profitOnHold = user?.profitHold === true;
+
   const balanceHistory = useMemo(() => {
     const data = [];
     let v = cash * 0.4;
@@ -692,8 +702,9 @@ export default function WalletPage() {
           </div>
           <CompoundingHeroGlobe3D
             balance={cash}
-            dailyRate={0.015}
+            dailyRate={effectiveRate}
             isArmed={isArmed && cash > 0}
+            onHold={profitOnHold}
             nodeId={user?.id}
             className="w-full"
           />

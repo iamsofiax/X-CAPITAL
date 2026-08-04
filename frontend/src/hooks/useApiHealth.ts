@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { systemAPI, type SystemHealth } from "@/lib/api";
+import { healthProbe, type SystemHealth } from "@/lib/api";
 
 interface ApiHealthState {
   health: SystemHealth | null;
@@ -17,6 +17,10 @@ const INITIAL: ApiHealthState = {
   lastCheckedAt: null,
 };
 
+/** Last-known good health — preserves the badge across a single failed probe. */
+let lastKnownHealth: SystemHealth | null = null;
+let lastKnownOnline = false;
+
 /**
  * useApiHealth — polls the backend `/health` endpoint every 30s.
  * Powers the ApiHealthBadge and the hero GATEWAY telemetry so the UI
@@ -26,23 +30,22 @@ export function useApiHealth(pollMs = 30_000): ApiHealthState & { refresh: () =>
   const [state, setState] = useState<ApiHealthState>(INITIAL);
 
   const refresh = async () => {
-    try {
-      const { data } = await systemAPI.getHealth();
-      const health: SystemHealth | null = data?.data ?? null;
-      setState({
-        health,
-        loading: false,
-        online: health?.status === "healthy" || health?.status === "degraded",
-        lastCheckedAt: Date.now(),
-      });
-    } catch {
-      setState((prev) => ({
-        health: prev.health,
-        loading: false,
-        online: false,
-        lastCheckedAt: Date.now(),
-      }));
+    // healthProbe waits out Render cold-starts (503 → retry with backoff) so
+    // the badge shows "CHECKING…" instead of a false "API OFFLINE".
+    const health = await healthProbe();
+    if (health) {
+      lastKnownHealth = health;
+      lastKnownOnline =
+        health.status === "healthy" || health.status === "degraded";
     }
+    setState({
+      // Keep the last-known health on a failed probe so one network blip
+      // doesn't flip the badge to "API OFFLINE" after it was healthy.
+      health: health ?? lastKnownHealth,
+      loading: false,
+      online: lastKnownOnline,
+      lastCheckedAt: Date.now(),
+    });
   };
 
   useEffect(() => {

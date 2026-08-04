@@ -1,31 +1,27 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Flame } from "lucide-react";
 import HeroGlobe3D from "@/components/brand/HeroGlobe3D";
 import { cn, formatCurrency } from "@/lib/utils";
+import { realCompound } from "@/lib/compoundMath";
+import { useProfitEngine } from "@/store/useProfitEngine";
+import { resolveNodeDailyRate } from "@/hooks/useLiveGrowth";
 
 /* ══════════════════════════════════════════════════════════════════════════
-   CompoundingHeroGlobe3D — the polished capital-engine core, spiced with
-   REAL-TIME compounding and the SAME structural chrome as the main page.
+   CompoundingHeroGlobe3D — the Uplink capital-engine centerpiece.
 
-   Used ONLY on the Uplink (post-login wallet).
+   Renders the SAME HeroGlobe3D chrome as the landing centerpiece — machined
+   header strip, grid backdrop, bottom instrumentation bar — and overlays a
+   REAL-TIME compounding readout on top of the 3D core.
 
-   Visuals: identical 3D core as the landing hero (HeroGlobe3D), wrapped in
-   the machined header + instrumentation bars + readout cards so it feels like
-   the first page — not a bare floating globe.
-
-   Difference:
-   - machined header (CAPITAL ENGINE · LIVE / GATEWAY / NODE)
-   - live A = P(1 + r)^(elapsedHours/24) accrual ticked every second
-   - count-up balance
-   - live 7 / 30 / 90-day projections
-   - bottom instrumentation bar (same as landing chrome)
+   Admin-aware compounding:
+   - dailyRate is resolved through resolveNodeDailyRate() (the profit engine),
+     which honors, in priority order: bullish-spike override → node rate →
+     admin profitRate × profitMultiplier → 1.5% base. So an admin setting a
+     user's profit rate/multiplier changes this globe live.
+   - profitHold pauses accrual entirely (balance still shows).
    ══════════════════════════════════════════════════════════════════════════ */
-
-function realCompound(p: number, r: number, t: number): number {
-  return p * Math.pow(1 + r, t);
-}
 
 function useCountUp(target: number, durationMs = 900): number {
   const [display, setDisplay] = useState(target);
@@ -52,20 +48,45 @@ function useCountUp(target: number, durationMs = 900): number {
 
 interface CompoundingHeroGlobe3DProps {
   balance: number;
+  /** Optional explicit daily rate (decimal). When omitted, resolved from the
+   *  admin-aware profit engine via resolveNodeDailyRate. */
   dailyRate?: number;
   isArmed?: boolean;
+  /** True while the user's compounding is paused by admin. */
+  onHold?: boolean;
   nodeId?: string;
   className?: string;
 }
 
 export default function CompoundingHeroGlobe3D({
   balance,
-  dailyRate = 0.015,
+  dailyRate,
   isArmed = false,
+  onHold = false,
   nodeId,
   className,
 }: CompoundingHeroGlobe3DProps) {
-  const active = isArmed && balance > 0;
+  // ── Admin-aware daily rate ────────────────────────────────────────────
+  const nodeGrowths = useProfitEngine((s) => s.nodeGrowths);
+  const rateOverrides = useProfitEngine((s) => s.rateOverrides);
+  const effectiveNodeId = nodeId && nodeId !== "local" ? nodeId : undefined;
+
+  const resolvedDailyRate = useMemo(() => {
+    if (dailyRate != null && dailyRate > 0) return dailyRate;
+    if (effectiveNodeId) {
+      const rate = resolveNodeDailyRate(effectiveNodeId, null);
+      if (rate > 0) return rate;
+    }
+    // Fall back to any recorded node rate for this id before the 1.5% base.
+    const node = effectiveNodeId ? nodeGrowths[effectiveNodeId] : undefined;
+    if (node && node.dailyRate > 0) return node.dailyRate;
+    if (effectiveNodeId && rateOverrides[effectiveNodeId] > 0)
+      return rateOverrides[effectiveNodeId];
+    return 0.015;
+  }, [dailyRate, effectiveNodeId, nodeGrowths, rateOverrides]);
+
+  const compoundingAllowed = !onHold;
+  const active = isArmed && balance > 0 && compoundingAllowed;
   const startRef = useRef(Date.now());
 
   // Live accrual — A = P(1 + r)^(elapsedHours / 24), ticked every second.
@@ -79,28 +100,27 @@ export default function CompoundingHeroGlobe3D({
     startRef.current = Date.now();
     const tick = () => {
       const elapsedHours = (Date.now() - startRef.current) / (1000 * 60 * 60);
-      const accr =
-        balance > 0
-          ? realCompound(balance, dailyRate, elapsedHours / 24) - balance
-          : 0;
+      const accr = realCompound(balance, resolvedDailyRate, elapsedHours / 24) - balance;
       setLiveAccrual(Math.max(0, accr));
       setTicks((t) => t + 1);
     };
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [balance, dailyRate, active]);
+  }, [balance, resolvedDailyRate, active]);
 
   const animatedBalance = useCountUp(balance);
-  const proj7d = balance * Math.pow(1 + dailyRate, 7);
-  const proj30d = balance * Math.pow(1 + dailyRate, 30);
-  const proj90d = balance * Math.pow(1 + dailyRate, 90);
+  const proj7d = realCompound(balance, resolvedDailyRate, 7);
+  const proj30d = realCompound(balance, resolvedDailyRate, 30);
+  const proj90d = realCompound(balance, resolvedDailyRate, 90);
   const animatedProj90d = useCountUp(proj90d);
 
   const shortNode =
     nodeId && nodeId !== "local"
       ? `NODE-${nodeId.toUpperCase().slice(0, 8)}`
       : "NODE-XC-001";
+
+  const rateLabel = `${(resolvedDailyRate * 100).toFixed(2)}%/day`;
 
   return (
     <div
@@ -115,44 +135,15 @@ export default function CompoundingHeroGlobe3D({
           : "0 0 60px rgba(255,255,255,0.04)",
       }}
     >
-      {/* ── MACHINED HEADER — same instrumentation strip as the main page ── */}
-      <div className="relative flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06]">
-        <div className="flex items-center gap-2">
-          <span className="relative flex w-1.5 h-1.5">
-            <span
-              className={cn(
-                "absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping",
-                active ? "bg-emerald-400" : "bg-white/20",
-              )}
-            />
-            <span
-              className={cn(
-                "relative inline-flex rounded-full w-1.5 h-1.5",
-                active ? "bg-emerald-400" : "bg-white/20",
-              )}
-            />
-          </span>
-          <span className="text-[9px] font-mono font-bold tracking-[0.2em] text-emerald-400/90">
-            {active ? "CAPITAL ENGINE · LIVE" : "CAPITAL ENGINE"}
-          </span>
-        </div>
-        <div className="flex items-center gap-3 text-[9px] font-mono tracking-wider">
-          <span className="text-white/25">GATEWAY</span>
-          <span
-            className={cn(
-              "font-bold tabular-nums",
-              active ? "text-emerald-400/90" : "text-white/40",
-            )}
-          >
-            {shortNode}
-          </span>
-        </div>
-      </div>
-
-      {/* ── 3D CORE — identical to the main page, WebGL-safe. Bare mode:
-          the wrapper below owns ALL chrome (header + bars + readouts). ── */}
+      {/* ── 3D CORE — SAME chrome as the landing centerpiece (non-bare):
+          machined header, grid backdrop, bottom instrumentation bar. The
+          parent only adds the live compound readout + projection cards. ── */}
       <div className="relative">
-        <HeroGlobe3D active={active} bare className="w-full" />
+        <HeroGlobe3D
+          active={active}
+          className="w-full"
+          cameraDistance={4.6}
+        />
 
         {/* Live accrual readout — inside the globe pane, non-obstructing */}
         {active && (
@@ -173,27 +164,16 @@ export default function CompoundingHeroGlobe3D({
           </div>
         )}
 
-        {/* Node tagline when cold — non-obstructing */}
+        {/* Node tagline when cold or on hold — non-obstructing */}
         {!active && (
           <div className="absolute bottom-3 right-4 z-10 text-right pointer-events-none">
             <div className="text-[8px] font-mono text-white/25 tracking-widest uppercase">
-              Fund to activate compounding
+              {onHold
+                ? "Compounding paused by admin"
+                : "Fund to activate compounding"}
             </div>
           </div>
         )}
-      </div>
-
-      {/* ── BOTTOM INSTRUMENTATION BAR — same as landing chrome ── */}
-      <div className="relative border-t border-emerald-500/15 bg-black/40 backdrop-blur px-4 py-2.5 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-[9px] font-mono tracking-wider text-white/35">
-          <span className="text-emerald-400">{"\u25CF"}</span> 7 RAILS ARMED
-        </div>
-        <div className="hidden sm:flex items-center gap-2 text-[9px] font-mono tracking-wider text-white/35">
-          <span className="text-emerald-400">{"\u25CF"}</span> LATENCY {"<"}1MS
-        </div>
-        <div className="flex items-center gap-2 text-[9px] font-mono tracking-wider text-white/35">
-          <span className="text-emerald-400">{"\u25CF"}</span> RESERVES 1:1
-        </div>
       </div>
 
       {/* ── STRUCTURED READOUT CARDS — live compound math ── */}
@@ -234,10 +214,10 @@ export default function CompoundingHeroGlobe3D({
         </div>
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/[0.04]">
           <span className="text-[9px] font-mono text-white/20">
-            A = P(1+r)<sup>t</sup> · {(dailyRate * 100).toFixed(2)}%/day
+            A = P(1+r)<sup>t</sup> · {rateLabel}{onHold ? " · ON HOLD" : ""}
           </span>
           <span className="text-[9px] font-mono text-emerald-400/50">
-            {active ? "REAL-TIME COMPOUNDING" : "FUND TO ACTIVATE"}
+            {active ? "REAL-TIME COMPOUNDING" : onHold ? "PAUSED BY ADMIN" : "FUND TO ACTIVATE"}
           </span>
         </div>
       </div>

@@ -91,6 +91,38 @@ export const systemAPI = {
   getHealth: () => api.get('/health'),
 };
 
+/**
+ * Health probe with a much longer timeout + 503 retry.
+ *
+ * Render free-tier backends cold-start in 30–60s and answer 503 while they
+ * boot. The shared 15s axios timeout would fail the first probe and the badge
+ * would show "API OFFLINE" even though the API is just waking up. This
+ * dedicated probe waits up to 60s and retries 503s so real cold-starts read
+ * as "CHECKING…" until the API answers.
+ */
+export const healthProbe = async (
+  attempts = 5,
+  timeoutMs = 60_000,
+): Promise<SystemHealth | null> => {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const { data } = await api.get('/health', { timeout: timeoutMs });
+      const health: SystemHealth | null = data?.data ?? null;
+      if (health) return health;
+    } catch (error) {
+      const status = (error as { response?: { status?: number } } | undefined)
+        ?.response?.status;
+      // 503 = Render cold-start; retry with backoff instead of declaring offline.
+      if (status === 503 && i < attempts - 1) {
+        await new Promise((r) => setTimeout(r, 4000 * (i + 1)));
+        continue;
+      }
+      return null;
+    }
+  }
+  return null;
+};
+
 export const authAPI = {
   register: (data: { email: string; password: string; firstName: string; lastName: string }) =>
     api.post('/auth/register', data),

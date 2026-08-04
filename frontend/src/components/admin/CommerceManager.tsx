@@ -395,10 +395,19 @@ function ProductForm({
       {/* media + affiliate */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Image URL</label>
-          <input className={inputCls} value={form.imageUrl ?? ""} onChange={(e) => set("imageUrl", e.target.value)} placeholder="https://…/product.jpg" />
+          <label className="block text-xs text-gray-500 mb-1">
+            Product Image — upload from device
+          </label>
+          <ImageUpload
+            value={form.imageUrl ?? ""}
+            onChange={(dataUrl) => set("imageUrl", dataUrl)}
+          />
         </div>
         <div>
+          <label className="block text-xs text-gray-500 mb-1">Image URL (optional alternative)</label>
+          <input className={inputCls} value={form.imageUrl ?? ""} onChange={(e) => set("imageUrl", e.target.value)} placeholder="https://…/product.jpg" />
+        </div>
+        <div className="md:col-span-2">
           <label className="block text-xs text-gray-500 mb-1">Affiliate URL</label>
           <input className={inputCls} value={form.affiliateUrl ?? ""} onChange={(e) => set("affiliateUrl", e.target.value)} placeholder="https://merchant.com/product" />
         </div>
@@ -481,7 +490,7 @@ function ProductForm({
       {/* preview URL note */}
       {form.imageUrl && (
         <div className="flex items-center gap-2 text-[11px] text-gray-500 bg-black/20 rounded-lg px-3 py-2">
-          <Eye size={12} /> Preview will render from the image URL on /commerce.
+          <Eye size={12} /> Preview will render from the image on /commerce.
         </div>
       )}
 
@@ -503,6 +512,96 @@ function ProductForm({
           <Save size={14} /> {isNew ? "Create Product" : "Save Changes"}
         </button>
       </div>
+    </div>
+  );
+}
+
+/* ── Device image upload ────────────────────────────────────────────────────
+   Reads a local image file and converts it to a base64 data URL. The product
+   catalog persists to localStorage, so a data URL keeps the image available
+   to /commerce without any server round-trip. */
+function ImageUpload({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (dataUrl: string) => void;
+}) {
+  const [fileName, setFileName] = useState<string>("");
+  const [error, setError] = useState<string>("");
+
+  const handleFile = (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Please choose an image file (PNG, JPG, WebP…)");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setError("Image is too large — max 2MB (data URLs live in localStorage).");
+      return;
+    }
+    setError("");
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      setFileName(file.name);
+      onChange(result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="flex items-center justify-center gap-2 px-3 py-2 bg-[#0c0c12] border border-white/10 rounded-lg text-xs text-emerald-300 cursor-pointer hover:border-emerald-500/40 transition">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="17 8 12 3 7 8" />
+          <line x1="12" y1="3" x2="12" y2="15" />
+        </svg>
+        {fileName ? "Replace image…" : "Choose image from device…"}
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => handleFile(e.target.files?.[0])}
+        />
+      </label>
+
+      {value && (
+        <div className="flex items-center gap-2 rounded-lg overflow-hidden border border-white/10">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={value}
+            alt="Product preview"
+            className="w-14 h-14 object-cover bg-black/40"
+          />
+          <div className="flex-1 min-w-0 px-2 py-1">
+            <p className="text-[10px] text-gray-400 truncate">
+              {fileName || "Uploaded image"}
+            </p>
+            {error ? (
+              <p className="text-[10px] text-red-400">{error}</p>
+            ) : (
+              <p className="text-[10px] text-gray-600">Local upload — stored on device</p>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              setFileName("");
+              setError("");
+              onChange("");
+            }}
+            className="pr-3 text-gray-600 hover:text-red-400 transition"
+            title="Clear image"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {error && !value && (
+        <p className="text-[10px] text-red-400">{error}</p>
+      )}
     </div>
   );
 }

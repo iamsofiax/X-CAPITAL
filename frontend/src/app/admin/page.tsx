@@ -10,6 +10,7 @@ import {
 } from "@/store/useStore";
 import { cn, formatCurrency } from "@/lib/utils";
 import { adminAPI } from "@/lib/api";
+import { generateWithdrawalReceiptPdf } from "@/lib/withdrawalPdf";
 import { hasApiToken } from "@/lib/apiUser";
 import { MissionControl } from "@/components/x-engine";
 import BullishSpikeControls from "@/components/admin/BullishSpikeControls";
@@ -604,12 +605,45 @@ export default function AdminPage() {
       approvePendingTransaction(txId, currentUser?.email || "admin");
     }
 
+    const isWithdrawal = tx.type === "WITHDRAWAL";
+    let pdfUrl: string | undefined;
+    if (isWithdrawal) {
+      try {
+        pdfUrl = generateWithdrawalReceiptPdf({
+          reference: tx.details?.reference ?? `XCW-${tx.id.slice(-8).toUpperCase()}`,
+          userName: tx.userName,
+          userEmail: tx.userEmail,
+          amount: tx.amount,
+          currency: tx.currency,
+          method: tx.method,
+          destination:
+            tx.method === "wire"
+              ? tx.details?.destinationBank ?? "ACH · JPMorgan Chase ···· 8291"
+              : tx.details?.coin
+                ? `Crypto wallet (${tx.details.coin})`
+                : "Crypto wallet",
+          swift: tx.method === "wire" ? tx.details?.swift ?? "CHASUS33" : undefined,
+          coin: tx.method === "crypto" ? tx.details?.coin : undefined,
+          network: tx.method === "crypto" ? tx.details?.network : undefined,
+          address: tx.method === "crypto" ? tx.details?.withdrawAddress : undefined,
+          approvedAt: new Date().toISOString(),
+          adminEmail: currentUser?.email,
+        });
+      } catch {
+        pdfUrl = undefined;
+      }
+    }
+
     addNotification({
       id: `n-${uid()}`,
       userId: tx.userId,
       title: `${tx.type === "DEPOSIT" ? "Deposit" : "Withdrawal"} Approved`,
       message: `Your ${tx.method} ${tx.type.toLowerCase()} of ${tx.currency === "USD" ? formatCurrency(tx.amount) : `${tx.amount} ${tx.currency}`} has been approved.`,
       type: "transaction",
+      ...(pdfUrl && {
+        externalLink: pdfUrl,
+        externalLinkLabel: "Download Receipt (PDF)",
+      }),
       read: false,
       createdAt: new Date().toISOString(),
     });

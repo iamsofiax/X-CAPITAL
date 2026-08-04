@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useStore } from "@/store/useStore";
 import type { UserNotification } from "@/store/useStore";
+import { isDownloadableUrl } from "@/lib/withdrawalPdf";
 import { cn, formatRelativeTime } from "@/lib/utils";
 
 type NotifType =
@@ -34,6 +35,7 @@ interface DisplayNotification {
   time: string;
   read: boolean;
   href?: string;
+  hrefLabel?: string;
 }
 
 const NOTIF_STYLES: Record<
@@ -81,6 +83,7 @@ function toDisplayNotification(n: UserNotification): DisplayNotification {
     time: formatRelativeTime(n.createdAt),
     read: n.read,
     href: n.externalLink,
+    hrefLabel: n.externalLinkLabel,
   };
 }
 
@@ -143,8 +146,13 @@ export default function NotificationsPanel({
 
   const handleClick = (notif: DisplayNotification) => {
     markNotificationRead(notif.id);
-    if (notif.href) {
-      onClose();
+    if (!notif.href) return;
+    onClose();
+    // PDF data URLs / http(s) receipts open in a new tab (downloadable).
+    // Internal app routes still use the Next router.
+    if (isDownloadableUrl(notif.href)) {
+      window.open(notif.href, "_blank", "noopener,noreferrer");
+    } else {
       router.push(notif.href);
     }
   };
@@ -229,14 +237,17 @@ export default function NotificationsPanel({
                   <p className="text-xs text-xc-muted mt-0.5 line-clamp-2">
                     {notif.message}
                   </p>
-                  <span className="text-[10px] text-xc-muted/50 mt-1 block">
+                  {notif.href && (
+                    <span className="text-[10px] font-bold text-emerald-400/90 mt-0.5 inline-flex items-center gap-1">
+                      <ArrowUpRight className="w-3 h-3" />
+                      {notif.hrefLabel ?? "Open"}
+                    </span>
+                  )}
+                  <span className="text-[10px] text-xc-muted/50 mt-0.5 block">
                     {notif.time}
                   </span>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0 mt-1">
-                  {notif.href && (
-                    <ArrowUpRight className="w-3.5 h-3.5 text-xc-muted/40" />
-                  )}
                   <button
                     onClick={(e) => dismiss(notif.id, e)}
                     className="w-5 h-5 rounded flex items-center justify-center text-xc-muted/30 hover:text-white/60 hover:bg-white/5 transition-colors"
