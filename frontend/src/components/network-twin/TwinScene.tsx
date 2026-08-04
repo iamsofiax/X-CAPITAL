@@ -3,6 +3,7 @@
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame } from "@react-three/fiber";
+import { useWebGLSupport } from "@/hooks/useWebGLSupport";
 
 /* ══════════════════════════════════════════════════════════════════════
    TwinScene — the Capital Network Twin's 3D core.
@@ -19,8 +20,15 @@ import { Canvas, useFrame } from "@react-three/fiber";
      (the classic bloom-free "hardware glow").
    - DPR capped at 2, `powerPreference: high-performance`.
    - The frame clock drives rotation; the loop is paused entirely by
-     react-three-fiber when the tab is hidden (frameloop="never" is NOT
-     used — R3F already throttles hidden canvases by default).
+     react-three-fiber when the tab is hidden.
+
+   WebGL hardening: the Canvas only mounts if the browser can actually
+   create a WebGL context. Mounting it on a machine where WebGL is blocked
+   (GPU blacklist, disabled acceleration, remote desktop, crashed GPU
+   process) throws "Error creating WebGL context" and trips the page-level
+   error boundary — the whole landing page turns into "Something went
+   wrong". If WebGL is unavailable we render a static multi-ring twin so
+   the section always stays intact.
    ══════════════════════════════════════════════════════════════════════ */
 
 export const RAILS = [
@@ -290,21 +298,105 @@ function Scene() {
   );
 }
 
+/* ── Static fallback — pure CSS twin when WebGL is unavailable ──────────
+   Same visual language: elliptical orbital rings with the seven rail
+   accents around a glowing settlement core. Keeps the section intact. */
+function StaticTwinFallback() {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+      {/* Grid */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.08]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(16,185,129,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.4) 1px, transparent 1px)",
+          backgroundSize: "28px 28px",
+          maskImage: "radial-gradient(ellipse at center, black 0%, transparent 80%)",
+          WebkitMaskImage: "radial-gradient(ellipse at center, black 0%, transparent 80%)",
+        }}
+      />
+      {/* Orbital rings — perspective ellipse via scaleY */}
+      <div className="relative h-[200px] w-[200px] sm:h-[240px] sm:w-[240px]">
+        {RAILS.map((rail, i) => {
+          const pct = Math.round(28 + i * ((100 - 28) / (RAILS.length - 1)));
+          return (
+            <div
+              key={rail.label}
+              className="absolute rounded-full border"
+              style={{
+                width: `${pct}%`,
+                height: `${pct}%`,
+                left: `${(100 - pct) / 2}%`,
+                top: `${(100 - pct) / 2}%`,
+                borderColor: `${rail.accent}40`,
+                transform: "scaleY(0.42)",
+                animation: `twinRingSpin ${36 - i * 3}s linear infinite${i % 2 ? " reverse" : ""}`,
+              }}
+            />
+          );
+        })}
+        {/* Settlement core */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div
+            className="relative h-14 w-14 rounded-full border border-emerald-400/50 bg-emerald-500/10"
+            style={{ boxShadow: "0 0 36px rgba(16,185,129,0.35)" }}
+          >
+            <div className="absolute inset-1.5 animate-pulse rounded-full bg-emerald-500/20" />
+          </div>
+        </div>
+      </div>
+      {/* Status chip — same corner readout as the 3D scene */}
+      <div className="pointer-events-none absolute left-3 top-3 z-10 rounded border border-white/[0.08] bg-black/50 px-2 py-1 backdrop-blur">
+        <div className="font-mono text-[7px] uppercase tracking-[0.2em] text-white/35">Network Twin</div>
+        <div className="font-mono text-[9px] font-bold text-amber-400">STATIC VIEW</div>
+      </div>
+      <div className="pointer-events-none absolute right-3 top-3 z-10 hidden rounded border border-white/[0.08] bg-black/50 px-2 py-1 text-right backdrop-blur sm:block">
+        <div className="font-mono text-[7px] uppercase tracking-[0.2em] text-white/35">Settlement</div>
+        <div className="font-mono text-[9px] font-bold text-emerald-400 tabular-nums">7/7 ARMED</div>
+      </div>
+
+      <style jsx>{`
+        @keyframes twinRingSpin {
+          from {
+            transform: rotate(0deg) scaleY(0.42);
+          }
+          to {
+            transform: rotate(360deg) scaleY(0.42);
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 interface TwinSceneProps {
   className?: string;
 }
 
 export default function TwinScene({ className }: TwinSceneProps) {
+  const { webglReady, webglFailed, markWebglFailed } = useWebGLSupport();
+
   return (
     <div className={className}>
-      <Canvas
-        dpr={[1, 2]}
-        gl={{ antialias: true, powerPreference: "high-performance", alpha: true }}
-        camera={{ position: [0, 1.15, 6.4], fov: 42 }}
-        style={{ background: "transparent" }}
-      >
-        <Scene />
-      </Canvas>
+      {webglReady && !webglFailed && (
+        <Canvas
+          dpr={[1, 2]}
+          gl={{ antialias: true, powerPreference: "high-performance", alpha: true }}
+          camera={{ position: [0, 1.15, 6.4], fov: 42 }}
+          style={{ background: "transparent" }}
+          onCreated={({ gl }) => {
+            // If the browser loses WebGL after all, degrade gracefully.
+            const handleLost = (e: Event) => {
+              e.preventDefault();
+              markWebglFailed();
+            };
+            gl.domElement.addEventListener("webglcontextlost", handleLost);
+          }}
+        >
+          <Scene />
+        </Canvas>
+      )}
+      {webglFailed && <StaticTwinFallback />}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { motion, AnimatePresence } from "framer-motion";
 import { Rocket, Flame, Sparkles } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
+import { useWebGLSupport } from "@/hooks/useWebGLSupport";
 
 /* ══════════════════════════════════════════════════════════════════════════
    CompoundingGlobe3D — 3D compounding centerpiece for the Uplink.
@@ -251,6 +252,72 @@ function useCountUp(target: number, durationMs = 1200): number {
   return display;
 }
 
+/* ── Static fallback — pure CSS engine when WebGL is unavailable ─────────
+   Concentric orbital rings around a glowing core, matching the 3D scene.
+   Keeps the section (and its live math readouts) intact. */
+function StaticEngineFallback({ active }: { active: boolean }) {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.10]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(16,185,129,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.4) 1px, transparent 1px)",
+          backgroundSize: "44px 44px",
+          maskImage: "radial-gradient(ellipse at center, black 0%, transparent 75%)",
+          WebkitMaskImage: "radial-gradient(ellipse at center, black 0%, transparent 75%)",
+        }}
+      />
+      <div className="relative h-[180px] w-[180px] sm:h-[220px] sm:w-[220px]">
+        {[1.3, 1.55, 1.8].map((radius, i) => {
+          const pct = Math.round((radius / 2.1) * 100);
+          return (
+            <div
+              key={radius}
+              className="absolute rounded-full border"
+              style={{
+                width: `${pct}%`,
+                height: `${pct}%`,
+                left: `${(100 - pct) / 2}%`,
+                top: `${(100 - pct) / 2}%`,
+                borderColor: i === 0 ? "rgba(16,185,129,0.5)" : i === 1 ? "rgba(52,211,153,0.4)" : "rgba(110,231,183,0.3)",
+                transform: "scaleY(0.5)",
+                animation: `engineRingSpin ${28 - i * 7}s linear infinite${i % 2 ? " reverse" : ""}`,
+              }}
+            />
+          );
+        })}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div
+            className="relative h-14 w-14 rounded-full border border-emerald-400/50 bg-emerald-500/10"
+            style={{ boxShadow: "0 0 36px rgba(16,185,129,0.35)" }}
+          >
+            <div className="absolute inset-1.5 animate-pulse rounded-full bg-emerald-500/20" />
+          </div>
+        </div>
+      </div>
+      <div className="pointer-events-none absolute left-4 top-4 flex items-center gap-2">
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 backdrop-blur">
+          <span className={cn("w-1.5 h-1.5 rounded-full", active ? "bg-emerald-400 animate-pulse" : "bg-white/20")} />
+          <span className="text-[9px] font-mono font-bold tracking-wider text-emerald-400/80">
+            {active ? "COMPOUNDING · STATIC" : "NODE STANDBY"}
+          </span>
+        </div>
+      </div>
+      <style jsx>{`
+        @keyframes engineRingSpin {
+          from {
+            transform: rotate(0deg) scaleY(0.5);
+          }
+          to {
+            transform: rotate(360deg) scaleY(0.5);
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 interface CompoundingGlobe3DProps {
   balance: number;
   dailyRate?: number;
@@ -268,6 +335,7 @@ export default function CompoundingGlobe3D({
 }: CompoundingGlobe3DProps) {
   const active = isArmed && balance > 0;
   const startRef = useRef(Date.now());
+  const { webglReady, webglFailed, markWebglFailed } = useWebGLSupport();
 
   // Live accrual — A = P(1 + r)^(elapsedHours / 24)
   const [liveAccrual, setLiveAccrual] = useState(0);
@@ -340,26 +408,43 @@ export default function CompoundingGlobe3D({
         </div>
       </div>
 
-      {/* 3D canvas */}
+      {/* 3D canvas — WebGL-gated: canvas or static CSS fallback */}
       <div className="relative h-[360px] md:h-[440px]">
-        <Canvas camera={{ position: [0, 0.4, 3.4], fov: 45 }} dpr={[1, 1.8]}>
-          <Scene balance={balance} isArmed={isArmed} />
-        </Canvas>
+        {webglReady && !webglFailed ? (
+          <Canvas
+            camera={{ position: [0, 0.4, 3.4], fov: 45 }}
+            dpr={[1, 1.8]}
+            onCreated={({ gl }) => {
+              // If the browser loses WebGL after all, degrade gracefully.
+              const handleLost = (e: Event) => {
+                e.preventDefault();
+                markWebglFailed();
+              };
+              gl.domElement.addEventListener("webglcontextlost", handleLost);
+            }}
+          >
+            <Scene balance={balance} isArmed={isArmed} />
+          </Canvas>
+        ) : webglFailed ? (
+          <StaticEngineFallback active={active} />
+        ) : null}
 
         {/* Status badge */}
-        <div className="absolute top-4 left-4 flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 backdrop-blur">
-            <span className={cn("w-1.5 h-1.5 rounded-full", active ? "bg-emerald-400 animate-pulse" : "bg-white/20")} />
-            <span className="text-[9px] font-mono font-bold tracking-wider text-emerald-400/80">
-              {active ? "COMPOUNDING · 3D" : "NODE STANDBY"}
-            </span>
+        {webglReady && !webglFailed && (
+          <div className="absolute top-4 left-4 flex items-center gap-2">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 backdrop-blur">
+              <span className={cn("w-1.5 h-1.5 rounded-full", active ? "bg-emerald-400 animate-pulse" : "bg-white/20")} />
+              <span className="text-[9px] font-mono font-bold tracking-wider text-emerald-400/80">
+                {active ? "COMPOUNDING · 3D" : "NODE STANDBY"}
+              </span>
+            </div>
+            {nodeId && (
+              <span className="text-[9px] font-mono text-white/25 tracking-wider">
+                NODE {nodeId}
+              </span>
+            )}
           </div>
-          {nodeId && (
-            <span className="text-[9px] font-mono text-white/25 tracking-wider">
-              NODE {nodeId}
-            </span>
-          )}
-        </div>
+        )}
 
         {/* Live accrual — top right */}
         <AnimatePresence>
