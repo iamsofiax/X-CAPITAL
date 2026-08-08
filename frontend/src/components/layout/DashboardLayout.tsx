@@ -21,7 +21,7 @@ export default function DashboardLayout({
   subtitle,
   wide,
 }: DashboardLayoutProps) {
-  const { isAuthenticated } = useStore();
+  const { isAuthenticated, theme } = useStore();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
 
@@ -38,7 +38,7 @@ export default function DashboardLayout({
   if (!mounted || !isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className={theme === "light" ? "min-h-screen bg-[#f0f0f0]" : "min-h-screen bg-black"}>
       <Sidebar />
       <div className="md:ml-[64px] lg:ml-[220px]">
         <MarketTicker />

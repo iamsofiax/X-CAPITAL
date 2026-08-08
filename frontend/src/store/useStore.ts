@@ -158,6 +158,7 @@ interface PendingTxState {
     adminEmail: string,
     serverBalance?: number,
     forceLocal?: boolean,
+    skipNotification?: boolean,
   ) => void;
   rejectPendingTransaction: (
     txId: string,
@@ -936,6 +937,7 @@ export const useStore = create<Store>()(
         adminEmail,
         serverBalance?: number,
         forceLocal?: boolean,
+        skipNotification?: boolean,
       ) => {
         const state = get();
         const tx = state.pendingTransactions.find((t) => t.id === txId);
@@ -1005,7 +1007,7 @@ export const useStore = create<Store>()(
         set({
           ...statusPatch,
           ...(balancePatch ?? {}),
-          ...(sessionMatches && tx.type === "DEPOSIT"
+          ...(!skipNotification && sessionMatches && tx.type === "DEPOSIT"
             ? {
                 notifications: [
                   {
@@ -1021,7 +1023,7 @@ export const useStore = create<Store>()(
                 ],
               }
             : {}),
-          ...(sessionMatches &&
+          ...(!skipNotification && sessionMatches &&
           (tx.type === "FUND_INVEST" || tx.type === "WITHDRAWAL")
             ? {
                 notifications: [
