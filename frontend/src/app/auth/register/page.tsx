@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "@/store/useStore";
@@ -27,7 +27,12 @@ interface FormData {
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { registerUser } = useStore();
+  const { registerUser, isAuthenticated } = useStore();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (isAuthenticated) router.replace("/dashboard");
+  }, [isAuthenticated, router]);
   const [form, setForm] = useState<FormData>({
     firstName: "",
     lastName: "",
@@ -266,13 +271,13 @@ export default function RegisterPage() {
               />
               <span className="text-xs text-xc-muted leading-relaxed">
                 I agree to X-CAPITAL&apos;s{" "}
-                <span className="text-white/70 hover:text-white cursor-pointer transition-colors">
+                <Link href="/legal/terms" className="text-white/70 hover:text-white transition-colors">
                   Terms of Service
-                </span>{" "}
+                </Link>{" "}
                 and{" "}
-                <span className="text-white/70 hover:text-white cursor-pointer transition-colors">
+                <Link href="/legal/privacy" className="text-white/70 hover:text-white transition-colors">
                   Privacy Policy
-                </span>
+                </Link>
                 . I understand that investment products involve risk.
               </span>
             </label>

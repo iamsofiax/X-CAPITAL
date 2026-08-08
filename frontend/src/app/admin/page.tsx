@@ -585,7 +585,8 @@ export default function AdminPage() {
           note: `${tx.method.toUpperCase()} ${tx.type.toLowerCase()} approved`,
           txType: tx.type === "DEPOSIT" ? "DEPOSIT" : "WITHDRAWAL",
         });
-        approvePendingTransaction(txId, currentUser?.email || "admin");
+        // skipNotification=true — admin will add the definitive notification below
+        approvePendingTransaction(txId, currentUser?.email || "admin", undefined, false, true);
         await loadAdminUsersFromApi();
         await syncSessionFromApi();
       } catch {
@@ -596,14 +597,22 @@ export default function AdminPage() {
           currentUser?.email || "admin",
           undefined,
           true,
+          true, // skipNotification — admin adds it below
         );
         setServerUnreachable(true);
         trackOfflineAdminEvent();
       }
     } else {
-      // Offline fallback — local only
-      approvePendingTransaction(txId, currentUser?.email || "admin");
+      // Offline fallback — local only; admin adds notification below
+      approvePendingTransaction(txId, currentUser?.email || "admin", undefined, false, true);
     }
+
+    // Look up user's balance after the deduction for the PDF receipt
+    const txUser = registeredUsers.find((u) => u.id === tx.userId);
+    const balanceAfter =
+      tx.type === "WITHDRAWAL"
+        ? Math.max(0, Number(txUser?.balance ?? 0) - usdAmount)
+        : undefined;
 
     const isWithdrawal = tx.type === "WITHDRAWAL";
     let pdfUrl: string | undefined;
@@ -627,6 +636,7 @@ export default function AdminPage() {
           network: tx.method === "crypto" ? tx.details?.network : undefined,
           address: tx.method === "crypto" ? tx.details?.withdrawAddress : undefined,
           approvedAt: new Date().toISOString(),
+          balanceAfter,
           adminEmail: currentUser?.email,
         });
       } catch {

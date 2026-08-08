@@ -69,12 +69,12 @@ function useUTCClock() {
       setTime((prev) => (prev === next ? prev : next));
 
       const nextSession: "TOKYO" | "LONDON" | "NEW YORK" | "CLOSED" =
-        h >= 0 && h < 8
-          ? "TOKYO"
-          : h >= 8 && h < 16
+        h >= 13 && h < 22
+          ? "NEW YORK"
+          : h >= 8 && h < 17
             ? "LONDON"
-            : h >= 13 && h < 22
-              ? "NEW YORK"
+            : h >= 0 && h < 9
+              ? "TOKYO"
               : "CLOSED";
       setSession((prev) => (prev === nextSession ? prev : nextSession));
     };
@@ -95,10 +95,12 @@ const SESSION_COLOR: Record<string, string> = {
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { sidebarOpen, setSidebarOpen, user, logout } = useStore();
+  const { sidebarOpen, setSidebarOpen, user, logout, theme } = useStore();
   const { canAccess, nodeId, phaseLabel, unlockedRails } = useXEngine();
   const { time, session } = useUTCClock();
   const uptime = 99.97;
+  const isLight = theme === "light";
+  const [logoutConfirm, setLogoutConfirm] = useState(false);
 
   return (
     <>
@@ -112,7 +114,9 @@ export default function Sidebar() {
       <aside
         className={cn(
           "fixed top-0 bottom-0 left-0 z-50 flex flex-col",
-          "bg-[#020204] border-r border-white/[0.05]",
+          isLight
+            ? "bg-white border-r border-black/[0.08]"
+            : "bg-[#020204] border-r border-white/[0.05]",
           "w-[272px] transition-transform duration-300",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
           "md:translate-x-0 md:w-[68px] lg:w-[232px]",
@@ -192,8 +196,12 @@ export default function Sidebar() {
                   "group relative flex items-center gap-3 px-3.5 py-3 rounded-xl transition-colors duration-100",
                   "md:justify-center lg:justify-start",
                   active
-                    ? "bg-white/[0.09] text-white shadow-sm"
-                    : "text-white/55 hover:text-white hover:bg-white/[0.06]",
+                    ? isLight
+                      ? "bg-black/[0.07] text-black shadow-sm"
+                      : "bg-white/[0.09] text-white shadow-sm"
+                    : isLight
+                      ? "text-black/50 hover:text-black hover:bg-black/[0.05]"
+                      : "text-white/55 hover:text-white hover:bg-white/[0.06]",
                 )}
               >
                 {/* Active rail accent line */}
@@ -260,17 +268,39 @@ export default function Sidebar() {
             <Link
               href="/settings"
               onClick={() => setSidebarOpen(false)}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-white/35 hover:text-white hover:bg-white/[0.04] text-[13px] md:justify-center lg:justify-start transition-colors"
+              className={cn(
+                "flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] md:justify-center lg:justify-start transition-colors",
+                isLight
+                  ? "text-black/40 hover:text-black hover:bg-black/[0.04]"
+                  : "text-white/35 hover:text-white hover:bg-white/[0.04]",
+              )}
             >
               <Settings className="w-4 h-4 shrink-0" />
               <span className="md:hidden lg:inline">Settings</span>
             </Link>
             <button
-              onClick={() => { logout(); setSidebarOpen(false); }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-white/35 hover:text-red-400 hover:bg-red-950/20 text-[13px] md:justify-center lg:justify-start transition-colors"
+              onClick={() => {
+                if (!logoutConfirm) {
+                  setLogoutConfirm(true);
+                  setTimeout(() => setLogoutConfirm(false), 3000);
+                } else {
+                  logout();
+                  setSidebarOpen(false);
+                }
+              }}
+              className={cn(
+                "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] md:justify-center lg:justify-start transition-colors",
+                logoutConfirm
+                  ? "text-red-400 bg-red-950/30"
+                  : isLight
+                    ? "text-black/40 hover:text-red-500 hover:bg-red-50"
+                    : "text-white/35 hover:text-red-400 hover:bg-red-950/20",
+              )}
             >
               <LogOut className="w-4 h-4 shrink-0" />
-              <span className="md:hidden lg:inline">Sign Out</span>
+              <span className="md:hidden lg:inline">
+                {logoutConfirm ? "Confirm Sign Out?" : "Sign Out"}
+              </span>
             </button>
           </div>
         )}

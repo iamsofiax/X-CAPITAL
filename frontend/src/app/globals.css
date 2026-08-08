@@ -1332,12 +1332,19 @@ input[type="number"] {
 
 /* Tawk live chat — bottom-right, above app chrome (customer routes only) */
 #tawkchat-container,
-.tawk-widget {
+.tawk-widget,
+#tawk-bubble-container,
+div[id^="tawk-"] {
   z-index: 100000 !important;
+  display: block !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
 }
 
 body[data-admin-route="true"] #tawkchat-container,
 body[data-admin-route="true"] .tawk-widget,
+body[data-admin-route="true"] #tawk-bubble-container,
+body[data-admin-route="true"] div[id^="tawk-"],
 body[data-admin-route="true"] iframe[title*="chat" i] {
   display: none !important;
   visibility: hidden !important;
@@ -1696,4 +1703,250 @@ body[data-admin-route="true"] iframe[title*="chat" i] {
   .engine-readout {
     letter-spacing: 0.05em;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════ */
+/* ═══ LIGHT MODE — [data-theme="light"] overrides ═══════════════════════ */
+/* Applied globally when user selects Light Mode in Settings.            */
+/* ═══════════════════════════════════════════════════════════════════════ */
+
+[data-theme="light"] {
+  --bg: #f5f5f5;
+  --card: #ffffff;
+  --border: rgba(0, 0, 0, 0.08);
+  --text: #111111;
+  --muted: #6b7280;
+  --green: #059669;
+  --red: #dc2626;
+  --gold: #d97706;
+
+  --node-bg: #f0f0f0;
+  --node-panel: #ffffff;
+  --node-panel-elevated: #f9f9f9;
+  --node-border: #e0e0e0;
+  --node-border-subtle: #ebebeb;
+  --node-signal: #059669;
+  --node-signal-dim: rgba(5, 150, 105, 0.12);
+  --node-locked: #d97706;
+  --node-locked-dim: rgba(217, 119, 6, 0.10);
+  --node-authority: #111111;
+  --node-muted: #6b7280;
+  --node-mesh: radial-gradient(
+      ellipse 80% 50% at 50% -20%,
+      rgba(5, 150, 105, 0.05) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 100% 50%,
+      rgba(0, 0, 0, 0.01) 0%,
+      transparent 50%
+    );
+  --node-inset: inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.06);
+  --node-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] html,
+[data-theme="light"] body,
+html[data-theme="light"],
+html[data-theme="light"] body {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+
+[data-theme="light"] body {
+  background: #f5f5f5 !important;
+  color: #111111 !important;
+}
+
+/* Page & layout backgrounds */
+[data-theme="light"] .bg-xc-black,
+[data-theme="light"] .bg-black,
+[data-theme="light"] .bg-\[\#000000\],
+[data-theme="light"] .bg-\[\#020204\]\/90,
+[data-theme="light"] .bg-\[#020204\]\/90 {
+  background-color: #f5f5f5 !important;
+}
+
+[data-theme="light"] .min-h-screen.bg-black {
+  background-color: #f0f0f0 !important;
+}
+
+/* Cards */
+[data-theme="light"] .bg-xc-card,
+[data-theme="light"] .bg-\[\#111111\] {
+  background-color: #ffffff !important;
+}
+
+[data-theme="light"] .bg-node-panel {
+  background-color: #ffffff !important;
+}
+
+/* Text */
+[data-theme="light"] .text-white {
+  color: #111111 !important;
+}
+
+[data-theme="light"] .text-white\/70,
+[data-theme="light"] .text-white\/60,
+[data-theme="light"] .text-white\/55,
+[data-theme="light"] .text-white\/50,
+[data-theme="light"] .text-white\/40,
+[data-theme="light"] .text-white\/35,
+[data-theme="light"] .text-white\/30,
+[data-theme="light"] .text-white\/25 {
+  color: rgba(0, 0, 0, 0.55) !important;
+}
+
+[data-theme="light"] .text-xc-muted {
+  color: #6b7280 !important;
+}
+
+[data-theme="light"] .text-xc-text {
+  color: #111111 !important;
+}
+
+/* Borders */
+[data-theme="light"] .border-white\/\[0\.05\],
+[data-theme="light"] .border-white\/\[0\.06\],
+[data-theme="light"] .border-white\/\[0\.07\],
+[data-theme="light"] .border-white\/\[0\.08\],
+[data-theme="light"] .border-white\/\[0\.03\],
+[data-theme="light"] .border-white\/\[0\.04\] {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme="light"] .border-xc-border,
+[data-theme="light"] .border-node-border {
+  border-color: #e0e0e0 !important;
+}
+
+/* Header */
+[data-theme="light"] header {
+  background: rgba(245, 245, 245, 0.95) !important;
+  border-bottom-color: rgba(0, 0, 0, 0.07) !important;
+}
+
+/* Sidebar */
+[data-theme="light"] aside,
+[data-theme="light"] nav.bg-node-panel,
+[data-theme="light"] .bg-node-panel {
+  background-color: #ffffff !important;
+  border-color: #e0e0e0 !important;
+}
+
+/* Inputs, selects */
+[data-theme="light"] input,
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+  background-color: #f9f9f9 !important;
+  color: #111111 !important;
+  border-color: #d1d5db !important;
+}
+
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Glassmorphism card in light mode */
+[data-theme="light"] .glass {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+/* White/transparent backgrounds */
+[data-theme="light"] .bg-white\/\[0\.02\],
+[data-theme="light"] .bg-white\/\[0\.03\],
+[data-theme="light"] .bg-white\/\[0\.04\],
+[data-theme="light"] .bg-white\/\[0\.05\],
+[data-theme="light"] .bg-white\/\[0\.06\],
+[data-theme="light"] .bg-white\/\[0\.07\] {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+[data-theme="light"] .bg-white\/5 {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .hover\:bg-white\/5:hover {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Scrollbar in light mode */
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15) !important;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.28) !important;
+}
+
+/* Modals / panels */
+[data-theme="light"] .bg-node-panel.border-2 {
+  background: #ffffff !important;
+  border-color: #e0e0e0 !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Market ticker */
+[data-theme="light"] .border-white\/\[0\.03\] {
+  border-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Skeleton shimmer in light mode */
+[data-theme="light"] .skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.04) 25%,
+    rgba(0, 0, 0, 0.08) 37%,
+    rgba(0, 0, 0, 0.04) 63%
+  ) !important;
+}
+
+/* Node panel elevated */
+[data-theme="light"] .bg-node-panel-up {
+  background-color: #f9f9f9 !important;
+}
+
+/* Data rows */
+[data-theme="light"] .data-row:nth-child(even) {
+  background: rgba(0, 0, 0, 0.02) !important;
+}
+
+[data-theme="light"] .data-row:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Precision border */
+[data-theme="light"] .border-hairline {
+  border: 0.5px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Sep gradient */
+[data-theme="light"] .sep-gradient {
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(0, 0, 0, 0.08) 30%,
+    rgba(0, 0, 0, 0.08) 70%,
+    transparent
+  ) !important;
+}
+
+/* Institutional card in light mode */
+[data-theme="light"] .inst-card {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(0, 0, 0, 0.07) !important;
+}
+
+[data-theme="light"] .inst-card:hover {
+  border-color: rgba(0, 0, 0, 0.14) !important;
+  background: rgba(255, 255, 255, 1) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Splash screen is always black — never override */
+[data-theme="light"] #xc-splash {
+  background: #000000 !important;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 
 export default function Error({
   error,
@@ -20,10 +21,12 @@ export default function Error({
         <h2 className="text-xl font-bold text-white mb-2">
           Something went wrong
         </h2>
-        <p className="text-sm text-gray-400 mb-4 break-all font-mono bg-black/40 rounded-lg p-3 text-left">
-          {error.message || "Unknown error"}
+        <p className="text-sm text-gray-400 mb-4">
+          {process.env.NODE_ENV !== "production"
+            ? error.message || "Unknown error"
+            : "An unexpected error occurred. Please try again or return to the dashboard."}
         </p>
-        {error.stack && (
+        {process.env.NODE_ENV !== "production" && error.stack && (
           <details className="text-left mb-4">
             <summary className="text-gray-500 text-xs cursor-pointer">
               Stack trace
@@ -33,12 +36,20 @@ export default function Error({
             </pre>
           </details>
         )}
-        <button
-          onClick={reset}
-          className="px-6 py-2.5 bg-white/[0.08] hover:bg-white/[0.14] text-white rounded-lg text-sm font-bold transition"
-        >
-          Try Again
-        </button>
+        <div className="flex items-center justify-center gap-3">
+          <button
+            onClick={reset}
+            className="px-6 py-2.5 bg-white/[0.08] hover:bg-white/[0.14] text-white rounded-lg text-sm font-bold transition"
+          >
+            Try Again
+          </button>
+          <Link
+            href="/dashboard"
+            className="px-6 py-2.5 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-400 rounded-lg text-sm font-bold transition"
+          >
+            Go to Dashboard
+          </Link>
+        </div>
       </div>
     </div>
   );
