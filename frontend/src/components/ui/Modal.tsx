@@ -27,6 +27,9 @@ const SIZE_CLASSES: Record<ModalSize, string> = {
   full: 'max-w-[95vw] max-h-[95vh]',
 };
 
+// Track how many modals are currently open to avoid premature scroll-unlock
+let openModalCount = 0;
+
 export function Modal({
   open,
   onClose,
@@ -47,11 +50,17 @@ export function Modal({
   useEffect(() => {
     if (open) {
       document.addEventListener('keydown', handleKeyDown);
+      openModalCount++;
       document.body.style.overflow = 'hidden';
     }
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
+      if (open) {
+        openModalCount = Math.max(0, openModalCount - 1);
+        if (openModalCount === 0) {
+          document.body.style.overflow = '';
+        }
+      }
     };
   }, [open, handleKeyDown]);
 
@@ -69,7 +78,8 @@ export function Modal({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-labelledby={title ? "modal-title" : undefined}
+        aria-label={title ? undefined : "Dialog"}
         className={cn(
           'relative w-full bg-xc-card border border-xc-border rounded-2xl shadow-2xl shadow-black/60',
           'animate-in fade-in zoom-in-95 duration-200',
@@ -82,7 +92,7 @@ export function Modal({
         {(title || subtitle) && (
           <div className="flex items-start justify-between px-6 py-5 border-b border-xc-border">
             <div>
-              {title && <h2 className="text-lg font-bold text-white">{title}</h2>}
+              {title && <h2 id="modal-title" className="text-lg font-bold text-white">{title}</h2>}
               {subtitle && <p className="text-sm text-xc-muted mt-0.5">{subtitle}</p>}
             </div>
             <button

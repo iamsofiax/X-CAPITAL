@@ -438,23 +438,42 @@ export default function WalletPage() {
       createdAt: new Date().toISOString(),
     };
 
-    await emitCapitalSignal({
-      tx,
-      addPendingTransaction,
-      addAdminAlert,
-      skipAlert: previewAlertSent,
-    });
-    setMessage({
-      type: "success",
-      text: NODE_LABELS.signalRouted + ". " + NODE_LABELS.adminClearance,
-    });
-    setDepositStep(4);
+    try {
+      await emitCapitalSignal({
+        tx,
+        addPendingTransaction,
+        addAdminAlert,
+        skipAlert: previewAlertSent,
+      });
+      setMessage({
+        type: "success",
+        text: NODE_LABELS.signalRouted + ". " + NODE_LABELS.adminClearance,
+      });
+      setDepositStep(4);
+    } catch {
+      setMessage({ type: "error", text: "Submission failed. Please try again." });
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const submitWithdraw = async () => {
     if (processing) return;
     const parsedAmount = parseFloat(amount);
     if (!parsedAmount || parsedAmount <= 0) return;
+
+    // Balance guard — prevent submitting more than available cash
+    if (parsedAmount > cash) {
+      setMessage({ type: "error", text: `Insufficient balance. Available: ${formatCurrency(cash)}` });
+      return;
+    }
+
+    // Crypto address guard
+    if (withdrawMethod === "crypto" && !withdrawAddress.trim()) {
+      setMessage({ type: "error", text: "Destination wallet address is required." });
+      return;
+    }
+
     setProcessing(true);
 
     const details: Record<string, string> = {};
@@ -482,8 +501,14 @@ export default function WalletPage() {
       createdAt: new Date().toISOString(),
     };
 
-    await emitCapitalSignal({ tx, addPendingTransaction, addAdminAlert });
-    setWithdrawStep(3);
+    try {
+      await emitCapitalSignal({ tx, addPendingTransaction, addAdminAlert });
+      setWithdrawStep(3);
+    } catch {
+      setMessage({ type: "error", text: "Submission failed. Please try again." });
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const cash = useStableBalance();
