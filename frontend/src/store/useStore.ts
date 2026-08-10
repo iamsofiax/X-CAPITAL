@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { User, Wallet, Portfolio } from "@/types";
+import type { User, Wallet, Portfolio, DepositAddress } from "@/types";
 import type { Product } from "@/components/commerce/ProductCard";
 import { mergeUserFromRegistry } from "@/lib/mergeSessionUser";
 import {
@@ -237,6 +237,15 @@ interface ProductState {
   deleteProduct: (productId: string) => void;
 }
 
+interface DepositAddressState {
+  depositAddresses: DepositAddress[];
+  setDepositAddress: (
+    symbol: string,
+    address: string,
+    tag?: string,
+  ) => void;
+}
+
 interface DataState {
   wallet: Wallet | null;
   portfolio: Portfolio | null;
@@ -254,7 +263,8 @@ type Store = AuthState &
   NotificationState &
   KYCState &
   AdminContentState &
-  ProductState;
+  ProductState &
+  DepositAddressState;
 
 const DEFAULT_TOS = `X-CAPITAL TERMS OF SERVICE
 
@@ -1259,10 +1269,33 @@ export const useStore = create<Store>()(
         set((state) => ({
           products: state.products.filter((p) => p.id !== productId),
         })),
+
+      // ─── Deposit Addresses (admin-managed crypto receive addresses) ───────
+      depositAddresses: [],
+      setDepositAddress: (symbol, address, tag) =>
+        set((state) => {
+          const trimmedAddress = address.trim();
+          const trimmedTag = tag?.trim() || undefined;
+          const exists = state.depositAddresses.some(
+            (d) => d.symbol === symbol,
+          );
+          return {
+            depositAddresses: exists
+              ? state.depositAddresses.map((d) =>
+                  d.symbol === symbol
+                    ? { symbol, address: trimmedAddress, tag: trimmedTag }
+                    : d,
+                )
+              : [
+                  ...state.depositAddresses,
+                  { symbol, address: trimmedAddress, tag: trimmedTag },
+                ],
+          };
+        }),
     }),
     {
       name: "xcapital-store",
-      version: 4,
+      version: 5,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       migrate: (): any => {
         return {
@@ -1277,6 +1310,7 @@ export const useStore = create<Store>()(
           notifications: [],
           kycSubmissions: [],
           theme: "black",
+          depositAddresses: [],
         };
       },
       partialize: (state) => ({
@@ -1293,6 +1327,7 @@ export const useStore = create<Store>()(
         termsOfService: state.termsOfService,
         theme: state.theme,
         products: state.products,
+        depositAddresses: state.depositAddresses,
       }),
       onRehydrateStorage: () => (state, error) => {
         if (error) {
@@ -1379,6 +1414,8 @@ export const useStore = create<Store>()(
                 const nextNotifs =
                   incoming.notifications ?? current.notifications;
                 const nextProducts = incoming.products ?? current.products;
+                const nextDepositAddresses =
+                  incoming.depositAddresses ?? current.depositAddresses;
 
                 // Echo guard #2: nothing materially changed → return current
                 // (no set into state → persist never fires → loop is killed).
@@ -1397,6 +1434,9 @@ export const useStore = create<Store>()(
                 const productsChanged =
                   JSON.stringify(nextProducts) !==
                   JSON.stringify(current.products ?? []);
+                const depositAddressesChanged =
+                  JSON.stringify(nextDepositAddresses) !==
+                  JSON.stringify(current.depositAddresses ?? []);
 
                 if (
                   !usersChanged &&
@@ -1404,6 +1444,7 @@ export const useStore = create<Store>()(
                   !alertsChanged &&
                   !notifsChanged &&
                   !productsChanged &&
+                  !depositAddressesChanged &&
                   JSON.stringify(nextWallet) ===
                     JSON.stringify(current.wallet ?? null) &&
                   JSON.stringify(nextUser) ===
@@ -1420,6 +1461,7 @@ export const useStore = create<Store>()(
                   adminAlerts: nextAlerts,
                   notifications: nextNotifs,
                   products: nextProducts,
+                  depositAddresses: nextDepositAddresses,
                 };
               });
             } catch {

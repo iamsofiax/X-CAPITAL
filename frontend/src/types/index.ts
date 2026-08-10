@@ -99,6 +99,13 @@ export interface Wallet {
   walletAddress?: string;
 }
 
+/** Admin-editable crypto deposit address shown on the wallet page. */
+export interface DepositAddress {
+  symbol: string;
+  address: string;
+  tag?: string;
+}
+
 export interface Asset {
   id: string;
   symbol: string;

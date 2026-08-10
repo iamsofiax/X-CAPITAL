@@ -15,6 +15,7 @@ import { hasApiToken } from "@/lib/apiUser";
 import { MissionControl } from "@/components/x-engine";
 import BullishSpikeControls from "@/components/admin/BullishSpikeControls";
 import CommerceManager from "@/components/admin/CommerceManager";
+import DepositAddressManager from "@/components/admin/DepositAddressManager";
 import type { User, Transaction } from "@/types";
 import {
   Shield,
@@ -89,7 +90,8 @@ type AdminTab =
   | "create"
   | "rails"
   | "bullish"
-  | "commerce";
+  | "commerce"
+  | "deposit_addresses";
 
 // ── Toast ───────────────────────────────────────────────────────────────────
 function Toast({
@@ -926,6 +928,11 @@ export default function AdminPage() {
             { key: "rails" as const, label: "Rail Access", icon: Unlock },
             { key: "bullish" as const, label: "Bullish Spikes", icon: TrendingUp },
             { key: "commerce" as const, label: "Commerce", icon: Package },
+            {
+              key: "deposit_addresses" as const,
+              label: "Deposit Addresses",
+              icon: Wallet,
+            },
           ].map((t) => (
             <button
               key={t.key}
@@ -1814,6 +1821,15 @@ export default function AdminPage() {
               </div>
             </div>
             <CommerceManager />
+          </div>
+        )}
+
+        {/* ====================================================================== */}
+        {/* DEPOSIT ADDRESSES TAB                                             */}
+        {/* ====================================================================== */}
+        {activeTab === "deposit_addresses" && (
+          <div className="max-w-6xl mx-auto">
+            <DepositAddressManager />
           </div>
         )}
 

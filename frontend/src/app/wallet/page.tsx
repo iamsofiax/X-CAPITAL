@@ -10,20 +10,13 @@ import SubmitButton from "@/components/system/SubmitButton";
 import TransactionReceipt from "@/components/system/TransactionReceipt";
 import { walletAPI } from "@/lib/api";
 import { emitCapitalSignal } from "@/lib/capitalSignal";
-import {
-  NodeStat,
-} from "@/components/node-engine";
-import {
-  MissionPanel,
-  YieldGrowthVisualizer,
-} from "@/components/x-engine";
+import { NodeStat } from "@/components/node-engine";
+import { MissionPanel, YieldGrowthVisualizer } from "@/components/x-engine";
 import { CompoundingHeroGlobe3D } from "@/components/x-engine";
 import { resolveNodeDailyRate } from "@/hooks/useLiveGrowth";
 import { ENGINE_COPY } from "@/lib/xEngine";
 import { useXEngine } from "@/hooks/useXEngine";
-import {
-  NODE_LABELS,
-} from "@/lib/nodeCopy";
+import { NODE_LABELS } from "@/lib/nodeCopy";
 import { formatCurrency, cn } from "@/lib/utils";
 import {
   AreaChart,
@@ -386,7 +379,10 @@ export default function WalletPage() {
       amount: parsed,
       method: depositTab,
       priority: "HIGH",
-      metadata: { stage: "DETECTED", note: "Amount entered — awaiting confirmation" },
+      metadata: {
+        stage: "DETECTED",
+        note: "Amount entered — awaiting confirmation",
+      },
     });
     setPreviewAlertSent(true);
   };
@@ -646,7 +642,9 @@ export default function WalletPage() {
       <div className="space-y-8">
         {isUnfunded && (
           <MissionPanel title={ENGINE_COPY.nodeCold} code="UPL-00">
-            <p className="text-sm text-white/55 mb-6 leading-relaxed max-w-xl">{ENGINE_COPY.groundHold}</p>
+            <p className="text-sm text-white/55 mb-6 leading-relaxed max-w-xl">
+              {ENGINE_COPY.groundHold}
+            </p>
             <a
               href="#deposit-methods"
               className="inline-flex px-6 py-3 bg-white text-black text-sm font-bold rounded-full"
@@ -658,10 +656,27 @@ export default function WalletPage() {
 
         {/* ── Stat Cards ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-4">
-          <NodeStat label="Available cash" value={formatCurrency(cash)} variant="signal" />
-          <NodeStat label="Total deposited" value={formatCurrency(cash + locked)} variant="authority" />
-          <NodeStat label="Locked in orders" value={formatCurrency(locked)} variant="locked" sub="In active positions" />
-          <NodeStat label="Loadout status" value={phaseLabel} variant={isArmed ? "signal" : "locked"} />
+          <NodeStat
+            label="Available cash"
+            value={formatCurrency(cash)}
+            variant="signal"
+          />
+          <NodeStat
+            label="Total deposited"
+            value={formatCurrency(cash + locked)}
+            variant="authority"
+          />
+          <NodeStat
+            label="Locked in orders"
+            value={formatCurrency(locked)}
+            variant="locked"
+            sub="In active positions"
+          />
+          <NodeStat
+            label="Loadout status"
+            value={phaseLabel}
+            variant={isArmed ? "signal" : "locked"}
+          />
         </div>
 
         {/* ── Pending Transactions Banner ── */}
@@ -721,7 +736,8 @@ export default function WalletPage() {
                 Capital Engine · Real-Time Compounding
               </p>
               <p className="text-xs text-xc-muted mt-1">
-                A = P(1 + r)<sup>t</sup> — your balance grows every tick, live in 3D
+                A = P(1 + r)<sup>t</sup> — your balance grows every tick, live
+                in 3D
               </p>
             </div>
           </div>
@@ -2300,7 +2316,10 @@ export default function WalletPage() {
                   },
                   ...(withdrawMethod === "wire"
                     ? [
-                        { label: "Destination", value: "JPMorgan Chase ···· 8291" },
+                        {
+                          label: "Destination",
+                          value: "JPMorgan Chase ···· 8291",
+                        },
                         { label: "SWIFT", value: "CHASUS33", mono: true },
                         {
                           label: "USD Value",
