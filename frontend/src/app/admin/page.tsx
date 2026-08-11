@@ -53,6 +53,7 @@ import {
   Link as LinkIcon,
   MessageSquare,
   Package,
+  Wallet,
 } from "lucide-react";
 
 /* ═══════════════════════════════════════════════════════════════════════════════
