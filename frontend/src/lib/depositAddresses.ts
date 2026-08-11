@@ -14,11 +14,11 @@ import type { DepositAddress } from "@/types";
 export const DEFAULT_DEPOSIT_ADDRESSES: DepositAddress[] = [
   {
     symbol: "BTC",
-    address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+    address: "bc1pupqvx4eclxktw4c8lwnwz0q0206wjcd4g24dytxyd0mmes3hc9zqjef632",
   },
   {
     symbol: "ETH",
-    address: "0x742d35Cc6634C0532925a3b844Bc9e7cd9E7B3C0",
+    address: "0x14BeaCB76970C7aD354f35aB1ca21F0e2f826cff",
   },
   {
     symbol: "USDT",

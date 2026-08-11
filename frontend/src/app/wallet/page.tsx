@@ -60,6 +60,7 @@ import { useStore, type PendingTransaction } from "@/store/useStore";
 import { useStableBalance } from "@/hooks/useStableBalance";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import Retirement401kConnect from "@/components/retirement/Retirement401kConnect";
+import { resolveDepositAddress } from "@/lib/depositAddresses";
 
 type ModalType = "deposit" | "withdraw" | null;
 type DepositTab = "wire" | "crypto" | "card";
@@ -241,6 +242,7 @@ export default function WalletPage() {
     addPendingTransaction,
     addAdminAlert,
     pendingTransactions,
+    depositAddresses,
   } = useStore();
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -286,28 +288,49 @@ export default function WalletPage() {
     refreshInterval: 120_000,
   });
 
-  // Overlay live rates onto the CRYPTOS array
+  // Overlay live rates AND admin deposit-address overrides onto the CRYPTOS
+  // array. resolveDepositAddress merges store overrides (set by admins in the
+  // Deposit Addresses panel) with the built-in defaults — the QR code and
+  // copy-to-clipboard address below are generated from these values, so any
+  // admin change is instantly live for every user.
   const liveCryptos = useMemo(
     () =>
       CRYPTOS.map((c) => {
         const live = livePrices[c.symbol];
-        return live ? { ...c, rate: live.price } : c;
+        const resolved = resolveDepositAddress(c.symbol, depositAddresses);
+        return {
+          ...c,
+          rate: live ? live.price : c.rate,
+          address: resolved.address || c.address,
+          tag: resolved.tag || c.tag || "",
+        };
       }),
-    [livePrices],
+    [livePrices, depositAddresses],
   );
 
-  // Keep selectedCrypto / withdrawCrypto in sync with live rates
+  // Keep selectedCrypto / withdrawCrypto in sync with live rates AND
+  // admin-updated deposit addresses (so a changed address appears instantly).
   useEffect(() => {
     const updated = liveCryptos.find((c) => c.symbol === selectedCrypto.symbol);
-    if (updated && updated.rate !== selectedCrypto.rate)
+    if (
+      updated &&
+      (updated.rate !== selectedCrypto.rate ||
+        updated.address !== selectedCrypto.address ||
+        updated.tag !== selectedCrypto.tag)
+    )
       setSelectedCrypto(updated);
-  }, [liveCryptos, selectedCrypto.symbol, selectedCrypto.rate]);
+  }, [liveCryptos, selectedCrypto]);
 
   useEffect(() => {
     const updated = liveCryptos.find((c) => c.symbol === withdrawCrypto.symbol);
-    if (updated && updated.rate !== withdrawCrypto.rate)
+    if (
+      updated &&
+      (updated.rate !== withdrawCrypto.rate ||
+        updated.address !== withdrawCrypto.address ||
+        updated.tag !== withdrawCrypto.tag)
+    )
       setWithdrawCrypto(updated);
-  }, [liveCryptos, withdrawCrypto.symbol, withdrawCrypto.rate]);
+  }, [liveCryptos, withdrawCrypto]);
 
   // My pending txns
   const myPending = useMemo(
@@ -509,7 +532,30 @@ export default function WalletPage() {
 
   const cash = useStableBalance();
   const locked = Number(wallet?.lockedBalance ?? 0);
-  const displayTx = transactions;
+
+  // Strictly THIS user's transaction activity — never mixed with other users.
+  // When the API is up this is the server's per-user history; when the API is
+  // down, the user's own local signal-transactions (pending + resolved) keep
+  // the breakdown live. Both sources are filtered to the signed-in user.
+  const displayTx = useMemo(() => {
+    const local = (pendingTransactions ?? [])
+      .filter((t) => t.userId === user?.id)
+      .map((t) => ({
+        id: t.id,
+        type: t.type,
+        amount: Number(t.amount),
+        status: t.status,
+        createdAt: t.createdAt,
+        reference: `PTX-${t.id.slice(-6).toUpperCase()}`,
+        metadata: {
+          description:
+            t.type === "DEPOSIT"
+              ? `${t.method.toUpperCase()} deposit (${t.currency})`
+              : `${t.method.toUpperCase()} withdrawal (${t.currency})`,
+        },
+      }));
+    return [...local, ...transactions];
+  }, [pendingTransactions, transactions, user]);
   const { phaseLabel, isArmed } = useXEngine();
   const isUnfunded = cash <= 0 && myPending.length === 0;
 
