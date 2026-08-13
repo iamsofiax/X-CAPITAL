@@ -71,6 +71,6 @@ services:
       - key: NODE_VERSION
         value: "20"
       - key: NEXT_PUBLIC_API_URL
-        value: https://api.xcapital.investments/api/v1
+        value: https://xcapital-api.onrender.com/api/v1
       - key: NEXT_PUBLIC_WS_URL
-        value: wss://api.xcapital.investments
+        value: wss://xcapital-api.onrender.com

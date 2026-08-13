@@ -55,6 +55,7 @@ import {
 } from "@/lib/utils";
 import { useStore } from "@/store/useStore";
 import { useProfitEngine } from "@/store/useProfitEngine";
+import { getNodeProgress } from "@/lib/nodeLadder";
 import type {
   Portfolio,
   WalletTransaction,
@@ -270,6 +271,9 @@ export default function DashboardPage() {
   const portfolioValue = portfolio?.totalValue ?? stableBalance;
   const liquidCash = stableBalance;
 
+  // Node Advancement Ladder — current node, next node, funding progress.
+  const node = getNodeProgress(stableBalance, user);
+
   // Live compound projections
   const proj1d = projectCompound(stableBalance, dailyRate, 1);
   const proj7d = projectCompound(stableBalance, dailyRate, 7);
@@ -354,6 +358,180 @@ export default function DashboardPage() {
             </Link>
           </MissionPanel>
         )}
+
+        {/* ─── Node Advancement Ladder — the climb users see daily ─── */}
+        <section className="border border-white/[0.08] rounded-2xl bg-[#0a0a0f] overflow-hidden">
+          <div className="p-5 sm:p-6">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-950/40 border border-emerald-800/30 flex items-center justify-center">
+                  <TrendingUp className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-mono uppercase tracking-[0.32em] text-white/40">
+                    Node Advancement Ladder
+                  </p>
+                  <p className="text-xs text-xc-muted mt-0.5">
+                    Fund your way up — every node unlocks a higher daily rate
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={cn("text-sm font-black", node.current.color)}>
+                  {node.current.code}
+                </span>
+                <span className="text-[10px] font-mono px-2 py-1 rounded-full bg-emerald-950/40 border border-emerald-800/30 text-emerald-400">
+                  {node.effectiveDailyRatePct.toFixed(1)}%/day active
+                </span>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* Current → Next */}
+              <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
+                <div className="flex items-baseline justify-between">
+                  <div>
+                    <div className="text-[10px] font-mono uppercase tracking-wider text-white/40">
+                      Current node
+                    </div>
+                    <div className={cn("text-lg font-black", node.current.color)}>
+                      {node.current.label}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] font-mono uppercase tracking-wider text-white/40">
+                      Daily rate
+                    </div>
+                    <div className="text-lg font-black font-mono text-emerald-400">
+                      {node.current.dailyRatePct.toFixed(1)}%
+                    </div>
+                  </div>
+                </div>
+
+                {node.next ? (
+                  <>
+                    <div className="mt-3 h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-emerald-500 via-cyan-400 to-emerald-400 transition-all duration-500"
+                        style={{ width: `${Math.min(100, node.progress * 100)}%` }}
+                      />
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-xs">
+                      <span className="text-xc-muted">
+                        <span className="text-emerald-400 font-bold font-mono">
+                          {formatCurrency(Math.max(0, node.remaining))}
+                        </span>{" "}
+                        more to fund
+                      </span>
+                      <span className="font-mono text-white/50">
+                        {(node.progress * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className="mt-3 border-t border-white/[0.06] pt-3 flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] font-mono uppercase tracking-wider text-cyan-400/70">
+                          Next node
+                        </div>
+                        <div className={cn("text-sm font-black", node.next.color)}>
+                          {node.next.label}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[10px] font-mono uppercase tracking-wider text-white/40">
+                          Unlocks
+                        </div>
+                        <div className="text-base font-black font-mono text-cyan-400">
+                          {node.next.dailyRatePct.toFixed(1)}%/day
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="mt-3 rounded-xl border border-emerald-700/40 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-400 font-bold">
+                    MAX TIER — {node.current.label} reached
+                  </div>
+                )}
+              </div>
+
+              {/* Ladder strip */}
+              <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-white/40 mb-3">
+                  The climb · 8 nodes
+                </div>
+                <div className="space-y-1.5">
+                  {node.next ? (
+                    <>
+                      {[
+                        ["1", "3.0%", "Core"],
+                        ["2", "3.5%", "Growth"],
+                        ["3", "5.0%", "Momentum"],
+                        ["4", "6.5%", "Accelerator"],
+                        ["5", "8.0%", "Compound Engine"],
+                        ["6", "10.0%", "Velocity"],
+                        ["7", "12.5%", "Institutional"],
+                        ["8", "15.0%", "Sovereign"],
+                      ].map(([num, rate, name]) => {
+                        const tierNum = Number(num);
+                        const isCurrent = tierNum === node.current.tier;
+                        const unlocked = tierNum <= node.current.tier;
+                        return (
+                          <div
+                            key={num}
+                            className={cn(
+                              "flex items-center justify-between rounded-lg border px-3 py-1.5",
+                              isCurrent
+                                ? "border-emerald-600/40 bg-emerald-950/40"
+                                : unlocked
+                                  ? "border-white/[0.08] bg-white/[0.02]"
+                                  : "border-white/[0.04] bg-black/20 opacity-50",
+                            )}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={cn(
+                                  "w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black",
+                                  isCurrent
+                                    ? "bg-emerald-500 text-black"
+                                    : unlocked
+                                      ? "bg-white/10 text-white/60"
+                                      : "bg-white/5 text-white/30",
+                                )}
+                              >
+                                {num}
+                              </span>
+                              <span
+                                className={cn(
+                                  "text-xs font-bold",
+                                  isCurrent ? "text-white" : "text-white/50",
+                                )}
+                              >
+                                Node {num} · {name}
+                              </span>
+                            </div>
+                            <span
+                              className={cn(
+                                "text-[11px] font-mono font-black",
+                                isCurrent
+                                  ? "text-emerald-400"
+                                  : "text-white/30",
+                              )}
+                            >
+                              {rate}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </>
+                  ) : (
+                    <p className="text-sm text-emerald-400 font-bold">
+                      Sovereign tier — all 8 nodes unlocked.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
         <PhaseTrack />
         <RailAccessStrip />

@@ -14,6 +14,7 @@ import {
   Shield,
   Sparkles,
 } from "lucide-react";
+import { Lock, Flame } from "lucide-react";
 import type { Asset } from "@/types";
 import { useStore } from "@/store/useStore";
 
@@ -24,7 +25,8 @@ interface OrderFormProps {
 }
 
 export default function OrderForm({ asset }: OrderFormProps) {
-  const { user, adjustSessionBalance } = useStore();
+  const { user, adjustSessionBalance, addNotification, setWallet, wallet } =
+    useStore();
   const availableCash = useStableBalance();
   const [side, setSide] = useState<OrderSide>("buy");
   const [amount, setAmount] = useState("");
@@ -36,6 +38,9 @@ export default function OrderForm({ asset }: OrderFormProps) {
     text: string;
   } | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
+  // "Convert to locked yield" — sell proceeds route into a 30-day locked
+  // yield node instead of available cash, keeping capital in the engine.
+  const [lockProceeds, setLockProceeds] = useState(false);
 
   const price = Number(asset?.price ?? 0);
   const parsedAmount = parseFloat(amount) || 0;
@@ -82,17 +87,73 @@ export default function OrderForm({ asset }: OrderFormProps) {
         }
         adjustSessionBalance(-estimatedCost);
         setShowCelebration(true);
+        const fillQty = estimatedQty.toFixed(4);
         setMessage({
           type: "success",
-          text: `Buy filled — ${estimatedQty.toFixed(4)} ${asset.symbol} for ${formatCurrency(estimatedCost)} debited from your cash balance.`,
+          text: `Buy filled — ${fillQty} ${asset.symbol} for ${formatCurrency(estimatedCost)} debited from your cash balance.`,
         });
+        // Real-time execution notification — bell + optional browser push
+        if (user?.id) {
+          addNotification({
+            id: `notif-trade-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            userId: user.id,
+            title: "Order executed",
+            message: `Bought ${fillQty} ${asset.symbol} at ${formatCurrency(price)} · ${formatCurrency(estimatedCost)} filled`,
+            type: "congratulations",
+            read: false,
+            createdAt: new Date().toISOString(),
+          });
+          if (typeof window !== "undefined" && "Notification" in window) {
+            if (Notification.permission === "granted") {
+              new Notification("X-CAPITAL — Order executed", {
+                body: `Bought ${fillQty} ${asset.symbol} for ${formatCurrency(estimatedCost)}`,
+              });
+            } else if (Notification.permission === "default") {
+              void Notification.requestPermission();
+            }
+          }
+        }
       } else {
         await tradingAPI.sell(asset.id, estimatedQty);
         setShowCelebration(true);
+        const fillQty = estimatedQty.toFixed(4);
+        if (lockProceeds && estimatedCost > 0) {
+          // Route proceeds into a locked 30-day yield node — capital stays
+          // compounding, just in a matured position.
+          adjustSessionBalance(-estimatedCost);
+          setWallet({
+            id: wallet?.id ?? "wallet",
+            fiatBalance: Number(wallet?.fiatBalance ?? 0),
+            cryptoBalance: Number(wallet?.cryptoBalance ?? 0),
+            lockedBalance: Number(wallet?.lockedBalance ?? 0) + estimatedCost,
+          });
+          addNotification({
+            id: `notif-lock-${Date.now()}`,
+            userId: user.id,
+            title: "Position locked into yield",
+            message: `${fillQty} ${asset.symbol} sold — ${formatCurrency(estimatedCost)} moved into a 30-day locked yield node at the daily rate.`,
+            type: "reward",
+            read: false,
+            createdAt: new Date().toISOString(),
+          });
+        }
         setMessage({
           type: "success",
-          text: `Sell order placed for ${estimatedQty.toFixed(4)} ${asset.symbol}`,
+          text: lockProceeds
+            ? `Sell filled — ${formatCurrency(estimatedCost)} converted to a 30-day locked yield node.`
+            : `Sell order placed for ${fillQty} ${asset.symbol}`,
         });
+        if (user?.id) {
+          addNotification({
+            id: `notif-trade-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            userId: user.id,
+            title: "Order executed",
+            message: `Sold ${fillQty} ${asset.symbol} at ${formatCurrency(price)} · ${formatCurrency(estimatedCost)} proceeds pending`,
+            type: "congratulations",
+            read: false,
+            createdAt: new Date().toISOString(),
+          });
+        }
       }
       setAmount("");
       setQty("");
@@ -243,6 +304,42 @@ export default function OrderForm({ asset }: OrderFormProps) {
         <div className="mb-3 flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
           Insufficient cash for this order
+        </div>
+      )}
+
+      {/* Sell-side retention: missed-opportunity note + lock toggle */}
+      {side === "sell" && estimatedCost > 0 && (
+        <div className="mb-3 space-y-2">
+          <div className="flex items-start gap-2 text-xs text-white/50 bg-white/[0.02] border border-white/[0.08] rounded-lg px-3 py-2">
+            <Flame className="w-4 h-4 shrink-0 text-emerald-400" />
+            <span>
+              Selling {formatCurrency(estimatedCost)} forgoes the node yield
+              currently compounding on that capital.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setLockProceeds(!lockProceeds)}
+            className={cn(
+              "w-full flex items-center gap-2 text-xs font-bold rounded-lg border px-3 py-2.5 transition-colors",
+              lockProceeds
+                ? "border-emerald-500/60 bg-emerald-950/40 text-emerald-300"
+                : "border-white/10 bg-white/[0.02] text-white/50 hover:text-white",
+            )}
+          >
+            <Lock className="w-3.5 h-3.5" />
+            {lockProceeds ? (
+              <span>
+                Locked: proceeds route into a 30-day yield node at the daily
+                rate
+              </span>
+            ) : (
+              <span>Convert proceeds to a locked 30-day yield node</span>
+            )}
+            <span className="ml-auto text-[10px] font-mono uppercase tracking-wider opacity-60">
+              {lockProceeds ? "ON" : "OFF"}
+            </span>
+          </button>
         </div>
       )}
 

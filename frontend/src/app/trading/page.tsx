@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
   MissionPanel,
@@ -12,9 +12,13 @@ import AssetList from "@/components/trading/AssetList";
 import OrderForm from "@/components/trading/OrderForm";
 import { Badge } from "@/components/ui/Badge";
 import { BarChart, Bar, ResponsiveContainer, Cell } from "recharts";
-import { Satellite, BarChart3, Activity, Flame } from "lucide-react";
+import { BarChart3, Activity, Flame } from "lucide-react";
+import { Lock, Zap } from "lucide-react";
+import Link from "next/link";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
-import { formatPercent, cn } from "@/lib/utils";
+import { formatPercent, formatCurrency, cn } from "@/lib/utils";
+import { useStore } from "@/store/useStore";
+import { useStreakStore, formatCountdown } from "@/store/useStreakStore";
 import {
   FOUNDER_HOT_SIGNALS,
   FOUNDER_SIGNAL_ATTRIBUTION,
@@ -120,6 +124,26 @@ export default function TradingPage() {
   const [selectedAsset, setSelectedAsset] = useState<Asset>(DEMO_ASSETS[7]); // XLINK
   const { prices: livePrices } = useMarketPrices({ refreshInterval: 120_000 });
 
+  // Retention hooks — locked positions + compound-velocity fuel gauge.
+  const { user, wallet } = useStore();
+  const lockedBalance = Number(wallet?.lockedBalance ?? 0);
+  const [now, setNow] = useState(() => Date.now());
+
+  // Subscribe to the stable records slice; derive inline so the ticking
+  // `now` never triggers selector-identity re-render loops.
+  useStreakStore((s) => s.records);
+  const nextTier = user
+    ? useStreakStore.getState().getNextTierTarget(user.id, now)
+    : null;
+  const streakLevel = user
+    ? useStreakStore.getState().getStreakLevel(user.id)
+    : 1;
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
   const assetWithLivePrice = useMemo(() => {
     const live = livePrices[selectedAsset?.symbol ?? ""];
     return live
@@ -175,6 +199,88 @@ export default function TradingPage() {
             </div>
           </div>
         </MissionPanel>
+
+        {/* ── Retention strip: open positions + compound fuel gauge ── */}
+        {user && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Open positions — capital in play, celebrated not hidden */}
+            <div className="bg-xc-card border border-xc-border rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Lock className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-black uppercase tracking-wider text-white/60">
+                  Locked in positions
+                </span>
+                {lockedBalance > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                    COMPOUNDING
+                  </span>
+                )}
+              </div>
+              <div className="text-2xl font-black text-white font-mono tabular-nums">
+                {formatCurrency(lockedBalance)}
+              </div>
+              <p className="text-[11px] text-xc-muted mt-1">
+                {lockedBalance > 0
+                  ? "Locked yield nodes and open orders keep this capital compounding at the daily rate."
+                  : "Sell with the yield-lock toggle on to route proceeds into a 30-day yield node."}
+              </p>
+            </div>
+
+            {/* Next-tier fuel gauge — countdown to keep the multiplier */}
+            <div className="bg-xc-card border border-xc-border rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-black uppercase tracking-wider text-white/60">
+                    Compound fuel gauge
+                  </span>
+                </div>
+                <Badge variant="default">L{streakLevel}</Badge>
+              </div>
+              {nextTier ? (
+                <>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-sm font-bold text-emerald-400">
+                      {nextTier.multiplier > 1
+                        ? `${nextTier.multiplier}× Dynamic Multiplier`
+                        : "Weekly vault bonus"}
+                    </span>
+                    <span className="font-mono text-sm font-black text-white tabular-nums">
+                      {formatCountdown(nextTier.remainingMs)}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-xc-muted mt-1.5">
+                    {nextTier.required}
+                  </p>
+                  <div className="mt-2.5 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-amber-500 to-emerald-400 transition-all duration-500"
+                      style={{ width: `${Math.min(100, nextTier.progress * 100)}%` }}
+                    />
+                  </div>
+                </>
+              ) : (
+                <p className="text-[11px] text-xc-muted">
+                  No active streak.{" "}
+                  <Link href="/wallet" className="text-emerald-400 hover:text-emerald-300 font-bold">
+                    Top up in Uplink
+                  </Link>{" "}
+                  to unlock the daily accelerator.
+                </p>
+              )}
+              {nextTier && nextTier.mode === "maintain" && (
+                <div className="mt-3">
+                  <Link
+                    href="/wallet"
+                    className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-400 hover:text-emerald-300 border border-emerald-700/40 bg-emerald-950/30 rounded-lg px-3 py-1.5 transition-colors"
+                  >
+                    <Zap className="w-3 h-3" /> Top up to maintain
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Main Trading Layout */}
         <div className="grid lg:grid-cols-3 gap-4">

@@ -14,6 +14,7 @@ import {
   projectCompoundVariance as varianceProjection,
   projectReturns as rateAwareProjectReturns,
 } from "@/lib/compoundMath";
+import { getNodeProgress } from "@/lib/nodeLadder";
 
 /**
  * REAL COMPOUND MATH — A = P(1 + r)^t
@@ -70,7 +71,14 @@ export const COMPOUND_TICK_MS = 15_000;
  */
 export function resolveNodeDailyRate(
   nodeId: string,
-  user: { profitRate?: number; profitMultiplier?: number } | null,
+  user: {
+    profitRate?: number;
+    profitMultiplier?: number;
+    balance?: number;
+    nodeTier?: number;
+    nodeGoal?: number;
+    nextNodeRate?: number;
+  } | null,
 ): number {
   const state = useProfitEngine.getState();
   const override = state.rateOverrides[nodeId];
@@ -79,12 +87,18 @@ export function resolveNodeDailyRate(
   const node = state.nodeGrowths[nodeId];
   if (node && node.dailyRate > 0) return node.dailyRate;
 
+  // GROUND STATION RULE: profitRate × profitMultiplier is the admin's exact
+  // per-user daily target — it always wins over defaults.
   if (user && user.profitRate != null && user.profitRate > 0) {
     const multiplier = Math.max(0.1, user.profitMultiplier ?? 1);
-    return (user.profitRate / 100) * multiplier;
+    return Math.min(0.15, (user.profitRate / 100) * multiplier);
   }
 
-  return DEFAULT_DAILY_RATE;
+  // NODE LADDER: the node the user currently holds defines their rate.
+  const balance = Math.max(0, Number(user?.balance ?? 0));
+  const { current, next, progress } = getNodeProgress(balance, user);
+  if (next && progress >= 1) return next.dailyRatePct / 100;
+  return current.dailyRatePct / 100;
 }
 
 /**

@@ -15,6 +15,15 @@
   --text: #f5f5f5;
   --muted: #525252;
 
+  /* Institutional theme tokens — Ground Station fidelity */
+  --bg-light-primary: #f8fafc;
+  --bg-light-surface: #ffffff;
+  --bg-light-subtle: #f1f5f9;
+  --text-light-primary: #0f172a;
+  --text-light-secondary: #475569;
+  --accent-emerald: #10b981;
+  --accent-cyan: #0ea5e9;
+
   /* Node Engine — thick orbital design tokens */
   --node-bg: #050505;
   --node-panel: #0c0c0c;
@@ -1711,14 +1720,19 @@ body[data-admin-route="true"] iframe[title*="chat" i] {
 /* ═══════════════════════════════════════════════════════════════════════ */
 
 [data-theme="light"] {
-  --bg: #f5f5f5;
-  --card: #ffffff;
-  --border: rgba(0, 0, 0, 0.08);
-  --text: #111111;
-  --muted: #6b7280;
-  --green: #059669;
+  /* Institutional slate tokens — proper variable inheritance for every
+     surface. These replace the hardcoded #000000/#111111 containers that
+     previously leaked black boxes into light mode. */
+  --bg: var(--bg-light-primary, #f8fafc);
+  --card: var(--bg-light-surface, #ffffff);
+  --border: rgba(15, 23, 42, 0.08);
+  --text: var(--text-light-primary, #0f172a);
+  --muted: var(--text-light-secondary, #475569);
+  --green: var(--accent-emerald, #10b981);
   --red: #dc2626;
   --gold: #d97706;
+  /* Telemetry cyan for live status accents */
+  --cyan: var(--accent-cyan, #0ea5e9);
 
   --node-bg: #f0f0f0;
   --node-panel: #ffffff;
@@ -1755,8 +1769,8 @@ html[data-theme="light"] body {
 }
 
 [data-theme="light"] body {
-  background: #f5f5f5 !important;
-  color: #111111 !important;
+  background: var(--bg-light-primary, #f8fafc) !important;
+  color: var(--text-light-primary, #0f172a) !important;
 }
 
 /* Page & layout backgrounds */
@@ -1765,11 +1779,11 @@ html[data-theme="light"] body {
 [data-theme="light"] .bg-\[\#000000\],
 [data-theme="light"] .bg-\[\#020204\]\/90,
 [data-theme="light"] .bg-\[#020204\]\/90 {
-  background-color: #f5f5f5 !important;
+  background-color: var(--bg-light-primary, #f8fafc) !important;
 }
 
 [data-theme="light"] .min-h-screen.bg-black {
-  background-color: #f0f0f0 !important;
+  background-color: var(--bg-light-subtle, #f1f5f9) !important;
 }
 
 /* Cards */
@@ -1784,7 +1798,7 @@ html[data-theme="light"] body {
 
 /* Text */
 [data-theme="light"] .text-white {
-  color: #111111 !important;
+  color: var(--text-light-primary, #0f172a) !important;
 }
 
 [data-theme="light"] .text-white\/70,
@@ -1799,11 +1813,11 @@ html[data-theme="light"] body {
 }
 
 [data-theme="light"] .text-xc-muted {
-  color: #6b7280 !important;
+  color: var(--text-light-secondary, #475569) !important;
 }
 
 [data-theme="light"] .text-xc-text {
-  color: #111111 !important;
+  color: var(--text-light-primary, #0f172a) !important;
 }
 
 /* Borders */
@@ -1823,8 +1837,8 @@ html[data-theme="light"] body {
 
 /* Header */
 [data-theme="light"] header {
-  background: rgba(245, 245, 245, 0.95) !important;
-  border-bottom-color: rgba(0, 0, 0, 0.07) !important;
+  background: var(--bg-light-primary, #f8fafc) !important;
+  border-bottom-color: rgba(15, 23, 42, 0.07) !important;
 }
 
 /* Sidebar */

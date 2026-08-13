@@ -4,29 +4,39 @@ import { useState } from "react";
 import { useStore } from "@/store/useStore";
 import { useProfitEngine, type BullishSpike } from "@/store/useProfitEngine";
 import { cn, formatCurrency } from "@/lib/utils";
-import {
-  TrendingUp,
-  Zap,
-  Flame,
-  Activity,
-} from "lucide-react";
+import { NODE_LADDER, getNodeProgress } from "@/lib/nodeLadder";
+import { TrendingUp, Zap, Flame, Activity } from "lucide-react";
 
+/**
+ * Ground Station rate ladder presets. Rates track the Node Advancement
+ * Ladder (entry 3%/day → Sovereign 15%/day) so every preset lands inside
+ * the engine ceiling.
+ */
 const DAILY_RATE_PRESETS = [
-  { label: "Base 1.5%", value: 1.5 },
-  { label: "Boosted 3.0%", value: 3.0 },
-  { label: "Aggressive 5.0%", value: 5.0 },
-  { label: "Max 10.0%", value: 10.0 },
+  { label: "Node I 3.0%", value: 3.0 },
+  { label: "Node II 3.5%", value: 3.5 },
+  { label: "Node III 5.0%", value: 5.0 },
+  { label: "Node V 8.0%", value: 8.0 },
+  { label: "Node VIII 15%", value: 15.0 },
 ];
 
 export default function BullishSpikeControls() {
-  const { registeredUsers, addAuditEntry, user: currentUser } = useStore();
-  const { bullishSpikes, addBullishSpike, resolveBullishSpike, nodeGrowths } = useProfitEngine();
+  const {
+    registeredUsers,
+    addAuditEntry,
+    user: currentUser,
+    updateUserById,
+  } = useStore();
+  const { bullishSpikes, addBullishSpike, resolveBullishSpike, nodeGrowths } =
+    useProfitEngine();
   const [selectedUserId, setSelectedUserId] = useState("");
   const [spikePct, setSpikePct] = useState(15);
   const [durationHrs, setDurationHrs] = useState(24);
   const [direction, setDirection] = useState<"up" | "down">("up");
   const [label, setLabel] = useState("Bullish spike");
-  const [customDailyRate, setCustomDailyRate] = useState(1.5);
+  const [customDailyRate, setCustomDailyRate] = useState(3.0);
+  const [nodeGoal, setNodeGoal] = useState(500);
+  const [nodeRate, setNodeRate] = useState(3.5);
 
   const activeSpikes = bullishSpikes.filter((s) => s.active);
 
@@ -62,7 +72,10 @@ export default function BullishSpikeControls() {
       id: `audit-${Date.now()}`,
       time: new Date().toISOString(),
       actor: currentUser?.email ?? "admin",
-      action: `BULLISH_SPIKE: ${spikePct}% for ${durationHrs}h on ${registeredUsers.find((u) => u.id === selectedUserId)?.email ?? selectedUserId}`,
+      action: `BULLISH_SPIKE: ${spikePct}% for ${durationHrs}h on ${
+        registeredUsers.find((u) => u.id === selectedUserId)?.email ??
+        selectedUserId
+      }`,
       target: selectedUserId,
       level: "success",
     });
@@ -95,7 +108,10 @@ export default function BullishSpikeControls() {
           id: `audit-${Date.now()}`,
           time: new Date().toISOString(),
           actor: currentUser?.email ?? "admin",
-          action: `DAILY_RATE_UPDATE: ${rate}% for ${registeredUsers.find((u) => u.id === selectedUserId)?.email ?? selectedUserId}`,
+          action: `DAILY_RATE_UPDATE: ${rate}% for ${
+            registeredUsers.find((u) => u.id === selectedUserId)?.email ??
+            selectedUserId
+          }`,
           target: selectedUserId,
           level: "action",
         });
@@ -110,7 +126,9 @@ export default function BullishSpikeControls() {
         <div className="bg-emerald-950/20 border border-emerald-800/30 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-3">
             <Flame className="w-4 h-4 text-emerald-400" />
-            <span className="text-xs font-black text-emerald-400 uppercase tracking-wider">Active Bullish Spikes</span>
+            <span className="text-xs font-black text-emerald-400 uppercase tracking-wider">
+              Active Bullish Spikes
+            </span>
             <span className="px-1.5 py-0.5 bg-emerald-500/20 rounded-full text-[9px] font-mono font-bold text-emerald-400">
               {activeSpikes.length}
             </span>
@@ -118,14 +136,33 @@ export default function BullishSpikeControls() {
           <div className="space-y-2">
             {activeSpikes.map((s) => {
               const user = registeredUsers.find((u) => u.id === s.targetUserId);
-              const remaining = Math.max(0, Math.floor((new Date(s.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60)));
+              const remaining = Math.max(
+                0,
+                Math.floor(
+                  (new Date(s.expiresAt).getTime() - Date.now()) /
+                    (1000 * 60 * 60),
+                ),
+              );
               return (
-                <div key={s.targetUserId} className="flex items-center justify-between bg-white/[0.03] border border-white/[0.06] rounded-lg px-4 py-3">
+                <div
+                  key={s.targetUserId}
+                  className="flex items-center justify-between bg-white/[0.03] border border-white/[0.06] rounded-lg px-4 py-3"
+                >
                   <div>
-                    <div className="text-sm font-bold text-white">{user?.email ?? s.targetUserId}</div>
+                    <div className="text-sm font-bold text-white">
+                      {user?.email ?? s.targetUserId}
+                    </div>
                     <div className="flex items-center gap-3 text-xs text-xc-muted mt-0.5">
-                      <span className={cn("font-bold", s.direction === "up" ? "text-emerald-400" : "text-red-400")}>
-                        {s.direction === "up" ? "+" : "-"}{s.percentage}%
+                      <span
+                        className={cn(
+                          "font-bold",
+                          s.direction === "up"
+                            ? "text-emerald-400"
+                            : "text-red-400",
+                        )}
+                      >
+                        {s.direction === "up" ? "+" : "-"}
+                        {s.percentage}%
                       </span>
                       <span>{remaining}h remaining</span>
                       <span className="text-white/30">{s.label}</span>
@@ -148,7 +185,9 @@ export default function BullishSpikeControls() {
       <div className="bg-[#12121a] border border-white/5 rounded-xl p-5 space-y-4">
         <div className="flex items-center gap-2 mb-2">
           <Zap className="w-4 h-4 text-amber-400" />
-          <span className="text-sm font-semibold text-white">Apply Bullish Spike</span>
+          <span className="text-sm font-semibold text-white">
+            Apply Bullish Spike
+          </span>
         </div>
 
         <div>
@@ -163,7 +202,8 @@ export default function BullishSpikeControls() {
               .filter((u) => u.role !== "GOD_ADMIN")
               .map((u) => (
                 <option key={u.id} value={u.id}>
-                  {u.firstName} {u.lastName} ({u.email}) — {formatCurrency(u.balance ?? 0)}
+                  {u.firstName} {u.lastName} ({u.email}) —{" "}
+                  {formatCurrency(u.balance ?? 0)}
                 </option>
               ))}
           </select>
@@ -255,12 +295,16 @@ export default function BullishSpikeControls() {
         </button>
       </div>
 
-      {/* Custom Daily Rate */}
+      {/* Daily Rate Override */}
       <div className="bg-[#12121a] border border-white/5 rounded-xl p-5 space-y-4">
         <div className="flex items-center gap-2 mb-2">
           <Activity className="w-4 h-4 text-emerald-400" />
-          <span className="text-sm font-semibold text-white">Daily Profit Rate Override</span>
-          <span className="text-[9px] text-xc-muted font-mono">A = P(1+r)^t</span>
+          <span className="text-sm font-semibold text-white">
+            Daily Profit Rate Override
+          </span>
+          <span className="text-[9px] text-xc-muted font-mono">
+            A = P(1+r)^t
+          </span>
         </div>
 
         <div className="flex flex-wrap gap-2 mb-3">
@@ -280,44 +324,239 @@ export default function BullishSpikeControls() {
           ))}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <input
             type="number"
             value={customDailyRate}
-            onChange={(e) => setCustomDailyRate(Number(e.target.value))}
+            onChange={(e) => {
+              const next = Math.min(15, Math.max(0.1, Number(e.target.value)));
+              setCustomDailyRate(Number.isFinite(next) ? next : 3.0);
+            }}
             step={0.1}
             min={0.1}
-            max={50}
+            max={15}
             className="w-24 px-3 py-2 bg-[#1a1a24] border border-white/10 rounded-lg text-sm text-white text-center font-mono"
           />
-          <span className="text-xs text-gray-400">% daily · Applied to selected node</span>
+          <span className="text-xs text-gray-400">
+            % daily · Ladder ceiling 15% (Node VIII)
+          </span>
         </div>
 
         {selectedUserId && (
           <div className="mt-2 p-3 bg-white/[0.02] border border-white/[0.06] rounded-lg">
             <p className="text-xs text-gray-400">
-              Compound projection for selected user at {customDailyRate}%/day:
+              Compound projection at {customDailyRate}%/day:
             </p>
             <div className="grid grid-cols-4 gap-2 mt-2 text-[10px] font-mono">
               <div>
                 <span className="text-white/30">24h</span>
-                <p className="text-emerald-400 font-bold">+{customDailyRate}%</p>
+                <p className="text-emerald-400 font-bold">
+                  +{customDailyRate}%
+                </p>
               </div>
               <div>
                 <span className="text-white/30">7d</span>
-                <p className="text-emerald-400 font-bold">+{(Math.pow(1 + customDailyRate / 100, 7) - 1) * 100}%</p>
+                <p className="text-emerald-400 font-bold">
+                  +{(Math.pow(1 + customDailyRate / 100, 7) - 1) * 100}%
+                </p>
               </div>
               <div>
                 <span className="text-white/30">30d</span>
-                <p className="text-emerald-400 font-bold">+{(Math.pow(1 + customDailyRate / 100, 30) - 1) * 100}%</p>
+                <p className="text-emerald-400 font-bold">
+                  +{(Math.pow(1 + customDailyRate / 100, 30) - 1) * 100}%
+                </p>
               </div>
               <div>
                 <span className="text-white/30">90d</span>
-                <p className="text-emerald-400 font-bold">+{(Math.pow(1 + customDailyRate / 100, 90) - 1) * 100}%</p>
+                <p className="text-emerald-400 font-bold">
+                  +{(Math.pow(1 + customDailyRate / 100, 90) - 1) * 100}%
+                </p>
               </div>
             </div>
           </div>
         )}
+      </div>
+
+      {/* Node Advancement Ladder — Ground Station goal + rate control */}
+      <div className="bg-[#12121a] border border-white/5 rounded-xl p-5 space-y-4">
+        <div className="flex items-center gap-2 mb-2">
+          <TrendingUp className="w-4 h-4 text-emerald-400" />
+          <span className="text-sm font-semibold text-white">
+            Node Advancement Ladder
+          </span>
+          <span className="text-[9px] text-xc-muted font-mono">
+            NODE to NODE
+          </span>
+        </div>
+        <p className="text-[11px] text-gray-400 -mt-2">
+          Set the funding goal a user must reach to upgrade to the next node,
+          and the exact daily rate that upgrade unlocks. The growth engine
+          honors these values immediately — balance climbs higher, rate climbs
+          with them.
+        </p>
+
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">
+            Funding Goal ($)
+          </label>
+          <input
+            type="number"
+            value={nodeGoal}
+            onChange={(e) => setNodeGoal(Number(e.target.value))}
+            min={0}
+            className="w-full px-3 py-2 bg-[#1a1a24] border border-white/10 rounded-lg text-sm text-white"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">
+            Daily Rate Unlocked (%)
+          </label>
+          <input
+            type="number"
+            value={nodeRate}
+            onChange={(e) =>
+              setNodeRate(
+                Math.min(15, Math.max(0.1, Number(e.target.value))),
+              )
+            }
+            step={0.1}
+            min={0.1}
+            max={15}
+            className="w-full px-3 py-2 bg-[#1a1a24] border border-white/10 rounded-lg text-sm text-white"
+          />
+          <p className="text-[10px] text-gray-500 mt-1">
+            Max 15%/day — Node VIII (Sovereign) ceiling.
+          </p>
+        </div>
+
+        <button
+          onClick={() => {
+            if (!selectedUserId) return;
+            const user = registeredUsers.find(
+              (u) => u.id === selectedUserId,
+            );
+            const goal = Math.max(0, Number(nodeGoal));
+            const rate = Math.min(15, Math.max(0.1, Number(nodeRate)));
+            updateUserById(selectedUserId, {
+              nodeTier: user?.nodeTier ?? 1,
+              nodeGoal: goal,
+              nextNodeRate: rate,
+            });
+            // Apply the new rate to the live engine node immediately
+            const node = nodeGrowths[selectedUserId];
+            if (node) {
+              useProfitEngine.setState((state) => ({
+                nodeGrowths: {
+                  ...state.nodeGrowths,
+                  [selectedUserId]: { ...node, dailyRate: rate / 100 },
+                },
+              }));
+            }
+            addAuditEntry({
+              id: `audit-${Date.now()}`,
+              time: new Date().toISOString(),
+              actor: currentUser?.email ?? "admin",
+              action: `NODE_GOAL_SET: ${formatCurrency(goal)} → ${rate}%/day for ${
+                registeredUsers.find((u) => u.id === selectedUserId)?.email ??
+                selectedUserId
+              }`,
+              target: selectedUserId,
+              level: "action",
+            });
+          }}
+          disabled={!selectedUserId}
+          className={cn(
+            "w-full py-2.5 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2",
+            selectedUserId
+              ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+              : "bg-white/5 text-gray-500 cursor-not-allowed",
+          )}
+        >
+          <TrendingUp className="w-4 h-4" /> Set Node Goal
+        </button>
+
+        {selectedUserId &&
+          (() => {
+            const user = registeredUsers.find(
+              (u) => u.id === selectedUserId,
+            );
+            const balance = Number(user?.balance ?? 0);
+            const prog = getNodeProgress(balance, user);
+            return (
+              <div className="mt-1 space-y-3">
+                <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] px-4 py-3">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-white/40">
+                      Current node
+                    </span>
+                    <span
+                      className={cn(
+                        "text-sm font-black",
+                        prog.current.color,
+                      )}
+                    >
+                      {prog.current.code} · {prog.current.dailyRatePct}%/day
+                    </span>
+                  </div>
+                  {prog.next ? (
+                    <>
+                      <div className="mt-2 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-emerald-500 to-cyan-400"
+                          style={{
+                            width: `${Math.min(100, prog.progress * 100)}%`,
+                          }}
+                        />
+                      </div>
+                      <p className="mt-2 text-[11px] text-gray-400">
+                        <span className="text-emerald-400 font-bold">
+                          {formatCurrency(Math.max(0, prog.remaining))}
+                        </span>{" "}
+                        to {prog.next.code} → unlocks{" "}
+                        {prog.next.dailyRatePct}%/day
+                      </p>
+                    </>
+                  ) : (
+                    <p className="mt-2 text-[11px] text-emerald-400">
+                      MAX TIER REACHED
+                    </p>
+                  )}
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {NODE_LADDER.map((n) => {
+                    const isCurrent = n.tier === prog.current.tier;
+                    const isNext = prog.next?.tier === n.tier;
+                    return (
+                      <div
+                        key={n.tier}
+                        className={cn(
+                          "rounded-lg border px-2 py-1.5 text-center",
+                          isCurrent &&
+                            "border-emerald-600/40 bg-emerald-950/40",
+                          isNext && "border-cyan-600/40 bg-cyan-950/30",
+                          !isCurrent &&
+                            !isNext &&
+                            "border-white/[0.06] bg-white/[0.02]",
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "text-[9px] font-black",
+                            isCurrent ? n.color : "text-white/40",
+                          )}
+                        >
+                          {n.code}
+                        </div>
+                        <div className="text-[9px] font-mono text-white/30">
+                          {n.dailyRatePct}%/d
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
       </div>
     </div>
   );

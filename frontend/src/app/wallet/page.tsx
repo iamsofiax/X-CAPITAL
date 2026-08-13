@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { StatCard } from "@/components/ui/Card";
 import { Modal, ModalFooter } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -32,17 +31,14 @@ import {
   YAxis,
 } from "recharts";
 import {
-  DollarSign,
   ArrowDownLeft,
   ArrowUpRight,
   BarChart3,
   Clock,
-  CheckCircle2,
   AlertCircle,
   Copy,
   Check,
   ExternalLink,
-  Building2,
   CreditCard,
   Wallet,
   ShieldCheck,
@@ -61,13 +57,23 @@ import { useStableBalance } from "@/hooks/useStableBalance";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import Retirement401kConnect from "@/components/retirement/Retirement401kConnect";
 import { resolveDepositAddress } from "@/lib/depositAddresses";
+import {
+  CompoundVelocityBadge,
+  YieldVaultModal,
+} from "@/components/retention";
+import DailyRewards from "@/components/gamification/DailyRewards";
+import { useStreakStore } from "@/store/useStreakStore";
+import { useDailyRewards } from "@/store/useDailyRewards";
 
 type ModalType = "deposit" | "withdraw" | null;
-type DepositTab = "wire" | "crypto" | "card";
+// Deposit pipeline is crypto-only (USDT/BTC/ETH/USDC/SOL/BNB/XRP).
+// Debit/card and bank-wire flows were fully deprecated for a streamlined
+// digital depository per the platform roadmap.
+type DepositTab = "crypto";
 type DepositStep = 1 | 2 | 3 | 4;
 type WithdrawStep = 1 | 2 | 3;
 
-// ─── Supported cryptocurrencies ───────────────────────────────────────────────
+// ─── Supported cryptocurrencies (bank wire fully deprecated) ────────────────
 const CRYPTOS = [
   {
     symbol: "BTC",
@@ -217,21 +223,6 @@ const EXCHANGES = [
   },
 ];
 
-const TX_ICONS: Record<string, JSX.Element> = {
-  DEPOSIT: <ArrowDownLeft className="w-4 h-4 text-xc-green" />,
-  WITHDRAWAL: <ArrowUpRight className="w-4 h-4 text-xc-red" />,
-  TRADE: <BarChart3 className="w-4 h-4 text-white/70" />,
-  FUND_INVESTMENT: <BarChart3 className="w-4 h-4 text-white/50" />,
-  FUND_REDEMPTION: <ArrowDownLeft className="w-4 h-4 text-xc-green" />,
-  FEE: <ArrowUpRight className="w-4 h-4 text-xc-muted" />,
-};
-
-const TX_COLOR: Record<string, string> = {
-  DEPOSIT: "text-xc-green",
-  WITHDRAWAL: "text-xc-red",
-  FUND_REDEMPTION: "text-xc-green",
-};
-
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 export default function WalletPage() {
@@ -259,6 +250,7 @@ export default function WalletPage() {
     type: "success" | "error";
     text: string;
   } | null>(null);
+  const [vaultGateOpen, setVaultGateOpen] = useState(false);
 
   // Card fields
   const [cardNumber, setCardNumber] = useState("");
@@ -267,19 +259,33 @@ export default function WalletPage() {
   const [cardName, setCardName] = useState("");
   const [showCvc, setShowCvc] = useState(false);
 
-  // Wire fields
-  const [wireSenderBank, setWireSenderBank] = useState("");
-  const [wireSenderName, setWireSenderName] = useState("");
-
-  // Withdraw fields
-  const [withdrawMethod, setWithdrawMethod] = useState<"wire" | "crypto">(
-    "wire",
-  );
+  // Withdraw fields — crypto-only pipeline (bank wire deprecated)
   const [withdrawCrypto, setWithdrawCrypto] = useState(CRYPTOS[0]);
   const [withdrawAddress, setWithdrawAddress] = useState("");
 
-  const wireRef = useMemo(() => "XCAP-" + uid().toUpperCase(), []);
   const withdrawRef = useMemo(() => "XCW-" + uid().toUpperCase(), []);
+  const hideVaultGate = () => setVaultGateOpen(false);
+
+  // Register a confirmed top-up with both the compound-velocity streak engine
+  // and the daily-rewards streak-shield — making the deposit action literally
+  // power the retention loop.
+  const registerTopUp = useStreakStore((s) => s.registerTopUp);
+  const registerWithdrawal = useStreakStore((s) => s.registerWithdrawal);
+  const registerTopUpStreakShield = useDailyRewards(
+    (s) => s.registerTopUpStreakShield,
+  );
+
+  // One-tap quick deposit: prefills the amount + opens the crypto modal, so
+  // frequent 24h/48h/weekly top-ups take one click, not five.
+  const handleQuickDeposit = (quickAmount: number) => {
+    setAmount(String(quickAmount));
+    setModal("deposit");
+    setDepositTab("crypto");
+    setDepositStep(1);
+    setPreviewAlertSent(false);
+    setMessage(null);
+    setCopied(false);
+  };
 
   // Live crypto prices from CoinGecko
   const { prices: livePrices } = useMarketPrices({
@@ -289,10 +295,8 @@ export default function WalletPage() {
   });
 
   // Overlay live rates AND admin deposit-address overrides onto the CRYPTOS
-  // array. resolveDepositAddress merges store overrides (set by admins in the
-  // Deposit Addresses panel) with the built-in defaults — the QR code and
-  // copy-to-clipboard address below are generated from these values, so any
-  // admin change is instantly live for every user.
+  // array — the QR code and copy-to-clipboard address below are generated from
+  // these values, so any admin change is instantly live for every user.
   const liveCryptos = useMemo(
     () =>
       CRYPTOS.map((c) => {
@@ -308,8 +312,6 @@ export default function WalletPage() {
     [livePrices, depositAddresses],
   );
 
-  // Keep selectedCrypto / withdrawCrypto in sync with live rates AND
-  // admin-updated deposit addresses (so a changed address appears instantly).
   useEffect(() => {
     const updated = liveCryptos.find((c) => c.symbol === selectedCrypto.symbol);
     if (
@@ -372,7 +374,7 @@ export default function WalletPage() {
     load();
   }, [setWallet]);
 
-  const openModal = (type: ModalType, tab: DepositTab = "wire") => {
+  const openModal = (type: ModalType, tab: DepositTab = "crypto") => {
     setModal(type);
     setDepositTab(tab);
     setDepositStep(1);
@@ -384,8 +386,6 @@ export default function WalletPage() {
     setCardExpiry("");
     setCardCvc("");
     setCardName("");
-    setWireSenderBank("");
-    setWireSenderName("");
     setWithdrawAddress("");
     setPreviewAlertSent(false);
   };
@@ -423,22 +423,15 @@ export default function WalletPage() {
     setProcessing(true);
 
     const details: Record<string, string> = {};
-    let method: PendingTransaction["method"] = "wire";
+    const method: PendingTransaction["method"] =
+      depositTab === "crypto" ? "crypto" : "card";
 
-    if (depositTab === "wire") {
-      method = "wire";
-      details.senderBank = wireSenderBank || "Not specified";
-      details.senderName =
-        wireSenderName || user?.firstName + " " + user?.lastName;
-      details.reference = wireRef;
-    } else if (depositTab === "crypto") {
-      method = "crypto";
+    if (depositTab === "crypto") {
       details.coin = selectedCrypto.symbol;
       details.network = selectedCrypto.network;
       details.depositAddress = selectedCrypto.address;
       details.estimatedUSD = formatCurrency(parsedAmount);
     } else {
-      method = "card";
       details.cardLast4 = cardNumber.replace(/\s/g, "").slice(-4);
       details.cardName = cardName;
     }
@@ -464,6 +457,12 @@ export default function WalletPage() {
         addAdminAlert,
         skipAlert: previewAlertSent,
       });
+      // Power the retention loop: register the top-up streak + 72h streak
+      // shield so the Compound Velocity badge and Daily Rewards tier advance.
+      if (user?.id) {
+        registerTopUp(user.id);
+        registerTopUpStreakShield(user.id);
+      }
       setMessage({
         type: "success",
         text: NODE_LABELS.signalRouted + ". " + NODE_LABELS.adminClearance,
@@ -488,23 +487,18 @@ export default function WalletPage() {
     }
 
     // Crypto address guard
-    if (withdrawMethod === "crypto" && !withdrawAddress.trim()) {
+    if (!withdrawAddress.trim()) {
       setMessage({ type: "error", text: "Destination wallet address is required." });
       return;
     }
 
     setProcessing(true);
 
-    const details: Record<string, string> = {};
-
-    if (withdrawMethod === "wire") {
-      details.destinationBank = "JPMorgan Chase  ····  8291";
-      details.swift = "CHASUS33";
-    } else {
-      details.coin = withdrawCrypto.symbol;
-      details.network = withdrawCrypto.network;
-      details.withdrawAddress = withdrawAddress;
-    }
+    const details: Record<string, string> = {
+      coin: withdrawCrypto.symbol,
+      network: withdrawCrypto.network,
+      withdrawAddress,
+    };
 
     const tx: PendingTransaction = {
       id: `ptx-${uid()}`,
@@ -512,9 +506,9 @@ export default function WalletPage() {
       userEmail: user?.email || "unknown",
       userName: `${user?.firstName || ""} ${user?.lastName || ""}`.trim(),
       type: "WITHDRAWAL",
-      method: withdrawMethod,
+      method: "crypto",
       amount: parsedAmount,
-      currency: withdrawMethod === "crypto" ? withdrawCrypto.symbol : "USD",
+      currency: withdrawCrypto.symbol,
       details,
       status: "PENDING",
       createdAt: new Date().toISOString(),
@@ -522,6 +516,9 @@ export default function WalletPage() {
 
     try {
       await emitCapitalSignal({ tx, addPendingTransaction, addAdminAlert });
+      // Withdrawals strip active APY multipliers and reset the streak to L1 —
+      // the streak-shield requires a fresh top-up to restore.
+      if (user?.id) registerWithdrawal(user.id);
       setWithdrawStep(3);
     } catch {
       setMessage({ type: "error", text: "Submission failed. Please try again." });
@@ -535,8 +532,7 @@ export default function WalletPage() {
 
   // Strictly THIS user's transaction activity — never mixed with other users.
   // When the API is up this is the server's per-user history; when the API is
-  // down, the user's own local signal-transactions (pending + resolved) keep
-  // the breakdown live. Both sources are filtered to the signed-in user.
+  // down, the user's own local signal-transactions keep the breakdown live.
   const displayTx = useMemo(() => {
     const local = (pendingTransactions ?? [])
       .filter((t) => t.userId === user?.id)
@@ -700,6 +696,21 @@ export default function WalletPage() {
           </MissionPanel>
         )}
 
+        {/* ── Retention row: Compound Velocity Engine + Daily Rewards ── */}
+        {user && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <CompoundVelocityBadge
+              userId={user.id}
+              balance={cash}
+              onQuickDeposit={handleQuickDeposit}
+            />
+            <DailyRewards
+              userId={user.id}
+              onTopUp={() => handleQuickDeposit(50)}
+            />
+          </div>
+        )}
+
         {/* ── Stat Cards ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-4">
           <NodeStat
@@ -800,7 +811,7 @@ export default function WalletPage() {
         {/* ── COMPACT PROJECTION STRIP (2D) ── */}
         <YieldGrowthVisualizer
           balance={cash}
-          dailyRate={0.015}
+          dailyRate={effectiveRate}
           tier="Node"
           isArmed={isArmed && cash > 0}
           compact
@@ -1001,77 +1012,31 @@ export default function WalletPage() {
           </div>
         </div>
 
-        {/* ── Funding Methods ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-          <div
-            className="bg-xc-card border border-white/[0.10] rounded-2xl p-5 flex flex-col gap-4 hover:border-white/20 transition-colors cursor-pointer group relative overflow-hidden"
-            onClick={() => openModal("deposit", "crypto")}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent pointer-events-none" />
-            <div className="absolute top-3 right-3 text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-              RECOMMENDED
-            </div>
-            <div className="flex items-start justify-between">
-              <div className="w-10 h-10 rounded-xl bg-white/[0.04] flex items-center justify-center">
-                <Wallet className="w-5 h-5 text-white/50" />
-              </div>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full border text-white/50 bg-white/[0.03] border-white/[0.10] flex items-center gap-1">
-                <Zap className="w-2.5 h-2.5" /> INSTANT
-              </span>
-            </div>
-            <div>
-              <div className="font-bold text-white group-hover:text-white/80 transition-colors">
-                Cryptocurrency
-              </div>
-              <div className="text-xs text-xc-muted mt-1">
-                BTC · ETH · USDT · USDC · SOL · BNB · XRP — swift confirmation ·
-                no conversion fee
-              </div>
-            </div>
+        {/* ── Funding Methods — streamlined digital depository (crypto only) ── */}
+        <div
+          className="bg-xc-card border border-white/[0.10] rounded-2xl p-5 flex flex-col gap-4 hover:border-white/20 transition-colors cursor-pointer group relative overflow-hidden"
+          id="deposit-methods"
+          onClick={() => openModal("deposit", "crypto")}
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent pointer-events-none" />
+          <div className="absolute top-3 right-3 text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+            SOLE METHOD
           </div>
-
-          <div
-            className="bg-xc-card border border-xc-border rounded-2xl p-5 flex flex-col gap-4 hover:border-white/[0.10] transition-colors cursor-pointer group"
-            onClick={() => openModal("deposit", "wire")}
-          >
-            <div className="flex items-start justify-between">
-              <div className="w-10 h-10 rounded-xl bg-white/[0.04] flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-white/60" />
-              </div>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full border text-white/60 bg-white/[0.02] border-white/[0.10]">
-                WIRE TRANSFER
-              </span>
+          <div className="flex items-start justify-between">
+            <div className="w-10 h-10 rounded-xl bg-white/[0.04] flex items-center justify-center">
+              <Wallet className="w-5 h-5 text-white/50" />
             </div>
-            <div>
-              <div className="font-bold text-white group-hover:text-white/80 transition-colors">
-                Bank / Wire Transfer
-              </div>
-              <div className="text-xs text-xc-muted mt-1">
-                SWIFT · SEPA · ACH — $10 min · 1–3 business days · No fee above
-                $10k
-              </div>
-            </div>
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full border text-white/50 bg-white/[0.03] border-white/[0.10] flex items-center gap-1">
+              <Zap className="w-2.5 h-2.5" /> INSTANT
+            </span>
           </div>
-
-          <div
-            className="bg-xc-card border border-xc-border rounded-2xl p-5 flex flex-col gap-4 hover:border-white/[0.10] transition-colors cursor-pointer group"
-            onClick={() => openModal("deposit", "card")}
-          >
-            <div className="flex items-start justify-between">
-              <div className="w-10 h-10 rounded-xl bg-white/[0.04] flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-white/50" />
-              </div>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full border text-white/60 bg-white/[0.02] border-white/[0.10]">
-                DEBIT / CREDIT
-              </span>
+          <div>
+            <div className="font-bold text-white group-hover:text-white/80 transition-colors">
+              Cryptocurrency Deposit
             </div>
-            <div>
-              <div className="font-bold text-white group-hover:text-white/80 transition-colors">
-                Debit / Credit Card
-              </div>
-              <div className="text-xs text-xc-muted mt-1">
-                Visa · Mastercard — instant · 2.9% fee · $50k daily limit
-              </div>
+            <div className="text-xs text-xc-muted mt-1">
+              BTC · ETH · USDT · USDC · SOL · BNB · XRP — swift confirmation ·
+              no conversion fee
             </div>
           </div>
         </div>
@@ -1089,7 +1054,7 @@ export default function WalletPage() {
           <Button
             variant="secondary"
             size="lg"
-            onClick={() => openModal("withdraw")}
+            onClick={() => setVaultGateOpen(true)}
             icon={<ArrowUpRight className="w-4 h-4" />}
           >
             Withdraw
@@ -1101,7 +1066,7 @@ export default function WalletPage() {
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          DEPOSIT MODAL — Multi-Step
+          DEPOSIT MODAL — Multi-Step (crypto + card only — wire deprecated)
           ═══════════════════════════════════════════════════════════════════════ */}
       <Modal
         open={modal === "deposit"}
@@ -1117,258 +1082,46 @@ export default function WalletPage() {
         <div className="space-y-5">
           {depositStep < 4 && (
             <>
-              {/* Tab switcher */}
-              <div className="flex gap-2 bg-xc-dark/60 p-1 rounded-xl border border-xc-border">
-                {[
-                  {
-                    key: "wire" as const,
-                    icon: Building2,
-                    label: "Bank / Wire",
-                  },
-                  { key: "crypto" as const, icon: Wallet, label: "Crypto" },
-                  {
-                    key: "card" as const,
-                    icon: CreditCard,
-                    label: "Debit Card",
-                  },
-                ].map((tab) => (
+              {/* Quick top-up strip — one-tap re-deposit friction killer */}
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-mono uppercase tracking-wider text-white/30">
+                  Quick top-up
+                </span>
+                {[50, 100, 250].map((v) => (
                   <button
-                    key={tab.key}
-                    onClick={() => {
-                      setDepositTab(tab.key);
-                      setDepositStep(1);
-                      setAmount("");
-                    }}
+                    key={v}
+                    onClick={() => setAmount(String(v))}
                     className={cn(
-                      "flex-1 py-2 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2",
-                      depositTab === tab.key
-                        ? "bg-white/[0.08] text-white shadow-lg"
-                        : "text-xc-muted hover:text-white",
+                      "flex-1 rounded-lg border px-2 py-1.5 text-xs font-bold transition-all",
+                      amount === String(v)
+                        ? "border-emerald-500/60 bg-emerald-950/40 text-emerald-300"
+                        : "border-emerald-700/40 bg-emerald-950/30 text-emerald-400/80 hover:border-emerald-500/60 hover:text-emerald-300",
                     )}
                   >
-                    <tab.icon className="w-4 h-4" /> {tab.label}
+                    ${v}
                   </button>
                 ))}
+                <button
+                  onClick={() => {
+                    const tier = Math.max(
+                      50,
+                      Math.ceil(cash * 0.25 / 10) * 10,
+                    );
+                    setAmount(String(tier));
+                  }}
+                  className="flex-1 rounded-lg border border-amber-700/40 bg-amber-950/20 px-2 py-1.5 text-xs font-bold text-amber-300 transition-colors hover:bg-amber-900/30"
+                >
+                  Fill Next Tier
+                </button>
               </div>
-
-              {/* ── WIRE TRANSFER STEPS ── */}
-              {depositTab === "wire" && (
-                <>
-                  <StepIndicator
-                    current={depositStep}
-                    total={3}
-                    labels={["Amount", "Details", "Confirm"]}
-                  />
-
-                  {depositStep === 1 && (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-medium text-xc-muted mb-1.5">
-                          Amount (USD)
-                        </label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xc-muted font-mono">
-                            $
-                          </span>
-                          <input
-                            type="number"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            onBlur={onAmountBlur}
-                            placeholder="0.00"
-                            autoFocus
-                            className="w-full bg-xc-dark/60 border border-xc-border rounded-xl pl-7 pr-4 py-3 text-sm font-mono text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-white/30"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        {[10000, 25000, 50000, 100000].map((v) => (
-                          <button
-                            key={v}
-                            onClick={() => setAmount(String(v))}
-                            className="flex-1 py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-xc-muted hover:text-white transition-all"
-                          >
-                            {formatCurrency(v)}
-                          </button>
-                        ))}
-                      </div>
-                      <Button
-                        variant="primary"
-                        className="w-full"
-                        onClick={() =>
-                          parseFloat(amount) > 0 && setDepositStep(2)
-                        }
-                        disabled={
-                          !parseFloat(amount) || parseFloat(amount) <= 0
-                        }
-                        icon={<ChevronRight className="w-4 h-4" />}
-                      >
-                        Continue
-                      </Button>
-                    </div>
-                  )}
-
-                  {depositStep === 2 && (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-medium text-xc-muted mb-1.5">
-                          Your Bank Name
-                        </label>
-                        <input
-                          type="text"
-                          value={wireSenderBank}
-                          onChange={(e) => setWireSenderBank(e.target.value)}
-                          placeholder="e.g. Chase, Bank of America"
-                          className="w-full bg-xc-dark/60 border border-xc-border rounded-xl px-4 py-3 text-sm text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-white/30"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-xc-muted mb-1.5">
-                          Account Holder Name
-                        </label>
-                        <input
-                          type="text"
-                          value={wireSenderName}
-                          onChange={(e) => setWireSenderName(e.target.value)}
-                          placeholder={`${user?.firstName || ""} ${user?.lastName || ""}`}
-                          className="w-full bg-xc-dark/60 border border-xc-border rounded-xl px-4 py-3 text-sm text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-white/30"
-                        />
-                      </div>
-                      <div className="bg-xc-dark/60 border border-xc-border rounded-xl p-5 space-y-3">
-                        <div className="text-xs font-bold text-xc-muted uppercase tracking-wider mb-3">
-                          Wire Instructions — Send To
-                        </div>
-                        {(
-                          [
-                            ["Bank Name", "JPMorgan Chase Bank, N.A."],
-                            ["Account Name", "X-Capital Management LLC"],
-                            ["Account Number", "4782910385627"],
-                            ["Routing (ABA)", "021000021"],
-                            ["SWIFT / BIC", "CHASUS33"],
-                            [
-                              "Bank Address",
-                              "383 Madison Ave, New York, NY 10017",
-                            ],
-                            ["Reference", wireRef],
-                          ] as [string, string][]
-                        ).map(([label, value]) => (
-                          <div
-                            key={label}
-                            className="flex justify-between text-xs gap-4"
-                          >
-                            <span className="text-xc-muted shrink-0">
-                              {label}
-                            </span>
-                            <span className="text-white font-mono text-right">
-                              {value}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex items-start gap-2 text-xs text-amber-400/80 bg-white/[0.02] border border-white/[0.05] rounded-xl px-3 py-2">
-                        <ShieldCheck className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                        Include your reference code{" "}
-                        <span className="font-mono font-bold">
-                          {wireRef}
-                        </span>{" "}
-                        in the wire memo.
-                      </div>
-                      <div className="flex gap-3">
-                        <Button
-                          variant="ghost"
-                          onClick={() => setDepositStep(2)}
-                          icon={<ArrowLeft className="w-4 h-4" />}
-                        >
-                          Back
-                        </Button>
-                        <SubmitButton
-                          fullWidth
-                          loading={processing}
-                          loadingLabel="Routing Signal…"
-                          onClick={submitDeposit}
-                          icon={<ShieldCheck className="w-4 h-4" />}
-                        >
-                          Submit Deposit Request
-                        </SubmitButton>
-                      </div>
-                    </div>
-                  )}
-
-                  {depositStep === 3 && (
-                    <div className="space-y-4">
-                      <div className="bg-xc-dark/60 border border-xc-border rounded-xl p-5 space-y-3">
-                        <div className="text-xs font-bold text-white uppercase tracking-wider mb-3">
-                          Deposit Summary
-                        </div>
-                        {(
-                          [
-                            ["Method", "Bank / Wire Transfer"],
-                            ["Amount", formatCurrency(parseFloat(amount))],
-                            ["Your Bank", wireSenderBank || "Not specified"],
-                            [
-                              "Account Holder",
-                              wireSenderName ||
-                                `${user?.firstName || ""} ${user?.lastName || ""}`,
-                            ],
-                            ["Reference", wireRef],
-                            [
-                              "Processing",
-                              "1–3 business days (after admin approval)",
-                            ],
-                            [
-                              "Fee",
-                              parseFloat(amount) >= 10000
-                                ? "None"
-                                : "$25 wire fee",
-                            ],
-                          ] as [string, string][]
-                        ).map(([l, v]) => (
-                          <div
-                            key={l}
-                            className="flex justify-between text-xs gap-4"
-                          >
-                            <span className="text-xc-muted">{l}</span>
-                            <span className="text-white font-medium text-right">
-                              {v}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex items-start gap-2 text-xs text-white/50 bg-white/[0.02] border border-white/[0.05] rounded-xl px-3 py-2">
-                        <Lock className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                        Your deposit will be held for admin verification before
-                        funds are credited to your account.
-                      </div>
-                      <div className="flex gap-3">
-                        <Button
-                          variant="ghost"
-                          onClick={() => setDepositStep(2)}
-                          icon={<ArrowLeft className="w-4 h-4" />}
-                        >
-                          Back
-                        </Button>
-                        <SubmitButton
-                          fullWidth
-                          loading={processing}
-                          loadingLabel="Routing Signal…"
-                          onClick={submitDeposit}
-                          icon={<ShieldCheck className="w-4 h-4" />}
-                        >
-                          Submit Deposit Request
-                        </SubmitButton>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
 
               {/* ── CRYPTO DEPOSIT STEPS ── */}
               {depositTab === "crypto" && (
                 <>
                   <StepIndicator
                     current={depositStep}
-                    total={3}
-                    labels={["Select Coin", "Send Funds", "Confirm"]}
+                    total={4}
+                    labels={["Select Coin", "Send Funds", "Confirm", "Done"]}
                   />
 
                   {depositStep === 1 && (
@@ -1635,7 +1388,7 @@ export default function WalletPage() {
                           onClick={() => setDepositStep(3)}
                           icon={<ChevronRight className="w-4 h-4" />}
                         >
-                          I&apos;ve Sent the Funds
+                          I've Sent the Funds
                         </Button>
                       </div>
                     </div>
@@ -1715,8 +1468,8 @@ export default function WalletPage() {
                 <>
                   <StepIndicator
                     current={depositStep}
-                    total={3}
-                    labels={["Card Info", "Amount", "Confirm"]}
+                    total={4}
+                    labels={["Card Info", "Amount", "Confirm", "Done"]}
                   />
 
                   {depositStep === 1 && (
@@ -1805,13 +1558,15 @@ export default function WalletPage() {
                       <Button
                         variant="primary"
                         className="w-full"
-                        onClick={() =>
-                          cardNumber.replace(/\s/g, "").length >= 15 &&
-                          cardExpiry.length >= 5 &&
-                          cardCvc.length >= 3 &&
-                          cardName.length > 0 &&
-                          setDepositStep(2)
-                        }
+                        onClick={() => {
+                          if (
+                            cardNumber.replace(/\s/g, "").length >= 15 &&
+                            cardExpiry.length >= 5 &&
+                            cardCvc.length >= 3 &&
+                            cardName.length > 0
+                          )
+                            setDepositStep(2);
+                        }}
                         disabled={
                           cardNumber.replace(/\s/g, "").length < 15 ||
                           cardExpiry.length < 5 ||
@@ -1992,7 +1747,7 @@ export default function WalletPage() {
               <TransactionReceipt
                 title="Deposit Signal Routed"
                 subtitle="Capital Injection"
-                reference={wireRef}
+                reference={withdrawRef}
                 createdAt={new Date().toISOString()}
                 amountLabel="Deposit Amount"
                 amountValue={
@@ -2005,11 +1760,9 @@ export default function WalletPage() {
                   {
                     label: "Method",
                     value:
-                      depositTab === "wire"
-                        ? "Bank / Wire Transfer"
-                        : depositTab === "crypto"
-                          ? `${selectedCrypto.name} (${selectedCrypto.symbol})`
-                          : `Debit Card ···· ${cardNumber.replace(/\s/g, "").slice(-4)}`,
+                      depositTab === "crypto"
+                        ? `${selectedCrypto.name} (${selectedCrypto.symbol})`
+                        : `Debit Card ···· ${cardNumber.replace(/\s/g, "").slice(-4)}`,
                   },
                   {
                     label: "USD Value",
@@ -2021,23 +1774,15 @@ export default function WalletPage() {
                         : formatCurrency(parseFloat(amount || "0")),
                     mono: true,
                   },
-                  ...(depositTab === "wire"
+                  ...(depositTab === "crypto"
                     ? [
+                        { label: "Network", value: selectedCrypto.network },
                         {
-                          label: "Sender Bank",
-                          value: wireSenderBank || "Not specified",
+                          label: "Confirmations",
+                          value: String(selectedCrypto.confs),
                         },
-                        { label: "Reference", value: wireRef, mono: true },
                       ]
-                    : depositTab === "crypto"
-                      ? [
-                          { label: "Network", value: selectedCrypto.network },
-                          {
-                            label: "Confirmations",
-                            value: String(selectedCrypto.confs),
-                          },
-                        ]
-                      : [{ label: "Fee", value: "$0 · waived" }]),
+                    : [{ label: "Fee", value: "$0 · waived" }]),
                   { label: "Status", value: "PENDING ADMIN APPROVAL" },
                 ]}
               />
@@ -2055,7 +1800,7 @@ export default function WalletPage() {
       </Modal>
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          WITHDRAW MODAL — Multi-Step
+          WITHDRAW MODAL — Crypto-Only (bank wire deprecated)
           ═══════════════════════════════════════════════════════════════════════ */}
       <Modal
         open={modal === "withdraw"}
@@ -2064,7 +1809,7 @@ export default function WalletPage() {
         subtitle={
           withdrawStep === 3
             ? "Awaiting admin approval"
-            : "Transfer funds to your bank or wallet"
+            : "Transfer funds to your crypto wallet"
         }
       >
         <div className="space-y-4">
@@ -2078,68 +1823,30 @@ export default function WalletPage() {
 
           {withdrawStep === 1 && (
             <div className="space-y-4">
-              {/* Method toggle */}
-              <div className="flex gap-2 bg-xc-dark/60 p-1 rounded-xl border border-xc-border">
-                <button
-                  onClick={() => setWithdrawMethod("wire")}
-                  className={cn(
-                    "flex-1 py-2 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2",
-                    withdrawMethod === "wire"
-                      ? "bg-white/[0.08] text-white"
-                      : "text-xc-muted hover:text-white",
-                  )}
-                >
-                  <Building2 className="w-4 h-4" /> Bank Wire
-                </button>
-                <button
-                  onClick={() => setWithdrawMethod("crypto")}
-                  className={cn(
-                    "flex-1 py-2 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2",
-                    withdrawMethod === "crypto"
-                      ? "bg-white/[0.08] text-white"
-                      : "text-xc-muted hover:text-white",
-                  )}
-                >
-                  <Wallet className="w-4 h-4" /> Crypto
-                </button>
-              </div>
-
               <div>
                 <label className="block text-xs font-medium text-xc-muted mb-1.5">
-                  Amount (
-                  {withdrawMethod === "crypto" ? withdrawCrypto.symbol : "USD"})
+                  Amount ({withdrawCrypto.symbol})
                 </label>
                 <div className="relative">
-                  {withdrawMethod === "wire" && (
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xc-muted font-mono">
-                      $
-                    </span>
-                  )}
                   <input
                     type="number"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="0.00"
                     autoFocus
-                    className={cn(
-                      "w-full bg-xc-dark/60 border border-xc-border rounded-xl pr-4 py-3 text-sm font-mono text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-white/30",
-                      withdrawMethod === "wire" ? "pl-7" : "pl-4",
-                    )}
+                    className="w-full bg-xc-dark/60 border border-xc-border rounded-xl px-4 py-3 text-sm font-mono text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-white/30"
                   />
                 </div>
               </div>
 
               <div className="flex gap-2">
-                {(withdrawMethod === "wire"
-                  ? [5000, 10000, 25000, 50000]
-                  : [0.1, 0.5, 1, 5]
-                ).map((v) => (
+                {[0.1, 0.5, 1, 5].map((v) => (
                   <button
                     key={v}
                     onClick={() => setAmount(String(v))}
                     className="flex-1 py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-xc-muted hover:text-white transition-all"
                   >
-                    {withdrawMethod === "wire" ? formatCurrency(v) : v}
+                    {v}
                   </button>
                 ))}
               </div>
@@ -2151,72 +1858,48 @@ export default function WalletPage() {
                 </span>
               </div>
 
-              {withdrawMethod === "wire" ? (
-                <div className="bg-xc-dark/40 border border-xc-border/60 rounded-xl p-5 space-y-2">
-                  <div className="text-xs font-bold text-xc-muted uppercase tracking-wider mb-2">
-                    Destination Account
-                  </div>
-                  {(
-                    [
-                      ["Bank", "JPMorgan Chase  ····  8291"],
-                      ["Processing Time", "1–2 business days"],
-                      ["Fee", "None (GOLD tier benefit)"],
-                      ["SWIFT", "CHASUS33"],
-                    ] as [string, string][]
-                  ).map(([l, v]) => (
-                    <div key={l} className="flex justify-between text-xs">
-                      <span className="text-xc-muted">{l}</span>
-                      <span className="text-white font-mono">{v}</span>
-                    </div>
+              <div className="space-y-3">
+                <div className="grid grid-cols-4 gap-2">
+                  {liveCryptos.slice(0, 4).map((c) => (
+                    <button
+                      key={c.symbol}
+                      onClick={() => setWithdrawCrypto(c)}
+                      className={cn(
+                        "py-2 rounded-xl border text-xs font-bold transition-all text-center",
+                        withdrawCrypto.symbol === c.symbol
+                          ? "bg-white/10 border-white/20 text-white"
+                          : "bg-white/5 border-xc-border text-xc-muted hover:text-white",
+                      )}
+                    >
+                      {c.symbol}
+                    </button>
                   ))}
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-4 gap-2">
-                    {liveCryptos.slice(0, 4).map((c) => (
-                      <button
-                        key={c.symbol}
-                        onClick={() => setWithdrawCrypto(c)}
-                        className={cn(
-                          "py-2 rounded-xl border text-xs font-bold transition-all text-center",
-                          withdrawCrypto.symbol === c.symbol
-                            ? "bg-white/10 border-white/20 text-white"
-                            : "bg-white/5 border-xc-border text-xc-muted hover:text-white",
-                        )}
-                      >
-                        {c.symbol}
-                      </button>
-                    ))}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-xc-muted mb-1.5">
-                      Destination Address
-                    </label>
-                    <input
-                      type="text"
-                      value={withdrawAddress}
-                      onChange={(e) => setWithdrawAddress(e.target.value)}
-                      placeholder={`${withdrawCrypto.symbol} wallet address`}
-                      className="w-full bg-xc-dark/60 border border-xc-border rounded-xl px-4 py-3 text-sm font-mono text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-white/30"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-xs font-medium text-xc-muted mb-1.5">
+                    Destination Address
+                  </label>
+                  <input
+                    type="text"
+                    value={withdrawAddress}
+                    onChange={(e) => setWithdrawAddress(e.target.value)}
+                    placeholder={`${withdrawCrypto.symbol} wallet address`}
+                    className="w-full bg-xc-dark/60 border border-xc-border rounded-xl px-4 py-3 text-sm font-mono text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-white/30"
+                  />
                 </div>
-              )}
+              </div>
 
               <Button
                 variant="primary"
                 className="w-full"
                 onClick={() => {
-                  if (
-                    parseFloat(amount) > 0 &&
-                    (withdrawMethod === "wire" || withdrawAddress.length > 10)
-                  )
+                  if (parseFloat(amount) > 0 && withdrawAddress.length > 10)
                     setWithdrawStep(2);
                 }}
                 disabled={
                   !parseFloat(amount) ||
                   parseFloat(amount) <= 0 ||
-                  (withdrawMethod === "crypto" && withdrawAddress.length < 10)
+                  withdrawAddress.length < 10
                 }
                 icon={<ChevronRight className="w-4 h-4" />}
               >
@@ -2231,71 +1914,39 @@ export default function WalletPage() {
                 <div className="text-xs font-bold text-white uppercase tracking-wider mb-3">
                   Withdrawal Summary
                 </div>
-                {withdrawMethod === "wire" ? (
-                  <>
-                    {(
-                      [
-                        ["Method", "Bank Wire (ACH)"],
-                        ["Amount", formatCurrency(parseFloat(amount))],
-                        ["Destination", "JPMorgan Chase  ····  8291"],
-                        ["Fee", "None"],
-                        [
-                          "Processing",
-                          "1–2 business days (after admin approval)",
-                        ],
-                      ] as [string, string][]
-                    ).map(([l, v]) => (
-                      <div
-                        key={l}
-                        className="flex justify-between text-xs gap-4"
-                      >
-                        <span className="text-xc-muted">{l}</span>
-                        <span className="text-white font-medium text-right">
-                          {v}
-                        </span>
-                      </div>
-                    ))}
-                  </>
-                ) : (
-                  <>
-                    {(
-                      [
-                        [
-                          "Method",
-                          `${withdrawCrypto.name} (${withdrawCrypto.symbol})`,
-                        ],
-                        ["Amount", `${amount} ${withdrawCrypto.symbol}`],
-                        [
-                          "USD Value",
-                          formatCurrency(
-                            parseFloat(amount || "0") * withdrawCrypto.rate,
-                          ),
-                        ],
-                        [
-                          "Address",
-                          withdrawAddress.slice(0, 12) +
-                            "···" +
-                            withdrawAddress.slice(-6),
-                        ],
-                        ["Network", withdrawCrypto.network],
-                        [
-                          "Processing",
-                          `${withdrawCrypto.time} (after admin approval)`,
-                        ],
-                      ] as [string, string][]
-                    ).map(([l, v]) => (
-                      <div
-                        key={l}
-                        className="flex justify-between text-xs gap-4"
-                      >
-                        <span className="text-xc-muted">{l}</span>
-                        <span className="text-white font-medium text-right">
-                          {v}
-                        </span>
-                      </div>
-                    ))}
-                  </>
-                )}
+                {(
+                  [
+                    [
+                      "Method",
+                      `${withdrawCrypto.name} (${withdrawCrypto.symbol})`,
+                    ],
+                    ["Amount", `${amount} ${withdrawCrypto.symbol}`],
+                    [
+                      "USD Value",
+                      formatCurrency(
+                        parseFloat(amount || "0") * withdrawCrypto.rate,
+                      ),
+                    ],
+                    [
+                      "Address",
+                      withdrawAddress.slice(0, 12) +
+                        "···" +
+                        withdrawAddress.slice(-6),
+                    ],
+                    ["Network", withdrawCrypto.network],
+                    [
+                      "Processing",
+                      `${withdrawCrypto.time} (after admin approval)`,
+                    ],
+                  ] as [string, string][]
+                ).map(([l, v]) => (
+                  <div key={l} className="flex justify-between text-xs gap-4">
+                    <span className="text-xc-muted">{l}</span>
+                    <span className="text-white font-medium text-right">
+                      {v}
+                    </span>
+                  </div>
+                ))}
               </div>
 
               <div className="flex items-start gap-2 text-xs text-white/50 bg-white/[0.02] border border-white/[0.05] rounded-xl px-3 py-2">
@@ -2346,54 +1997,32 @@ export default function WalletPage() {
                 reference={withdrawRef}
                 createdAt={new Date().toISOString()}
                 amountLabel="Withdrawal Amount"
-                amountValue={
-                  withdrawMethod === "wire"
-                    ? formatCurrency(parseFloat(amount || "0"))
-                    : `${amount} ${withdrawCrypto.symbol}`
-                }
+                amountValue={`${amount} ${withdrawCrypto.symbol}`}
                 status="PENDING"
                 items={[
                   {
                     label: "Method",
-                    value:
-                      withdrawMethod === "wire"
-                        ? "Bank Wire (ACH)"
-                        : `${withdrawCrypto.name} (${withdrawCrypto.symbol})`,
+                    value: `${withdrawCrypto.name} (${withdrawCrypto.symbol})`,
                   },
-                  ...(withdrawMethod === "wire"
-                    ? [
-                        {
-                          label: "Destination",
-                          value: "JPMorgan Chase ···· 8291",
-                        },
-                        { label: "SWIFT", value: "CHASUS33", mono: true },
-                        {
-                          label: "USD Value",
-                          value: formatCurrency(parseFloat(amount || "0")),
-                          mono: true,
-                        },
-                      ]
-                    : [
-                        {
-                          label: "Network",
-                          value: withdrawCrypto.network,
-                        },
-                        {
-                          label: "Address",
-                          value:
-                            withdrawAddress.slice(0, 10) +
-                            "···" +
-                            withdrawAddress.slice(-6),
-                          mono: true,
-                        },
-                        {
-                          label: "USD Value",
-                          value: formatCurrency(
-                            parseFloat(amount || "0") * withdrawCrypto.rate,
-                          ),
-                          mono: true,
-                        },
-                      ]),
+                  {
+                    label: "Network",
+                    value: withdrawCrypto.network,
+                  },
+                  {
+                    label: "Address",
+                    value:
+                      withdrawAddress.slice(0, 10) +
+                      "···" +
+                      withdrawAddress.slice(-6),
+                    mono: true,
+                  },
+                  {
+                    label: "USD Value",
+                    value: formatCurrency(
+                      parseFloat(amount || "0") * withdrawCrypto.rate,
+                    ),
+                    mono: true,
+                  },
                   { label: "Status", value: "PENDING ADMIN APPROVAL" },
                 ]}
               />
@@ -2412,130 +2041,24 @@ export default function WalletPage() {
           )}
         </div>
       </Modal>
+
+      {/* Loss-aversion vault gate — explicit forfeited-returns modal */}
+      {user && (
+        <YieldVaultModal
+          open={vaultGateOpen}
+          onClose={hideVaultGate}
+          userId={user.id}
+          balance={cash}
+          dailyRate={effectiveRate}
+          onConfirmWithdrawal={() => {
+            setMessage(null);
+            setAmount("");
+            setWithdrawAddress("");
+            setModal("withdraw");
+            setWithdrawStep(1);
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 }
-
-const D = { userId: "demo-user", walletId: "demo-wallet" };
-const DEMO_TRANSACTIONS: WalletTransaction[] = [
-  {
-    ...D,
-    id: "1",
-    type: "DEPOSIT",
-    amount: 50000,
-    status: "COMPLETED",
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    reference: "WIRE-2026-001",
-    metadata: { description: "Wire transfer — JPMorgan Chase" },
-  },
-  {
-    ...D,
-    id: "2",
-    type: "DEPOSIT",
-    amount: 24850,
-    status: "COMPLETED",
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-    reference: "CRYPTO-BTC-002",
-    metadata: { description: "Bitcoin deposit — 0.3634 BTC" },
-  },
-  {
-    ...D,
-    id: "3",
-    type: "TRADE",
-    amount: 8750,
-    status: "COMPLETED",
-    createdAt: new Date(Date.now() - 259200000).toISOString(),
-    reference: "TRD-003",
-    metadata: { description: "BUY 35× NVDA @ $875.39" },
-  },
-  {
-    ...D,
-    id: "4",
-    type: "FUND_INVESTMENT",
-    amount: 25000,
-    status: "COMPLETED",
-    createdAt: new Date(Date.now() - 345600000).toISOString(),
-    reference: "FND-004",
-    metadata: { description: "Quantum Alpha Fund — subscription" },
-  },
-  {
-    ...D,
-    id: "5",
-    type: "TRADE",
-    amount: 4320,
-    status: "COMPLETED",
-    createdAt: new Date(Date.now() - 432000000).toISOString(),
-    reference: "TRD-005",
-    metadata: { description: "BUY 10× TSLA @ $432.10" },
-  },
-  {
-    ...D,
-    id: "6",
-    type: "WITHDRAWAL",
-    amount: 15000,
-    status: "COMPLETED",
-    createdAt: new Date(Date.now() - 518400000).toISOString(),
-    reference: "WDR-006",
-    metadata: { description: "ACH withdrawal — Chase ····8291" },
-  },
-  {
-    ...D,
-    id: "7",
-    type: "DEPOSIT",
-    amount: 100000,
-    status: "COMPLETED",
-    createdAt: new Date(Date.now() - 604800000).toISOString(),
-    reference: "WIRE-2026-007",
-    metadata: { description: "Wire transfer — Morgan Stanley" },
-  },
-  {
-    ...D,
-    id: "8",
-    type: "TRADE",
-    amount: 1252,
-    status: "COMPLETED",
-    createdAt: new Date(Date.now() - 691200000).toISOString(),
-    reference: "TRD-008",
-    metadata: { description: "SELL 5× AAPL @ $250.42" },
-  },
-  {
-    ...D,
-    id: "9",
-    type: "FUND_REDEMPTION",
-    amount: 8400,
-    status: "COMPLETED",
-    createdAt: new Date(Date.now() - 777600000).toISOString(),
-    reference: "FND-009",
-    metadata: { description: "Orbital Income Fund — redemption +12.4%" },
-  },
-  {
-    ...D,
-    id: "10",
-    type: "FEE",
-    amount: 200,
-    status: "COMPLETED",
-    createdAt: new Date(Date.now() - 864000000).toISOString(),
-    reference: "FEE-010",
-    metadata: { description: "Monthly platform fee — GOLD tier" },
-  },
-  {
-    ...D,
-    id: "11",
-    type: "DEPOSIT",
-    amount: 5000,
-    status: "COMPLETED",
-    createdAt: new Date(Date.now() - 950400000).toISOString(),
-    reference: "CRYPTO-ETH-011",
-    metadata: { description: "Ethereum deposit — 1.302 ETH" },
-  },
-  {
-    ...D,
-    id: "12",
-    type: "TRADE",
-    amount: 6240,
-    status: "PENDING",
-    createdAt: new Date(Date.now() - 36000000).toISOString(),
-    reference: "TRD-012",
-    metadata: { description: "BUY 200× SPY @ $624.00 — pending" },
-  },
-];

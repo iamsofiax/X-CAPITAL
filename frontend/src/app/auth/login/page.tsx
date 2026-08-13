@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useStore } from "@/store/useStore";
 import { Button } from "@/components/ui/Button";
 import { XCapitalLogoMark } from "@/components/brand/XCapitalLogo";
-import { Eye, EyeOff, Mail, Lock, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, AlertCircle, Zap } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,6 +23,47 @@ export default function LoginPage() {
     if (isAuthenticated) router.replace("/dashboard");
   }, [isAuthenticated, router]);
 
+  // Swift login: restore the last-used email so returning users land with
+  // their address pre-filled — one keystroke (password) separates them from
+  // the terminal.
+  useEffect(() => {
+    try {
+      const remembered = localStorage.getItem("xc_last_email");
+      if (remembered) setEmail(remembered);
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+
+  const persistEmail = () => {
+    try {
+      if (email) localStorage.setItem("xc_last_email", email);
+    } catch {
+      /* storage unavailable */
+    }
+  };
+
+  // One-tap continue — drops into a demo session instantly (offline-safe,
+  // auto-provisions a local CORE node so every flow is immediately testable).
+  const handleQuickAccess = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      const demoEmail = `demo.users@xcapital.investments`;
+      const result = await loginUser(demoEmail, "xcapitaldemo");
+      if (result.success) {
+        localStorage.setItem("xc_remember_me", "1");
+        router.push("/dashboard");
+      } else {
+        setError(result.error || "Demo access unavailable. Sign in instead.");
+      }
+    } catch {
+      setError("Demo access unavailable. Sign in instead.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -31,6 +72,7 @@ export default function LoginPage() {
     try {
       const result = await loginUser(email, password);
       if (result.success) {
+        persistEmail();
         if (rememberMe) {
           localStorage.setItem("xc_remember_me", "1");
         } else {
@@ -172,6 +214,17 @@ export default function LoginPage() {
                 Sign In
               </Button>
             </form>
+
+            {/* One-tap swift access — zero-friction entry to the terminal */}
+            <button
+              type="button"
+              onClick={handleQuickAccess}
+              disabled={loading}
+              className="mt-3 w-full py-3 rounded-xl border border-emerald-500/30 bg-emerald-950/30 text-xs font-black text-emerald-400 hover:bg-emerald-900/30 transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              One-tap continue — Demo terminal
+            </button>
 
             <div className="flex items-center gap-3 my-6">
               <div className="flex-1 h-px bg-xc-border" />

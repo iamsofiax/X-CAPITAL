@@ -281,36 +281,100 @@ export default function YieldGrowthVisualizer({
   }, [balance, isArmed, dailyRate]);
 
   if (compact) {
+    // Professional long-term horizon panel — APY annualized, structured
+    // columns, and a compounding track that reads like institutional research.
+    const apyAnnual = (Math.pow(1 + dailyRate, 365) - 1) * 100;
+    const horizon = [
+      { label: "1M", days: 30 },
+      { label: "3M", days: 90 },
+      { label: "6M", days: 180 },
+      { label: "1Y", days: 365 },
+      { label: "3Y", days: 1095 },
+      { label: "5Y", days: 1825 },
+    ];
     return (
       <div className={cn("relative overflow-hidden rounded-xl border", className)}
         style={{ borderColor: YIELD_COLORS.border, background: `linear-gradient(135deg, ${YIELD_COLORS.bgFrom}, ${YIELD_COLORS.bgTo})` }}
       >
-        <div className="relative z-10 p-3">
-          <div className="flex items-center justify-between mb-1.5">
+        <div className="relative z-10 p-3 md:p-4">
+          {/* Header row — live accrual + APY */}
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1.5">
               <Flame className="w-3 h-3 text-emerald-400" />
-              <span className="text-[9px] font-mono text-white/40 uppercase tracking-wider">Compounding</span>
+              <span className="text-[9px] font-mono text-white/40 uppercase tracking-wider">Yield Stream</span>
+              {isArmed && balance > 0 && (
+                <span className="flex items-center gap-1 text-[8px] font-mono text-emerald-400/70">
+                  <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
+                  LIVE
+                </span>
+              )}
             </div>
-            <span className="text-[9px] font-mono text-emerald-400/80">{(dailyRate * 100).toFixed(1)}%/day</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-lg md:text-xl font-black font-mono text-white tabular-nums">{formatCurrency(balance)}</span>
+              {isArmed && liveAccruedYield > 0 && (
+                <motion.span
+                  key={`acc-${Math.round(liveAccruedYield * 100)}`}
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-[10px] font-mono font-bold text-emerald-400"
+                >
+                  +{formatCurrency(liveAccruedYield)}
+                </motion.span>
+              )}
+            </div>
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-lg font-black font-mono text-white tabular-nums">{formatCurrency(balance)}</span>
-            {isArmed && liveAccruedYield > 0 && (
-              <motion.span
-                key={`acc-${Math.round(liveAccruedYield * 100)}`}
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-[10px] font-mono font-bold text-emerald-400"
-              >
-                +{formatCurrency(liveAccruedYield)} live
-              </motion.span>
-            )}
+
+          {/* APY + daily rate readouts */}
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div className="bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2">
+              <div className="text-[8px] font-mono text-white/25 uppercase tracking-wider">Annualized APY</div>
+              <div className="text-sm md:text-base font-black font-mono text-emerald-400 tabular-nums">
+                +{apyAnnual >= 1000 ? apyAnnual.toLocaleString("en-US", { maximumFractionDigits: 0 }) : apyAnnual.toFixed(0)}%
+              </div>
+            </div>
+            <div className="bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2">
+              <div className="text-[8px] font-mono text-white/25 uppercase tracking-wider">Daily Rate</div>
+              <div className="text-sm md:text-base font-black font-mono text-white tabular-nums">
+                {(dailyRate * 100).toFixed(2)}% <span className="text-[9px] text-white/30">/ day</span>
+              </div>
+            </div>
           </div>
-          <div className="flex justify-between text-[8px] font-mono text-white/20 mt-2">
-            <span>24h: +{formatCurrency(realCompound(balance, dailyRate, 1) - balance)}</span>
-            <span>7d: +{formatCurrency(realCompound(balance, dailyRate, 7) - balance)}</span>
-            <span>30d: +{formatCurrency(realCompound(balance, dailyRate, 30) - balance)}</span>
+
+          {/* Long-term horizon columns — institutional structure */}
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+            {horizon.map((h) => {
+              const value = realCompound(balance, dailyRate, h.days);
+              const gain = value - balance;
+              const pct = balance > 0 ? (gain / balance) * 100 : 0;
+              return (
+                <div key={h.label} className="bg-white/[0.02] border border-white/[0.05] rounded-lg px-2 py-1.5 text-center">
+                  <div className="text-[8px] font-mono text-white/25 uppercase">{h.label}</div>
+                  <div className="text-[10px] md:text-xs font-mono font-bold text-emerald-400 tabular-nums truncate">
+                    +{formatCurrency(gain)}
+                  </div>
+                  <div className="text-[8px] font-mono text-white/20">+{pct.toFixed(1)}%</div>
+                </div>
+              );
+            })}
           </div>
+
+          {/* Compounding track */}
+          {balance > 0 && (
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-[8px] font-mono text-white/20 mb-1">
+                <span>NOW</span>
+                <span className="text-emerald-400/50">{(dailyRate * 100).toFixed(2)}%/day · A=P(1+r){'\u02E3'}</span>
+                <span>5Y</span>
+              </div>
+              <div className="relative h-1.5 bg-white/[0.04] rounded-full overflow-hidden">
+                <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-600 via-emerald-400 to-emerald-300" style={{ width: `${Math.min(100, (balance > 0 ? 1 : 0) * 100)}%` }} />
+                <div className="absolute top-1/2 -translate-y-1/2 left-[5%] w-1 h-3 bg-white/20 rounded-full" />
+              </div>
+              <p className="text-[9px] font-mono text-emerald-400/40 text-center mt-1.5 tracking-wider">
+                {isArmed && balance > 0 ? `COMPOUNDING ${(dailyRate * 100).toFixed(2)}% DAILY · ${formatCurrency(liveAccruedYield)} ACCRUED` : "FUNDED NODE · COMPOUNDING PAUSED"}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     );

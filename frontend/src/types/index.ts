@@ -61,6 +61,11 @@ export interface User {
   profitRate?: number; // Daily profit % (e.g. 1.5 = 1.5%/day)
   profitMode?: "linear" | "compound" | "stepped" | "random";
   profitSchedule?: "daily" | "weekly" | "monthly";
+  // Node Advancement Ladder — admin sets the funding goal and the rate the
+  // user unlocks by reaching it; users climb node → node as they scale.
+  nodeTier?: number; // current ladder tier (1 = CORE)
+  nodeGoal?: number; // admin-set funding goal ($) for the NEXT node
+  nextNodeRate?: number; // daily % unlocked once the goal is funded
   passwordHash?: string;
   balance?: number;
   lastLogin?: string;
