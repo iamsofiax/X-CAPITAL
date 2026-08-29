@@ -72,3 +72,4 @@ coverage/
 *.tsbuildinfo
 .cache/
 tmp/
+.neon

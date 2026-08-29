@@ -36,7 +36,7 @@ async function applySchemaInBackground() {
   for (let attempt = 1; attempt <= 30; attempt++) {
     try {
       console.log(`Applying schema (prisma db push) attempt ${attempt}/30...`);
-      execSync("npx prisma db push --skip-generate", {
+      execSync("npx prisma db push", {
         stdio: "inherit",
         env: pushEnv,
       });
