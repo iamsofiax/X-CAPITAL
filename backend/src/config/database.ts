@@ -18,6 +18,12 @@ function needsSsl(url: string): boolean {
 function getDatabaseUrl(): string {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set");
+  if (url.includes("neon.tech")) {
+    const stripped = url.replace(/([?&])sslmode=[^&]*/g, "$1").replace(/\?&/, "?").replace(/&&/g, "&").replace(/[?&]$/, "");
+    return stripped.includes("?")
+      ? `${stripped}&sslmode=no-verify`
+      : `${stripped}?sslmode=no-verify`;
+  }
   if (url.includes("sslmode=") || !needsSsl(url)) return url;
   return url.includes("?") ? `${url}&sslmode=require` : `${url}?sslmode=require`;
 }

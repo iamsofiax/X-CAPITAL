@@ -22,7 +22,14 @@ function fail(msg) {
 }
 
 function ensureSsl(url) {
-  if (!url || url.includes("sslmode=")) return url;
+  if (!url) return url;
+  if (url.includes("neon.tech")) {
+    const stripped = url.replace(/([?&])sslmode=[^&]*/g, "$1").replace(/\?&/, "?").replace(/&&/g, "&").replace(/[?&]$/, "");
+    return stripped.includes("?")
+      ? `${stripped}&sslmode=no-verify`
+      : `${stripped}?sslmode=no-verify`;
+  }
+  if (url.includes("sslmode=")) return url;
   return url.includes("?") ? `${url}&sslmode=require` : `${url}?sslmode=require`;
 }
 
