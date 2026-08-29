@@ -38,10 +38,10 @@ function realCompound(principal: number, dailyRate: number, days: number): numbe
 }
 
 const TIME_SEGMENTS = [
-  { label: "24h", days: 1, emoji: "⚡" },
-  { label: "7d", days: 7, emoji: "📈" },
-  { label: "30d", days: 30, emoji: "🔥" },
-  { label: "90d", days: 90, emoji: "🚀" },
+  { label: "24h", days: 1 },
+  { label: "7d", days: 7 },
+  { label: "30d", days: 30 },
+  { label: "90d", days: 90 },
 ] as const;
 
 function generateCompoundProjection(balance: number, dailyRate: number, days: number) {
@@ -577,7 +577,6 @@ export default function YieldGrowthVisualizer({
                         : "text-white/30 hover:text-white/60 border border-transparent hover:border-white/10",
                     )}
                   >
-                    <span>{seg.emoji}</span>
                     <span>{seg.label}</span>
                   </button>
                 );
@@ -621,7 +620,7 @@ export default function YieldGrowthVisualizer({
                   </div>
                   <div className="text-center">
                     <div className="text-[9px] font-mono text-white/30 mb-1">
-                      {seg.emoji} {seg.label}
+                      {seg.label}
                     </div>
                     <div className={cn(
                       "text-sm md:text-base font-black font-mono",

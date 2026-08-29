@@ -128,6 +128,11 @@ export const authAPI = {
     api.post('/auth/register', data),
   login: (email: string, password: string) =>
     api.post('/auth/login', { email, password }),
+  google: (credential: string) => api.post('/auth/google', { credential }),
+  apple: (
+    identityToken: string,
+    names?: { firstName?: string; lastName?: string },
+  ) => api.post('/auth/apple', { identityToken, ...names }),
   logout: (refreshToken: string) =>
     api.post('/auth/logout', { refreshToken }),
   getMe: () => api.get('/auth/me'),
@@ -191,6 +196,10 @@ export const oracleAPI = {
   getPortfolioRisk: () => api.get('/oracle/risk'),
 };
 
+export const accountAPI = {
+  getSnapshot: () => api.get('/account/snapshot'),
+};
+
 export const adminAPI = {
   listUsers: () => api.get('/admin/users'),
   createUser: (data: {
@@ -215,4 +224,34 @@ export const adminAPI = {
   approveAlert: (id: string) => api.post(`/admin/alerts/${id}/approve`),
   rejectAlert: (id: string, reason?: string) =>
     api.post(`/admin/alerts/${id}/reject`, { reason }),
+  getYieldConfig: (userId: string) =>
+    api.get(`/admin/users/${userId}/yield-config`),
+  putYieldConfig: (
+    userId: string,
+    body: {
+      profitRate?: number;
+      dailyRate?: number;
+      profitMode?: 'linear' | 'compound';
+      profitMultiplier?: number;
+      profitHold?: boolean;
+      nodeGoal?: number | null;
+      nextNodeRate?: number | null;
+    },
+  ) => api.put(`/admin/users/${userId}/yield-config`, body),
+  setYieldHold: (userId: string, profitHold: boolean) =>
+    api.post(`/admin/users/${userId}/hold`, { profitHold }),
+  createSpike: (
+    userId: string,
+    body: {
+      percentage: number;
+      durationHours: number;
+      direction?: 'up' | 'down';
+      label?: string;
+      profitRate?: number;
+    },
+  ) => api.post(`/admin/users/${userId}/spikes`, body),
+  resolveSpike: (userId: string, spikeId?: string) =>
+    spikeId
+      ? api.post(`/admin/users/${userId}/spikes/${spikeId}/resolve`)
+      : api.post(`/admin/users/${userId}/spikes/resolve`),
 };

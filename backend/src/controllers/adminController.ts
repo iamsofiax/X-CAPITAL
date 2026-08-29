@@ -65,10 +65,12 @@ export const approveAlert = async (
 
     await prisma.$transaction(async (tx) => {
       if (alert.type === 'DEPOSIT') {
-        // Credit the wallet
         await tx.wallet.update({
           where: { userId: alert.userId },
-          data: { fiatBalance: { increment: amount } },
+          data: {
+            fiatBalance: { increment: amount },
+            approvedCapital: { increment: amount },
+          },
         });
         if (alert.transactionId) {
           await tx.transaction.update({
@@ -83,10 +85,12 @@ export const approveAlert = async (
         if (balNow < amount) {
           throw new Error('Insufficient balance');
         }
-        // Debit the wallet
         await tx.wallet.update({
           where: { userId: alert.userId },
-          data: { fiatBalance: { decrement: amount } },
+          data: {
+            fiatBalance: { decrement: amount },
+            approvedCapital: { decrement: amount },
+          },
         });
         if (alert.transactionId) {
           await tx.transaction.update({
@@ -259,7 +263,21 @@ export const listUsers = async (
         isActive: true,
         createdAt: true,
         lastLoginAt: true,
-        wallet: { select: { id: true, fiatBalance: true } },
+        wallet: {
+          select: {
+            id: true,
+            fiatBalance: true,
+            lastAccruedAt: true,
+            totalYieldGenerated: true,
+            approvedCapital: true,
+          },
+        },
+        yieldConfig: true,
+        yieldSpikes: {
+          where: { active: true },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        },
         transactions: {
           orderBy: { createdAt: 'desc' },
           take: 40,
@@ -322,12 +340,18 @@ export const adjustUserBalance = async (
         }
         await tx.wallet.update({
           where: { userId },
-          data: { fiatBalance: { decrement: amount } },
+          data: {
+            fiatBalance: { decrement: amount },
+            approvedCapital: { decrement: amount },
+          },
         });
       } else {
         await tx.wallet.update({
           where: { userId },
-          data: { fiatBalance: { increment: amount } },
+          data: {
+            fiatBalance: { increment: amount },
+            approvedCapital: { increment: amount },
+          },
         });
       }
 
@@ -413,10 +437,13 @@ export const createUser = async (
           kycStatus: 'APPROVED',
         },
       });
-      await tx.wallet.create({ data: { userId: newUser.id } });
+      await tx.wallet.create({
+        data: { userId: newUser.id, lastAccruedAt: new Date() },
+      });
       await tx.portfolio.create({
         data: { userId: newUser.id, totalValue: 0, totalCost: 0, totalPnL: 0 },
       });
+      await tx.userYieldConfig.create({ data: { userId: newUser.id } });
       return newUser;
     });
 

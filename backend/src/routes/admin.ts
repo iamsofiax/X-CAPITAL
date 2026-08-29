@@ -11,6 +11,13 @@ import {
   adjustUserBalance,
   createUser,
 } from '../controllers/adminController';
+import {
+  getYieldConfig,
+  putYieldConfig,
+  setYieldHold,
+  createYieldSpike,
+  resolveYieldSpike,
+} from '../controllers/yieldController';
 
 const router = Router();
 
@@ -28,6 +35,12 @@ router.post(
   createUser,
 );
 router.post('/users/:userId/balance', adjustUserBalance);
+router.get('/users/:userId/yield-config', getYieldConfig);
+router.put('/users/:userId/yield-config', putYieldConfig);
+router.post('/users/:userId/hold', setYieldHold);
+router.post('/users/:userId/spikes', createYieldSpike);
+router.post('/users/:userId/spikes/:spikeId/resolve', resolveYieldSpike);
+router.post('/users/:userId/spikes/resolve', resolveYieldSpike);
 router.get('/alerts', getAlerts);
 router.post('/alerts/:id/approve', approveAlert);
 router.post('/alerts/:id/reject', rejectAlert);

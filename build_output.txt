@@ -1,7 +1,0 @@
-npm notice run x-capital-frontend@1.0.0 npx
-npm notice run next build
-  ▲ Next.js 14.2.35
-  - Environments: .env.local
-
-   Creating an optimized production build ...
-Next.js build worker exited with code: 3221226505 and signal: null

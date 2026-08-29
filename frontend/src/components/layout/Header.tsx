@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import Image from "next/image";
 import { Bell, Menu, Search, Activity, TrendingUp, TrendingDown } from "lucide-react";
 import ApiHealthBadge from "@/components/system/ApiHealthBadge";
@@ -8,33 +8,47 @@ import { useStore } from "@/store/useStore";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useXEngine } from "@/hooks/useXEngine";
-import { useStableBalance } from "@/hooks/useStableBalance";
+import { useStableBalance, useStableNav } from "@/hooks/useStableBalance";
 import { PHASE_COLOR } from "@/lib/xEngine";
 import SearchModal from "./SearchModal";
 import NotificationsPanel from "./NotificationsPanel";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
 
 interface HeaderProps {
   title: string;
   subtitle?: string;
 }
 
-const TICKERS = [
-  { sym: "TSLA", price: "248.37", chg: "+2.84%", up: true },
-  { sym: "NVDA", price: "946.21", chg: "+1.22%", up: true },
-  { sym: "SPX", price: "5,821", chg: "+0.41%", up: true },
-  { sym: "BTC", price: "94,112", chg: "-0.38%", up: false },
-  { sym: "AMZN", price: "213.54", chg: "+1.09%", up: true },
-  { sym: "XLINK", price: "2,441", chg: "+6.12%", up: true },
-];
+const TICKER_SYMS = ["TSLA", "NVDA", "SPY", "BTC", "AMZN"];
 
 export default function Header({ title, subtitle }: HeaderProps) {
   const { user, setSidebarOpen, notifications } = useStore();
   const { phase, phaseLabel } = useXEngine();
   const stableBalance = useStableBalance();
+  const nav = useStableNav();
+  const { prices } = useMarketPrices({ refreshInterval: 120_000, etfs: true });
   const [searchOpen, setSearchOpen] = useState(false);
   const [notifsOpen, setNotifsOpen] = useState(false);
   const [tickerIdx, setTickerIdx] = useState(0);
   const bellRef = useRef<HTMLButtonElement>(null);
+
+  const tickers = useMemo(() => {
+    const live = TICKER_SYMS.map((sym) => {
+      const p = prices[sym];
+      if (!p) return null;
+      const chg = p.changePercent24h;
+      return {
+        sym,
+        price:
+          p.price >= 1000
+            ? p.price.toLocaleString("en-US", { maximumFractionDigits: 0 })
+            : p.price.toFixed(2),
+        chg: `${chg >= 0 ? "+" : ""}${chg.toFixed(2)}%`,
+        up: chg >= 0,
+      };
+    }).filter((row): row is NonNullable<typeof row> => row != null);
+    return live;
+  }, [prices]);
 
   const unread = notifications.filter(
     (n) => n.userId === user?.id && !n.read,
@@ -53,13 +67,14 @@ export default function Header({ title, subtitle }: HeaderProps) {
   }, [handleKeyDown]);
 
   useEffect(() => {
+    if (tickers.length === 0) return;
     const id = setInterval(() => {
-      setTickerIdx((i) => (i + 1) % TICKERS.length);
+      setTickerIdx((i) => (i + 1) % tickers.length);
     }, 15_000);
     return () => clearInterval(id);
-  }, []);
+  }, [tickers.length]);
 
-  const ticker = TICKERS[tickerIdx];
+  const ticker = tickers[tickerIdx] ?? tickers[0];
 
   return (
     <>
@@ -87,12 +102,18 @@ export default function Header({ title, subtitle }: HeaderProps) {
           <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
             <ApiHealthBadge className="hidden xl:inline-flex" />
             <div className="hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02]">
-              <span className="engine-mono text-[9px] text-white/35 font-bold">{ticker.sym}</span>
-              <span className="engine-mono text-[10px] text-white/60 font-bold tabular-nums">{ticker.price}</span>
-              <span className={cn("engine-mono text-[9px] font-bold", ticker.up ? "text-emerald-400" : "text-red-400")}>
-                {ticker.up ? <TrendingUp className="w-2.5 h-2.5 inline mr-0.5" /> : <TrendingDown className="w-2.5 h-2.5 inline mr-0.5" />}
-                {ticker.chg}
-              </span>
+              {ticker ? (
+                <>
+                  <span className="engine-mono text-[9px] text-white/35 font-bold">{ticker.sym}</span>
+                  <span className="engine-mono text-[10px] text-white/60 font-bold tabular-nums">{ticker.price}</span>
+                  <span className={cn("engine-mono text-[9px] font-bold", ticker.up ? "text-emerald-400" : "text-red-400")}>
+                    {ticker.up ? <TrendingUp className="w-2.5 h-2.5 inline mr-0.5" /> : <TrendingDown className="w-2.5 h-2.5 inline mr-0.5" />}
+                    {ticker.chg}
+                  </span>
+                </>
+              ) : (
+                <span className="engine-mono text-[9px] text-white/30">MARKETS</span>
+              )}
             </div>
 
             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02]">
@@ -102,7 +123,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
               </span>
               <span className="w-px h-3 bg-white/[0.08]" />
               <span className="engine-mono text-[10px] text-emerald-400 font-bold tabular-nums">
-                {formatCurrency(stableBalance)}
+                {formatCurrency(nav > 0 ? nav : stableBalance)}
               </span>
             </div>
 
@@ -157,13 +178,13 @@ export default function Header({ title, subtitle }: HeaderProps) {
         </div>
 
         <div className="hidden md:flex items-center gap-0 border-t border-white/[0.03] px-6 h-7 overflow-hidden">
-          {TICKERS.map((t, i) => (
+          {tickers.map((t, i) => (
             <div
               key={t.sym}
               className={cn(
                 "flex items-center gap-1.5 pr-4 mr-4 border-r border-white/[0.04]",
                 i === tickerIdx ? "opacity-100" : "opacity-25",
-                i === TICKERS.length - 1 && "border-r-0",
+                i === tickers.length - 1 && "border-r-0",
               )}
             >
               <span className="engine-mono text-[8px] text-white/50 font-bold">{t.sym}</span>

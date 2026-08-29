@@ -31,7 +31,7 @@ export default function OpportunityCostVisualizer({
   const fullWithdrawal = currentBalance;
 
   return (
-    <div className="rounded-xl border border-emerald-900/50 bg-black p-6 shadow-[0_0_30px_rgba(255,0,0,0.05)]">
+    <div className="rounded-xl border border-emerald-900/50 bg-[#08080c] p-6 shadow-[0_0_30px_rgba(255,0,0,0.05)]">
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">

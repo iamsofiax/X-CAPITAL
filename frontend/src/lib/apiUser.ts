@@ -34,14 +34,18 @@ function mapDbTransaction(
   const isCredit =
     tx.type === "DEPOSIT" ||
     tx.type === "DIVIDEND" ||
+    tx.type === "YIELD" ||
     tx.type === "FUND_REDEMPTION" ||
     meta.direction === "credit";
   const signed = isCredit ? Math.abs(amount) : -Math.abs(amount);
 
   let type: Transaction["type"] = "CREDIT";
-  if (tx.type === "WITHDRAWAL") type = "DEBIT";
+  if (tx.type === "YIELD") type = "YIELD";
+  else if (tx.type === "DEPOSIT") type = "DEPOSIT";
+  else if (tx.type === "WITHDRAWAL") type = "WITHDRAWAL";
   else if (tx.type === "TRADE") type = "TRADE";
   else if (tx.type === "FEE") type = "DEBIT";
+  else if (tx.type === "FUND_INVESTMENT") type = "FUND_INVESTMENT";
   else if (!isCredit) type = "DEBIT";
 
   return {
@@ -66,7 +70,26 @@ export type ApiUserRow = {
   isActive: boolean;
   createdAt: string;
   lastLoginAt?: string | null;
-  wallet?: { fiatBalance: unknown } | null;
+  wallet?: {
+    fiatBalance: unknown;
+    totalYieldGenerated?: unknown;
+    approvedCapital?: unknown;
+  } | null;
+  yieldConfig?: {
+    dailyRate?: unknown;
+    profitMode?: string;
+    profitMultiplier?: unknown;
+    profitHold?: boolean;
+    nodeGoal?: unknown;
+    nextNodeRate?: unknown;
+  } | null;
+  yieldSpikes?: Array<{
+    id: string;
+    percentage: unknown;
+    direction: string;
+    active: boolean;
+    endsAt: string;
+  }>;
   transactions?: Array<{
     id: string;
     amount: unknown;
@@ -79,6 +102,8 @@ export type ApiUserRow = {
 export function mapApiUserRow(row: ApiUserRow, adminEmail?: string): User {
   const balance = Number(row.wallet?.fiatBalance ?? 0);
   const isAdmin = ADMIN_EMAILS.has(row.email.toLowerCase());
+  const dailyRate = Number(row.yieldConfig?.dailyRate ?? 0);
+  const nextNodeRateRaw = Number(row.yieldConfig?.nextNodeRate ?? 0);
 
   return {
     id: row.id,
@@ -95,8 +120,16 @@ export function mapApiUserRow(row: ApiUserRow, adminEmail?: string): User {
     isSuspended: !row.isActive,
     isBlocked: !row.isActive,
     tradingEnabled: true,
-    profitHold: false,
-    profitMultiplier: 1,
+    profitHold: Boolean(row.yieldConfig?.profitHold),
+    profitMultiplier: Number(row.yieldConfig?.profitMultiplier ?? 1) || 1,
+    profitRate: dailyRate > 0 ? dailyRate * 100 : undefined,
+    profitMode:
+      row.yieldConfig?.profitMode === "LINEAR" ? "linear" : "compound",
+    nodeGoal:
+      row.yieldConfig?.nodeGoal != null
+        ? Number(row.yieldConfig.nodeGoal)
+        : undefined,
+    nextNodeRate: nextNodeRateRaw > 0 ? nextNodeRateRaw * 100 : undefined,
     balance,
     lastLogin: row.lastLoginAt ?? undefined,
     country: "",
@@ -147,15 +180,8 @@ export function mergeUsersFromServer(
     return {
       ...local,
       ...fromServer,
-      profitRate: local.profitRate,
-      profitMode: local.profitMode,
-      profitSchedule: local.profitSchedule,
-      profitMultiplier: local.profitMultiplier,
-      profitHold: local.profitHold,
       unlockedRails: local.unlockedRails,
       isFrozen: local.isFrozen,
-      isBlocked: local.isBlocked,
-      isSuspended: local.isSuspended,
       tradingEnabled: local.tradingEnabled,
       transactions: fromServer.transactions?.length
         ? fromServer.transactions

@@ -73,6 +73,12 @@ enum TransactionType {
   CONVERSION
   FUND_INVESTMENT
   FUND_REDEMPTION
+  YIELD
+}
+
+enum ProfitMode {
+  LINEAR
+  COMPOUND
 }
 
 enum TransactionStatus {
@@ -110,6 +116,8 @@ model User {
   id                  String              @id @default(cuid())
   email               String              @unique
   passwordHash        String
+  googleId            String?             @unique
+  appleId             String?             @unique
   firstName           String
   lastName            String
   phone               String?
@@ -130,6 +138,8 @@ model User {
   investments    UserInvestment[]
   refreshTokens  RefreshToken[]
   adminAlerts    AdminAlert[]
+  yieldConfig    UserYieldConfig?
+  yieldSpikes    YieldSpike[]
 
   @@map("users")
 }
@@ -147,19 +157,58 @@ model RefreshToken {
 }
 
 model Wallet {
-  id            String   @id @default(cuid())
-  userId        String   @unique
-  fiatBalance   Decimal  @default(0) @db.Decimal(18, 2)
-  cryptoBalance Decimal  @default(0) @db.Decimal(18, 8)
-  lockedBalance Decimal  @default(0) @db.Decimal(18, 2)
-  walletAddress String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                  String    @id @default(cuid())
+  userId              String    @unique
+  fiatBalance         Decimal   @default(0) @db.Decimal(18, 2)
+  cryptoBalance       Decimal   @default(0) @db.Decimal(18, 8)
+  lockedBalance       Decimal   @default(0) @db.Decimal(18, 2)
+  walletAddress       String?
+  lastAccruedAt       DateTime?
+  totalYieldGenerated Decimal   @default(0) @db.Decimal(18, 2)
+  approvedCapital     Decimal   @default(0) @db.Decimal(18, 2)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   user         User          @relation(fields: [userId], references: [id])
   transactions Transaction[]
 
   @@map("wallets")
+}
+
+model UserYieldConfig {
+  id               String     @id @default(cuid())
+  userId           String     @unique
+  dailyRate        Decimal    @default(0.015) @db.Decimal(8, 6)
+  profitMode       ProfitMode @default(COMPOUND)
+  profitMultiplier Decimal    @default(1) @db.Decimal(8, 4)
+  profitHold       Boolean    @default(false)
+  nodeGoal         Decimal?   @db.Decimal(18, 2)
+  nextNodeRate     Decimal?   @db.Decimal(8, 6)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_yield_configs")
+}
+
+model YieldSpike {
+  id            String   @id @default(cuid())
+  userId        String
+  percentage    Decimal  @db.Decimal(8, 2)
+  direction     String   @default("up")
+  durationHours Int
+  label         String   @default("Admin override")
+  startsAt      DateTime
+  endsAt        DateTime
+  active        Boolean  @default(true)
+  createdBy     String?
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, active])
+  @@map("yield_spikes")
 }
 
 model Asset {

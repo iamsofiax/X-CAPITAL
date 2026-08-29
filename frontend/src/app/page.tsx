@@ -18,6 +18,8 @@ import ApiHealthBadge from "@/components/system/ApiHealthBadge";
 import CapitalNetworkTwin from "@/components/network-twin/CapitalNetworkTwin";
 import HeroRocket from "@/components/brand/HeroRocket";
 import { useApiHealth } from "@/hooks/useApiHealth";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
+import { formatCurrency } from "@/lib/utils";
 
 
 /* eslint-disable react/no-unescaped-entities */
@@ -74,16 +76,7 @@ const RAILS = [
   },
 ] as const;
 
-const TICKER = [
-  { sym: "BTC", price: "$94,420", chg: 2.3 },
-  { sym: "ETH", price: "$4,282", chg: 1.8 },
-  { sym: "TSLA", price: "$387.40", chg: 3.1 },
-  { sym: "NVDA", price: "$952.60", chg: 0.9 },
-  { sym: "SP500", price: "6,840", chg: 0.4 },
-  { sym: "AAPL", price: "$203.40", chg: 1.2 },
-  { sym: "GOLD", price: "$3,420", chg: -0.2 },
-  { sym: "XLINK", price: "$2,441", chg: 6.1 },
-];
+const TICKER_SYMS = ["BTC", "ETH", "TSLA", "NVDA", "SPY", "AAPL", "GLD"];
 
 const TIERS = [
   {
@@ -107,11 +100,11 @@ const TIERS = [
   },
 ];
 
-const NETWORK_STATS = [
-  { label: "ACTIVE NODES", value: "14,892", icon: Server },
-  { label: "COMPUTE", value: "2.4 PFlops", icon: Cpu },
-  { label: "RAILS ARMED", value: "7 / 7", icon: Radio },
-  { label: "GATEWAY", value: "LIVE", icon: Activity },
+const NETWORK_STAT_ICONS = [
+  { label: "GATEWAY", icon: Activity },
+  { label: "LATENCY", icon: Radio },
+  { label: "UPTIME", icon: Server },
+  { label: "RAILS ARMED", icon: Cpu },
 ];
 
 const YIELD_FLOW = [
@@ -134,7 +127,8 @@ const YIELD_FLOW = [
 
 export default function LandingPage() {
   const [activeRail, setActiveRail] = useState<string | null>(null);
-  const { health } = useApiHealth();
+  const { health, online, loading: healthLoading } = useApiHealth();
+  const { prices } = useMarketPrices({ refreshInterval: 120_000 });
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -199,11 +193,42 @@ export default function LandingPage() {
   }, []);
 
   const gatewayStatus =
-    health?.status === "healthy"
-      ? "LIVE"
-      : health?.status === "degraded"
-        ? "DEGRADED"
-        : "CHECKING";
+    healthLoading && !health
+      ? "CHECKING"
+      : health?.status === "healthy"
+        ? "LIVE"
+        : health?.status === "degraded"
+          ? "DEGRADED"
+          : online
+            ? "LIVE"
+            : "OFFLINE";
+
+  const latencyLabel =
+    typeof health?.latencyMs === "number" ? `${Math.round(health.latencyMs)}ms` : "—";
+  const uptimeLabel =
+    typeof health?.uptimeSeconds === "number"
+      ? health.uptimeSeconds >= 3600
+        ? `${Math.floor(health.uptimeSeconds / 3600)}h`
+        : `${Math.max(1, Math.floor(health.uptimeSeconds / 60))}m`
+      : "—";
+
+  const networkStats = [
+    { label: "GATEWAY", value: gatewayStatus, icon: NETWORK_STAT_ICONS[0].icon },
+    { label: "LATENCY", value: latencyLabel, icon: NETWORK_STAT_ICONS[1].icon },
+    { label: "UPTIME", value: uptimeLabel, icon: NETWORK_STAT_ICONS[2].icon },
+    { label: "RAILS ARMED", value: "7 / 7", icon: NETWORK_STAT_ICONS[3].icon },
+  ];
+
+  const tickerItems = TICKER_SYMS.map((sym) => {
+    const p = prices[sym];
+    if (!p) return { sym, price: "—", chg: 0, live: false };
+    return {
+      sym,
+      price: formatCurrency(p.price),
+      chg: p.changePercent24h,
+      live: true,
+    };
+  });
 
   return (
     <div className="min-h-screen bg-[#000000] font-sans">
@@ -267,7 +292,7 @@ export default function LandingPage() {
 
               {/* Network telemetry strip */}
               <div className="flex flex-wrap items-center gap-5 mt-10 text-[10px] font-mono text-white/30">
-                {NETWORK_STATS.map(({ label, value, icon: Icon }) => (
+                {networkStats.map(({ label, value, icon: Icon }) => (
                   <div key={label} className="flex items-center gap-2">
                     <Icon className="w-3.5 h-3.5 text-emerald-400/70" />
                     <span className="text-white/25">{label}</span>
@@ -309,11 +334,13 @@ export default function LandingPage() {
 
       <div className="border-y border-white/[0.05] overflow-hidden bg-[#050508]">
         <div className="animate-ticker inline-flex gap-10 whitespace-nowrap text-xs font-mono py-3">
-          {[...TICKER, ...TICKER].map((item, i) => (
-            <span key={i} className="inline-flex items-center gap-2">
+          {[...tickerItems, ...tickerItems].map((item, i) => (
+            <span key={`${item.sym}-${i}`} className="inline-flex items-center gap-2">
               <span className="text-white/20 tracking-widest">{item.sym}</span>
               <span className="text-white font-semibold">{item.price}</span>
-              <span className={`text-[10px] font-bold ${item.chg > 0 ? "text-emerald-400" : "text-red-400"}`}>{item.chg > 0 ? "+" : ""}{item.chg.toFixed(1)}%</span>
+              {item.live && (
+                <span className={`text-[10px] font-bold ${item.chg > 0 ? "text-emerald-400" : item.chg < 0 ? "text-red-400" : "text-white/40"}`}>{item.chg > 0 ? "+" : ""}{item.chg.toFixed(1)}%</span>
+              )}
             </span>
           ))}
         </div>
@@ -354,10 +381,10 @@ export default function LandingPage() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-8">
               {[
-                { name: "API", ok: true },
-                { name: "DATABASE", ok: health?.services.find((s) => s.name === "database")?.status !== "offline" },
-                { name: "AI ORACLE", ok: health?.services.find((s) => s.name === "ai-oracle")?.status !== "offline" },
-                { name: "RAIL SYNC", ok: true },
+                { name: "API", ok: health?.status === "healthy" || health?.status === "degraded" },
+                { name: "DATABASE", ok: health?.services.find((s) => s.name === "database")?.status !== "offline" && Boolean(health) },
+                { name: "AI ORACLE", ok: health?.services.find((s) => s.name === "ai-oracle")?.status !== "offline" && Boolean(health) },
+                { name: "RAIL SYNC", ok: health?.status === "healthy" || health?.status === "degraded" },
               ].map(({ name, ok }) => (
                 <div key={name} className="rounded-xl border border-white/[0.06] bg-black/40 px-4 py-4">
                   <div className="flex items-center justify-between">
@@ -414,7 +441,7 @@ export default function LandingPage() {
                 <ul className="space-y-3 flex-1">
                   {tier.features.map((f) => (<li key={f} className="flex items-center gap-2 text-sm text-white/50"><span className="w-1 h-1 rounded-full bg-white/30" />{f}</li>))}
                 </ul>
-                <Link href="/auth/register" className={`mt-8 block text-center py-3 rounded font-bold text-sm transition-all ${tier.featured ? "bg-white text-black hover:bg-white/90" : "bg-white/[0.06] text-white border border-white/[0.10] hover:bg-white/[0.10]"}`}>{i === 2 ? "Request Invitation" : "Get Started"}</Link>
+                <Link href="/auth/register" className={`mt-8 block text-center py-3 rounded font-bold text-sm transition-all ${tier.featured ? "bg-white text-black hover:bg-white/90" : "bg-white/[0.06] text-white border border-white/[0.10] hover:bg-white/[0.10]"}`}>{i === 2 ? "Request invitation" : "Open a node"}</Link>
               </div>
             ))}
           </div>
@@ -431,17 +458,16 @@ export default function LandingPage() {
               <p className="text-white/35 text-sm max-w-md mt-4 leading-relaxed">The digital twin of the X-CAPITAL infrastructure. A settlement core routes capital across seven rails in real time — efficiency, liquidity, latency and reserve integrity read live at mission control.</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8">
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-4 py-3">
-                  <div className="text-[9px] font-mono text-white/25 tracking-wider">SETTLED TODAY</div>
-                  <div className="text-lg font-black font-mono text-emerald-400 mt-1">$4.82M</div>
+                  <div className="text-[9px] font-mono text-white/25 tracking-wider">GATEWAY</div>
+                  <div className={`text-lg font-black font-mono mt-1 ${gatewayStatus === "LIVE" ? "text-emerald-400" : "text-amber-400"}`}>{gatewayStatus}</div>
                 </div>
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-4 py-3">
                   <div className="text-[9px] font-mono text-white/25 tracking-wider">AVG SETTLE</div>
-                  <div className="text-lg font-black font-mono text-white mt-1">{"<"}30ms</div>
-
+                  <div className="text-lg font-black font-mono text-white mt-1">{latencyLabel}</div>
                 </div>
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-4 py-3">
-                  <div className="text-[9px] font-mono text-white/25 tracking-wider">ACTIVE NODES</div>
-                  <div className="text-lg font-black font-mono text-white mt-1">14,892</div>
+                  <div className="text-[9px] font-mono text-white/25 tracking-wider">UPTIME</div>
+                  <div className="text-lg font-black font-mono text-white mt-1">{uptimeLabel}</div>
                 </div>
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-4 py-3">
                   <div className="text-[9px] font-mono text-white/25 tracking-wider">RAILS ARMED</div>

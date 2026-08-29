@@ -263,9 +263,10 @@ export default function AdminPage() {
   const [profitModal, setProfitModal] = useState<User | null>(null);
   const [profitForm, setProfitForm] = useState({
     profitRate: 1.5,
-    profitMode: "linear" as string,
+    profitMode: "compound" as string,
     profitSchedule: "daily" as string,
     profitMultiplier: 1,
+    profitHold: false,
   });
 
   // Backdate
@@ -450,11 +451,10 @@ export default function AdminPage() {
         finish();
         return;
       } catch {
-        // STABILITY: server unreachable — fall back to the local pipeline
-        // instead of blocking the admin's funding action.
         setServerUnreachable(true);
         trackOfflineAdminEvent();
-        showToast("Applied locally — server unreachable", "info");
+        showToast("Network unreachable. Balance was not changed.", "error");
+        return;
       }
     }
 
@@ -496,16 +496,34 @@ export default function AdminPage() {
     setEditModal(null);
   };
 
-  const handleProfitSave = () => {
+  const handleProfitSave = async () => {
     if (!profitModal) return;
-    updateUserById(profitModal.id, {
-      profitRate: profitForm.profitRate,
-      profitMode: profitForm.profitMode as User["profitMode"],
-      profitSchedule: profitForm.profitSchedule as User["profitSchedule"],
-      profitMultiplier: profitForm.profitMultiplier,
-    });
+    const mode =
+      profitForm.profitMode === "linear" ? "linear" : "compound";
+    if (hasApiToken()) {
+      try {
+        await adminAPI.putYieldConfig(profitModal.id, {
+          profitRate: profitForm.profitRate,
+          profitMode: mode,
+          profitMultiplier: profitForm.profitMultiplier,
+          profitHold: profitForm.profitHold,
+        });
+        await loadAdminUsersFromApi();
+      } catch {
+        showToast("Network unreachable. Profit config was not saved.", "error");
+        return;
+      }
+    } else {
+      updateUserById(profitModal.id, {
+        profitRate: profitForm.profitRate,
+        profitMode: mode as User["profitMode"],
+        profitSchedule: profitForm.profitSchedule as User["profitSchedule"],
+        profitMultiplier: profitForm.profitMultiplier,
+        profitHold: profitForm.profitHold,
+      });
+    }
     audit(
-      `Set profit: ${profitForm.profitRate}%/${profitForm.profitSchedule} (${profitForm.profitMode})`,
+      `Set profit: ${profitForm.profitRate}%/daily (${mode})${profitForm.profitHold ? " · HOLD" : ""}`,
       profitModal.email,
       "action",
     );
@@ -593,17 +611,10 @@ export default function AdminPage() {
         await loadAdminUsersFromApi();
         await syncSessionFromApi();
       } catch {
-        // STABILITY: server unreachable — fall back to the local
-        // (localStorage) pipeline so approvals NEVER block the user's funds.
-        approvePendingTransaction(
-          txId,
-          currentUser?.email || "admin",
-          undefined,
-          true,
-          true, // skipNotification — admin adds it below
-        );
         setServerUnreachable(true);
         trackOfflineAdminEvent();
+        showToast("Network unreachable. Approval was not posted.", "error");
+        return;
       }
     } else {
       // Offline fallback — local only; admin adds notification below
@@ -1187,9 +1198,11 @@ export default function AdminPage() {
                     onProfit={() => {
                       setProfitForm({
                         profitRate: u.profitRate ?? 1.5,
-                        profitMode: u.profitMode ?? "linear",
+                        profitMode:
+                          u.profitMode === "linear" ? "linear" : "compound",
                         profitSchedule: u.profitSchedule ?? "daily",
                         profitMultiplier: u.profitMultiplier ?? 1,
+                        profitHold: u.profitHold === true,
                       });
                       setProfitModal(u);
                     }}
@@ -2026,16 +2039,8 @@ export default function AdminPage() {
             <SelectField
               label="Profit Mode"
               value={profitForm.profitMode}
-              options={["linear", "compound", "stepped", "random"]}
+              options={["linear", "compound"]}
               onChange={(v) => setProfitForm({ ...profitForm, profitMode: v })}
-            />
-            <SelectField
-              label="Schedule"
-              value={profitForm.profitSchedule}
-              options={["daily", "weekly", "monthly"]}
-              onChange={(v) =>
-                setProfitForm({ ...profitForm, profitSchedule: v })
-              }
             />
             <Field
               label="Multiplier"
@@ -2049,16 +2054,31 @@ export default function AdminPage() {
               }
               placeholder="1.0"
             />
+            <button
+              type="button"
+              onClick={() =>
+                setProfitForm({
+                  ...profitForm,
+                  profitHold: !profitForm.profitHold,
+                })
+              }
+              className={cn(
+                "w-full py-2.5 rounded-lg text-sm font-medium border transition",
+                profitForm.profitHold
+                  ? "bg-amber-500/15 border-amber-500/40 text-amber-300"
+                  : "bg-white/[0.03] border-white/[0.08] text-white/60",
+              )}
+            >
+              {profitForm.profitHold
+                ? "Yield on hold — accrual paused"
+                : "Yield running — click to hold"}
+            </button>
             <div className="bg-white/[0.03] border border-white/[0.08] rounded-lg p-3 text-xs text-gray-400">
-              <p className="font-medium text-white/60 mb-1">How it works</p>
+              <p className="font-medium text-white/60 mb-1">Accrual Core</p>
               <p>
-                <strong>Linear</strong> — flat % added daily.{" "}
-                <strong>Compound</strong> — interest on interest.{" "}
-                <strong>Stepped</strong> — increases at milestones.{" "}
-                <strong>Random</strong> — realistic variance.
-              </p>
-              <p className="mt-1">
-                Multiplier scales the base rate (e.g. 2× doubles profits).
+                <strong>Linear</strong> — flat % of approved capital.{" "}
+                <strong>Compound</strong> — yield on the running cash balance.
+                Hold advances the clock without a lump when released.
               </p>
             </div>
             <button

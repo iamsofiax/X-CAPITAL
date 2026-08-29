@@ -8,6 +8,12 @@ import { env } from "../config/env";
 import { AuthRequest } from "../middleware/auth";
 import { createError } from "../middleware/errorHandler";
 import { kycService } from "../services/kycService";
+import { accrueUser } from "../services/accrualService";
+import {
+  upsertSocialUser,
+  verifyAppleIdentityToken,
+  verifyGoogleCredential,
+} from "../services/oauthService";
 
 const generateTokens = (userId: string, email: string) => {
   const accessToken = jwt.sign(
@@ -53,10 +59,13 @@ export const register = async (
       const newUser = await tx.user.create({
         data: { email, passwordHash, firstName, lastName, phone },
       });
-      await tx.wallet.create({ data: { userId: newUser.id } });
+      await tx.wallet.create({
+        data: { userId: newUser.id, lastAccruedAt: new Date() },
+      });
       await tx.portfolio.create({
         data: { userId: newUser.id, totalValue: 0, totalCost: 0, totalPnL: 0 },
       });
+      await tx.userYieldConfig.create({ data: { userId: newUser.id } });
       return newUser;
     });
 
@@ -180,6 +189,113 @@ export const login = async (
   }
 };
 
+function publicUser(user: {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  tier: string;
+  kycStatus: string;
+  accreditationStatus?: string;
+}) {
+  return {
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    tier: user.tier,
+    kycStatus: user.kycStatus,
+    accreditationStatus: user.accreditationStatus,
+  };
+}
+
+async function issueSession(
+  res: Response,
+  user: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    tier: string;
+    kycStatus: string;
+    accreditationStatus?: string;
+  },
+  status = 200,
+) {
+  const { accessToken, refreshToken } = generateTokens(user.id, user.email);
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  await prisma.refreshToken.create({
+    data: { userId: user.id, token: refreshToken, expiresAt },
+  });
+  res.status(status).json({
+    success: true,
+    data: {
+      accessToken,
+      refreshToken,
+      user: publicUser(user),
+    },
+  });
+}
+
+export const loginGoogle = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const credential = String(req.body?.credential ?? "").trim();
+    if (!credential) {
+      res.status(400).json({ success: false, message: "credential required" });
+      return;
+    }
+    const profile = await verifyGoogleCredential(credential);
+    const user = await upsertSocialUser("google", profile);
+    await issueSession(res, user);
+  } catch (error) {
+    const status = (error as { status?: number }).status;
+    if (status) {
+      res.status(status).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Google sign-in failed",
+      });
+      return;
+    }
+    next(error);
+  }
+};
+
+export const loginApple = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const identityToken = String(req.body?.identityToken ?? "").trim();
+    if (!identityToken) {
+      res
+        .status(400)
+        .json({ success: false, message: "identityToken required" });
+      return;
+    }
+    const profile = await verifyAppleIdentityToken(identityToken);
+    const user = await upsertSocialUser("apple", profile, {
+      firstName: req.body?.firstName,
+      lastName: req.body?.lastName,
+    });
+    await issueSession(res, user);
+  } catch (error) {
+    const status = (error as { status?: number }).status;
+    if (status) {
+      res.status(status).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Apple sign-in failed",
+      });
+      return;
+    }
+    next(error);
+  }
+};
+
 export const refreshToken = async (
   req: Request,
   res: Response,
@@ -253,6 +369,7 @@ export const getMe = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
+    await accrueUser(req.user!.id);
     const user = await prisma.user.findUnique({
       where: { id: req.user!.id },
       select: {
@@ -265,7 +382,18 @@ export const getMe = async (
         kycStatus: true,
         accreditationStatus: true,
         createdAt: true,
-        wallet: { select: { fiatBalance: true, cryptoBalance: true } },
+        wallet: {
+          select: {
+            id: true,
+            fiatBalance: true,
+            cryptoBalance: true,
+            lockedBalance: true,
+            lastAccruedAt: true,
+            totalYieldGenerated: true,
+            approvedCapital: true,
+          },
+        },
+        yieldConfig: true,
       },
     });
     res.json({ success: true, data: user });

@@ -11,7 +11,7 @@ export interface FounderHotSignal {
   reason: string;
 }
 
-export const FOUNDER_SIGNAL_ATTRIBUTION = "Elon Musk · Founder Signal";
+export const FOUNDER_SIGNAL_ATTRIBUTION = "Ground station · live desk";
 
 /** Hot Signals panel on /trading */
 export const FOUNDER_HOT_SIGNALS: FounderHotSignal[] = [

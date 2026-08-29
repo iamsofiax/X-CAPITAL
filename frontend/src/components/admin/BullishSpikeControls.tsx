@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "@/store/useStore";
-import { useProfitEngine, type BullishSpike } from "@/store/useProfitEngine";
+import { type BullishSpike } from "@/store/useProfitEngine";
 import { cn, formatCurrency } from "@/lib/utils";
 import { NODE_LADDER, getNodeProgress } from "@/lib/nodeLadder";
 import { TrendingUp, Zap, Flame, Activity } from "lucide-react";
+import { adminAPI } from "@/lib/api";
+import { hasApiToken } from "@/lib/apiUser";
 
 /**
  * Ground Station rate ladder presets. Rates track the Node Advancement
@@ -27,8 +29,6 @@ export default function BullishSpikeControls() {
     user: currentUser,
     updateUserById,
   } = useStore();
-  const { bullishSpikes, addBullishSpike, resolveBullishSpike, nodeGrowths } =
-    useProfitEngine();
   const [selectedUserId, setSelectedUserId] = useState("");
   const [spikePct, setSpikePct] = useState(15);
   const [durationHrs, setDurationHrs] = useState(24);
@@ -37,90 +37,164 @@ export default function BullishSpikeControls() {
   const [customDailyRate, setCustomDailyRate] = useState(3.0);
   const [nodeGoal, setNodeGoal] = useState(500);
   const [nodeRate, setNodeRate] = useState(3.5);
+  const [remoteSpikes, setRemoteSpikes] = useState<BullishSpike[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
 
-  const activeSpikes = bullishSpikes.filter((s) => s.active);
+  const activeSpikes = remoteSpikes.filter((s) => s.active);
 
-  const handleApplySpike = () => {
-    if (!selectedUserId) return;
-    const now = new Date();
-    const expires = new Date(now.getTime() + durationHrs * 60 * 60 * 1000);
-    const spike: BullishSpike = {
-      targetUserId: selectedUserId,
-      percentage: spikePct,
-      durationHours: durationHrs,
-      direction,
-      label: label || "Admin override",
-      active: true,
-      startedAt: now.toISOString(),
-      expiresAt: expires.toISOString(),
+  useEffect(() => {
+    if (!selectedUserId || !hasApiToken()) return;
+    let cancelled = false;
+    void adminAPI
+      .getYieldConfig(selectedUserId)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const cfg = data.data as {
+          profitRate?: number;
+          nodeGoal?: number | null;
+          nextNodeRate?: number | null;
+          activeSpike?: {
+            id: string;
+            percentage: number;
+            durationHours: number;
+            direction: "up" | "down";
+            label: string;
+            startsAt: string;
+            endsAt: string;
+            active: boolean;
+          } | null;
+        };
+        if (cfg?.profitRate) setCustomDailyRate(cfg.profitRate);
+        if (typeof cfg?.nodeGoal === "number") setNodeGoal(cfg.nodeGoal);
+        if (typeof cfg?.nextNodeRate === "number") setNodeRate(cfg.nextNodeRate);
+        if (cfg?.activeSpike) {
+          const s = cfg.activeSpike;
+          setRemoteSpikes((prev) => [
+            ...prev.filter((x) => x.targetUserId !== selectedUserId),
+            {
+              targetUserId: selectedUserId,
+              percentage: s.percentage,
+              durationHours: s.durationHours,
+              direction: s.direction,
+              label: s.label,
+              active: true,
+              startedAt: s.startsAt,
+              expiresAt: s.endsAt,
+            },
+          ]);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setNotice("Could not load yield config.");
+      });
+    return () => {
+      cancelled = true;
     };
-    addBullishSpike(spike);
+  }, [selectedUserId]);
 
-    // Also update the node's daily rate
-    const node = nodeGrowths[selectedUserId];
-    if (node) {
-      const adjustedRate = customDailyRate / 100;
-      useProfitEngine.setState((state) => ({
-        nodeGrowths: {
-          ...state.nodeGrowths,
-          [selectedUserId]: { ...node, dailyRate: adjustedRate },
-        },
-      }));
-    }
-
-    addAuditEntry({
-      id: `audit-${Date.now()}`,
-      time: new Date().toISOString(),
-      actor: currentUser?.email ?? "admin",
-      action: `BULLISH_SPIKE: ${spikePct}% for ${durationHrs}h on ${
-        registeredUsers.find((u) => u.id === selectedUserId)?.email ??
-        selectedUserId
-      }`,
-      target: selectedUserId,
-      level: "success",
-    });
-  };
-
-  const handleResolveSpike = (userId: string) => {
-    resolveBullishSpike(userId);
-    addAuditEntry({
-      id: `audit-${Date.now()}`,
-      time: new Date().toISOString(),
-      actor: currentUser?.email ?? "admin",
-      action: `BULLISH_SPIKE_RESOLVED: spike removed for user ${userId}`,
-      target: userId,
-      level: "warning",
-    });
-  };
-
-  const handleApplyDailyRate = (rate: number) => {
-    setCustomDailyRate(rate);
-    if (selectedUserId) {
-      const node = nodeGrowths[selectedUserId];
-      if (node) {
-        useProfitEngine.setState((state) => ({
-          nodeGrowths: {
-            ...state.nodeGrowths,
-            [selectedUserId]: { ...node, dailyRate: rate / 100 },
-          },
-        }));
-        addAuditEntry({
-          id: `audit-${Date.now()}`,
-          time: new Date().toISOString(),
-          actor: currentUser?.email ?? "admin",
-          action: `DAILY_RATE_UPDATE: ${rate}% for ${
-            registeredUsers.find((u) => u.id === selectedUserId)?.email ??
-            selectedUserId
-          }`,
-          target: selectedUserId,
-          level: "action",
+  const handleApplySpike = async () => {
+    if (!selectedUserId) return;
+    setBusy(true);
+    setNotice("");
+    try {
+      if (hasApiToken()) {
+        await adminAPI.createSpike(selectedUserId, {
+          percentage: spikePct,
+          durationHours: durationHrs,
+          direction,
+          label: label || "Admin override",
+          profitRate: customDailyRate,
         });
       }
+      const now = new Date();
+      const expires = new Date(now.getTime() + durationHrs * 60 * 60 * 1000);
+      setRemoteSpikes((prev) => [
+        ...prev.filter((s) => s.targetUserId !== selectedUserId),
+        {
+          targetUserId: selectedUserId,
+          percentage: spikePct,
+          durationHours: durationHrs,
+          direction,
+          label: label || "Admin override",
+          active: true,
+          startedAt: now.toISOString(),
+          expiresAt: expires.toISOString(),
+        },
+      ]);
+      addAuditEntry({
+        id: `audit-${Date.now()}`,
+        time: new Date().toISOString(),
+        actor: currentUser?.email ?? "admin",
+        action: `BULLISH_SPIKE: ${spikePct}% for ${durationHrs}h on ${
+          registeredUsers.find((u) => u.id === selectedUserId)?.email ??
+          selectedUserId
+        }`,
+        target: selectedUserId,
+        level: "success",
+      });
+    } catch {
+      setNotice("Network unreachable. Spike was not applied.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleResolveSpike = async (userId: string) => {
+    setBusy(true);
+    setNotice("");
+    try {
+      if (hasApiToken()) await adminAPI.resolveSpike(userId);
+      setRemoteSpikes((prev) => prev.filter((s) => s.targetUserId !== userId));
+      addAuditEntry({
+        id: `audit-${Date.now()}`,
+        time: new Date().toISOString(),
+        actor: currentUser?.email ?? "admin",
+        action: `BULLISH_SPIKE_RESOLVED: spike removed for user ${userId}`,
+        target: userId,
+        level: "warning",
+      });
+    } catch {
+      setNotice("Network unreachable. Spike was not resolved.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleApplyDailyRate = async (rate: number) => {
+    setCustomDailyRate(rate);
+    if (!selectedUserId) return;
+    setBusy(true);
+    setNotice("");
+    try {
+      if (hasApiToken()) {
+        await adminAPI.putYieldConfig(selectedUserId, { profitRate: rate });
+      }
+      addAuditEntry({
+        id: `audit-${Date.now()}`,
+        time: new Date().toISOString(),
+        actor: currentUser?.email ?? "admin",
+        action: `DAILY_RATE_UPDATE: ${rate}% for ${
+          registeredUsers.find((u) => u.id === selectedUserId)?.email ??
+          selectedUserId
+        }`,
+        target: selectedUserId,
+        level: "action",
+      });
+    } catch {
+      setNotice("Network unreachable. Daily rate was not saved.");
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
     <div className="space-y-6">
+      {notice && (
+        <p className="text-xs text-amber-300 border border-amber-500/30 bg-amber-500/10 rounded-lg px-3 py-2">
+          {notice}
+        </p>
+      )}
       {/* Active Spikes */}
       {activeSpikes.length > 0 && (
         <div className="bg-emerald-950/20 border border-emerald-800/30 rounded-xl p-4">
@@ -283,7 +357,7 @@ export default function BullishSpikeControls() {
 
         <button
           onClick={handleApplySpike}
-          disabled={!selectedUserId}
+          disabled={!selectedUserId || busy}
           className={cn(
             "w-full py-2.5 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2",
             selectedUserId
@@ -430,41 +504,46 @@ export default function BullishSpikeControls() {
         </div>
 
         <button
-          onClick={() => {
+          onClick={async () => {
             if (!selectedUserId) return;
             const user = registeredUsers.find(
               (u) => u.id === selectedUserId,
             );
             const goal = Math.max(0, Number(nodeGoal));
             const rate = Math.min(15, Math.max(0.1, Number(nodeRate)));
-            updateUserById(selectedUserId, {
-              nodeTier: user?.nodeTier ?? 1,
-              nodeGoal: goal,
-              nextNodeRate: rate,
-            });
-            // Apply the new rate to the live engine node immediately
-            const node = nodeGrowths[selectedUserId];
-            if (node) {
-              useProfitEngine.setState((state) => ({
-                nodeGrowths: {
-                  ...state.nodeGrowths,
-                  [selectedUserId]: { ...node, dailyRate: rate / 100 },
-                },
-              }));
+            setBusy(true);
+            setNotice("");
+            try {
+              if (hasApiToken()) {
+                await adminAPI.putYieldConfig(selectedUserId, {
+                  nodeGoal: goal,
+                  nextNodeRate: rate,
+                  profitRate: customDailyRate,
+                });
+              }
+              updateUserById(selectedUserId, {
+                nodeTier: user?.nodeTier ?? 1,
+                nodeGoal: goal,
+                nextNodeRate: rate,
+              });
+              addAuditEntry({
+                id: `audit-${Date.now()}`,
+                time: new Date().toISOString(),
+                actor: currentUser?.email ?? "admin",
+                action: `NODE_GOAL_SET: ${formatCurrency(goal)} → ${rate}%/day for ${
+                  registeredUsers.find((u) => u.id === selectedUserId)?.email ??
+                  selectedUserId
+                }`,
+                target: selectedUserId,
+                level: "action",
+              });
+            } catch {
+              setNotice("Network unreachable. Node goal was not saved.");
+            } finally {
+              setBusy(false);
             }
-            addAuditEntry({
-              id: `audit-${Date.now()}`,
-              time: new Date().toISOString(),
-              actor: currentUser?.email ?? "admin",
-              action: `NODE_GOAL_SET: ${formatCurrency(goal)} → ${rate}%/day for ${
-                registeredUsers.find((u) => u.id === selectedUserId)?.email ??
-                selectedUserId
-              }`,
-              target: selectedUserId,
-              level: "action",
-            });
           }}
-          disabled={!selectedUserId}
+          disabled={!selectedUserId || busy}
           className={cn(
             "w-full py-2.5 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2",
             selectedUserId

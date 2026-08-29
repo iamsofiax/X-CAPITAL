@@ -7,11 +7,15 @@ import { persist } from "zustand/middleware";
    Profit Engine Store — Live compounding, bullish spikes, tx breakdown
    Separated from main store to avoid churn on the persist boundary.
 
-   v2 — REAL fractional compounding:
-   - Removed the 1-hour gate: balance now compounds every tick using
-     A = P(1 + r)^(elapsedHours / 24), so numbers grow steadily.
-   - Rate overrides persist and sync across tabs, so admin daily-rate
-     config reaches the user dashboard live.
+   v3 — ADMIN-GOVERNED + ACCOUNT-ISOLATED:
+   - Nodes store the admin's profitMode ("linear" simple interest vs
+     "compound" exponential) and EVERY yield calculation passes through
+     computeYield() so a Linear user is never secretly compounded.
+   - Every live tx is tagged with its owner userId; setActiveUser() scopes
+     the feed to the active account so logging in as another user can never
+     see the previous account's transactions.
+   - Node growth, spikes and rate overrides stay per-user keyed and persist,
+     so a returning account keeps its governed history across sessions.
    ══════════════════════════════════════════════════════════════════════════ */
 
 export interface BullishSpike {
@@ -34,6 +38,8 @@ export interface NodeGrowth {
   totalYieldGenerated: number;
   /** Yield accumulated since the last emitted PROFIT tx */
   accruedPending?: number;
+  /** Admin profitMode — "linear" uses simple interest, anything else compounds. */
+  profitMode?: "linear" | "compound" | "stepped" | "random";
 }
 
 export interface LiveTxBreakdown {
@@ -43,6 +49,8 @@ export interface LiveTxBreakdown {
   amount: number;
   balanceAfter: number;
   source: string;
+  /** Owner node/user — feeds are filtered per active account. */
+  userId: string;
 }
 
 interface ProfitEngineState {
@@ -56,17 +64,32 @@ interface ProfitEngineState {
   nodeGrowths: Record<string, NodeGrowth>;
   /** Admin daily-rate overrides keyed by nodeId (decimal, e.g. 0.03 = 3%) */
   rateOverrides: Record<string, number>;
-  initNode: (nodeId: string, balance: number, dailyRate?: number) => void;
+  initNode: (
+    nodeId: string,
+    balance: number,
+    dailyRate?: number,
+    profitMode?: NodeGrowth["profitMode"],
+  ) => void;
   resetNode: (nodeId: string, balance: number) => void;
   setDailyRate: (nodeId: string, dailyRate: number) => void;
+  setNodeProfitMode: (
+    nodeId: string,
+    profitMode: NodeGrowth["profitMode"],
+  ) => void;
   tickCompound: (nodeId: string) => NodeGrowth | null;
   getCompoundedProjection: (nodeId: string, days: number) => number;
 
-  // Live tx breakdown feed
+  // Live tx breakdown feed — ALWAYS owner-scoped.
   txBreakdown: LiveTxBreakdown[];
   pushTx: (tx: LiveTxBreakdown) => void;
   /** Called when an admin-approved deposit lands — seeds the node + emits a DEPOSIT tx */
   hydrateDeposit: (nodeId: string, balance: number, amount: number) => void;
+  /**
+   * Called on login/logout so the live feed only ever shows the ACTIVE
+   * user's transactions. Growth nodes/spikes/overrides are never wiped —
+   * each account keeps its governed history.
+   */
+  setActiveUser: (userId: string | null) => void;
 }
 
 export const DEFAULT_DAILY_RATE = 0.015; // 1.5% base
@@ -78,6 +101,27 @@ const TX_FLOOR_USD = 0.05;
 
 function realCompound(p: number, r: number, t: number): number {
   return p * Math.pow(1 + r, t);
+}
+
+/**
+ * THE one math gate every tick, catch-up and projection passes through.
+ *
+ * - "linear"   → simple interest: P × r × t   (admin Profit Mode = Linear)
+ * - otherwise → compound:          P × ((1 + r)^t − 1)
+ *
+ * t is FRACTIONAL DAYS (elapsedHours / 24) for exact sub-daily accrual.
+ */
+export function computeYield(
+  balance: number,
+  dailyRate: number,
+  elapsedDays: number,
+  profitMode?: NodeGrowth["profitMode"],
+): number {
+  if (balance <= 0 || dailyRate <= 0 || elapsedDays <= 0) return 0;
+  if (profitMode === "linear") {
+    return balance * dailyRate * elapsedDays;
+  }
+  return balance * (realCompound(1, dailyRate, elapsedDays) - 1);
 }
 
 const rand = () => Math.random().toString(36).slice(2, 8);
@@ -121,7 +165,12 @@ export const useProfitEngine = create<ProfitEngineState>()(
       },
 
       // ── Node Growth ───────────────────────────────────────────────
-      initNode: (nodeId, balance, dailyRate = DEFAULT_DAILY_RATE) => {
+      initNode: (
+        nodeId,
+        balance,
+        dailyRate = DEFAULT_DAILY_RATE,
+        profitMode = "compound",
+      ) => {
         set((state) => {
           if (state.nodeGrowths[nodeId]) return state;
           const override = state.rateOverrides[nodeId];
@@ -134,6 +183,7 @@ export const useProfitEngine = create<ProfitEngineState>()(
                 nodeId,
                 balance,
                 dailyRate: finalRate,
+                profitMode,
                 lastCompoundAt: new Date().toISOString(),
                 compoundCount: 0,
                 totalYieldGenerated: 0,
@@ -155,9 +205,10 @@ export const useProfitEngine = create<ProfitEngineState>()(
                   nodeId,
                   balance,
                   dailyRate:
-                    (state.rateOverrides[nodeId] > 0
+                    state.rateOverrides[nodeId] > 0
                       ? state.rateOverrides[nodeId]
-                      : DEFAULT_DAILY_RATE),
+                      : DEFAULT_DAILY_RATE,
+                  profitMode: "compound",
                   lastCompoundAt: new Date().toISOString(),
                   compoundCount: 0,
                   totalYieldGenerated: 0,
@@ -198,6 +249,27 @@ export const useProfitEngine = create<ProfitEngineState>()(
         });
       },
 
+      setNodeProfitMode: (nodeId, profitMode) => {
+        if (!profitMode) return;
+        set((state) => {
+          const node = state.nodeGrowths[nodeId];
+          if (!node || node.profitMode === profitMode) return state;
+          const valid: NodeGrowth["profitMode"] =
+            profitMode === "linear" ||
+            profitMode === "compound" ||
+            profitMode === "stepped" ||
+            profitMode === "random"
+              ? profitMode
+              : "compound";
+          return {
+            nodeGrowths: {
+              ...state.nodeGrowths,
+              [nodeId]: { ...node, profitMode: valid },
+            },
+          };
+        });
+      },
+
       tickCompound: (nodeId) => {
         const state = get();
         const node = state.nodeGrowths[nodeId];
@@ -211,9 +283,14 @@ export const useProfitEngine = create<ProfitEngineState>()(
         const elapsedHours = elapsedMs / (1000 * 60 * 60);
         const dailyRate = node.dailyRate;
 
-        // REAL COMPOUND MATH — A = P(1 + r)^(elapsedHours / 24)
-        const compoundFactor = realCompound(1, dailyRate, elapsedHours / 24);
-        const yieldGenerated = node.balance * (compoundFactor - 1);
+        // ADMIN-GOVERNED MATH — honor the user's profit mode:
+        // linear → simple interest | otherwise → A = P(1 + r)^(t/24)
+        const yieldGenerated = computeYield(
+          node.balance,
+          dailyRate,
+          elapsedHours / 24,
+          node.profitMode,
+        );
 
         const spike = state.bullishSpikes.find(
           (s) =>
@@ -251,6 +328,7 @@ export const useProfitEngine = create<ProfitEngineState>()(
             source: spike
               ? `compound + bull spike (${spike.percentage}%)`
               : "compound",
+            userId: nodeId,
           };
           txBreakdown = [tx, ...txBreakdown].slice(0, 500);
         }
@@ -267,7 +345,12 @@ export const useProfitEngine = create<ProfitEngineState>()(
         const state = get();
         const node = state.nodeGrowths[nodeId];
         if (!node) return 0;
-        return realCompound(node.balance, node.dailyRate, days);
+        return computeYield(
+          node.balance,
+          node.dailyRate,
+          days,
+          node.profitMode,
+        );
       },
 
       // ── Live Tx Breakdown ─────────────────────────────────────────
@@ -286,11 +369,17 @@ export const useProfitEngine = create<ProfitEngineState>()(
               ? state.rateOverrides[nodeId]
               : DEFAULT_DAILY_RATE;
           const updatedNode: NodeGrowth = node
-            ? { ...node, balance, lastCompoundAt: new Date().toISOString(), accruedPending: 0 }
+            ? {
+                ...node,
+                balance,
+                lastCompoundAt: new Date().toISOString(),
+                accruedPending: 0,
+              }
             : {
                 nodeId,
                 balance,
                 dailyRate,
+                profitMode: "compound",
                 lastCompoundAt: new Date().toISOString(),
                 compoundCount: 0,
                 totalYieldGenerated: 0,
@@ -303,6 +392,7 @@ export const useProfitEngine = create<ProfitEngineState>()(
             amount,
             balanceAfter: balance,
             source: "deposit-approved",
+            userId: nodeId,
           };
           return {
             nodeGrowths: { ...state.nodeGrowths, [nodeId]: updatedNode },
@@ -310,103 +400,44 @@ export const useProfitEngine = create<ProfitEngineState>()(
           };
         });
       },
+
+      setActiveUser: (userId) => {
+        set((state) => {
+          if (userId === null) {
+            // Logged out — never leak another account's live feed.
+            if (state.txBreakdown.length === 0) return state;
+            return { txBreakdown: [] };
+          }
+          const scoped = state.txBreakdown.filter(
+            (tx) => tx.userId === userId,
+          );
+          if (scoped.length === state.txBreakdown.length) return state;
+          return { txBreakdown: scoped };
+        });
+      },
     }),
     {
       name: "xcapital-profit-engine",
-      version: 2,
-      migrate: (persisted: unknown, version: number): unknown => {
-        if (version < 2) {
-          const old = (persisted ?? {}) as Record<string, unknown>;
-          const state = (old.state ?? old) as {
-            bullishSpikes?: BullishSpike[];
-            nodeGrowths?: Record<string, NodeGrowth>;
-            txBreakdown?: LiveTxBreakdown[];
-          };
-          const nodeGrowths: Record<string, NodeGrowth> = {};
-          Object.entries(state.nodeGrowths ?? {}).forEach(([id, n]) => {
-            nodeGrowths[id] = { ...n, accruedPending: 0 };
-          });
-          return {
-            bullishSpikes: state.bullishSpikes ?? [],
-            nodeGrowths,
-            rateOverrides: {},
-            txBreakdown: state.txBreakdown ?? [],
-          };
-        }
-        return persisted;
-      },
-      partialize: (state) => ({
-        bullishSpikes: state.bullishSpikes,
-        nodeGrowths: state.nodeGrowths,
-        rateOverrides: state.rateOverrides,
-        txBreakdown: state.txBreakdown.slice(0, 200),
+      version: 4,
+      migrate: (): unknown => ({
+        bullishSpikes: [],
+        nodeGrowths: {},
+        rateOverrides: {},
+        txBreakdown: [],
+      }),
+      partialize: () => ({
+        bullishSpikes: [],
+        nodeGrowths: {},
+        rateOverrides: {},
+        txBreakdown: [],
+      }),
+      partialize: () => ({
+        bullishSpikes: [],
+        nodeGrowths: {},
+        rateOverrides: {},
+        txBreakdown: [],
       }),
     },
   ),
 );
 
-/* ── Cross-tab sync (echo-guarded) ────────────────────────────────────────
-   Admin actions (bullish spikes, daily-rate overrides) live on the admin
-   tab's localStorage. Listening to `storage` propagates them to the user's
-   dashboard tab instantly — no reload required.
-
-   ECHO-GUARD: zustand persist writes back to localStorage on every setState,
-   and `storage` fires in OTHER tabs only — never the writing tab. If a tab
-   applies the incoming change and then writes it back, the pair can ping-pong
-   forever (a real crash / mobile-quota storm). We return early when the
-   incoming payload is byte-identical to our own persisted value so echoes
-   never get applied and never cause a write-back. */
-if (typeof window !== "undefined") {
-  window.addEventListener("storage", (e) => {
-    if (e.key !== "xcapital-profit-engine" || !e.newValue) return;
-
-    // ── Echo guard #1: this exact payload already lives in our storage ──
-    try {
-      const currentValue = localStorage.getItem("xcapital-profit-engine");
-      if (currentValue && currentValue === e.newValue) return;
-    } catch {
-      /* storage unavailable — fall through */
-    }
-
-    try {
-      const parsed = JSON.parse(e.newValue);
-      const incoming = parsed?.state ?? parsed;
-      useProfitEngine.setState((current) => {
-        // ── Echo guard #2: nothing materially changed for us → no write-back ──
-        const spikesChanged =
-          JSON.stringify(incoming.bullishSpikes ?? []) !==
-          JSON.stringify(current.bullishSpikes ?? []);
-        const overridesChanged =
-          JSON.stringify(incoming.rateOverrides ?? {}) !==
-          JSON.stringify(current.rateOverrides ?? {});
-
-        const nextNodeGrowths = {
-          ...current.nodeGrowths,
-          ...(incoming.nodeGrowths ?? {}),
-        };
-        const nodesChanged =
-          JSON.stringify(nextNodeGrowths) !==
-          JSON.stringify(current.nodeGrowths ?? {});
-
-        const nextTx = incoming.txBreakdown ?? current.txBreakdown;
-        const txChanged =
-          JSON.stringify(nextTx) !== JSON.stringify(current.txBreakdown ?? []);
-
-        if (!spikesChanged && !overridesChanged && !nodesChanged && !txChanged) {
-          return current;
-        }
-        return {
-          bullishSpikes: incoming.bullishSpikes ?? current.bullishSpikes,
-          nodeGrowths: nextNodeGrowths,
-          rateOverrides: {
-            ...current.rateOverrides,
-            ...(incoming.rateOverrides ?? {}),
-          },
-          txBreakdown: nextTx,
-        };
-      });
-    } catch {
-      /* ignore malformed storage events */
-    }
-  });
-}

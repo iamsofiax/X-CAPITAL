@@ -3,6 +3,7 @@ import app from './app';
 import { env } from './config/env';
 import { connectDatabase, disconnectDatabase } from './config/database';
 import { logger } from './utils/logger';
+import { startAccrualWorker } from './services/accrualService';
 
 async function bootstrap(): Promise<void> {
   // Listen first so Render health checks pass while DB connects
@@ -11,11 +12,20 @@ async function bootstrap(): Promise<void> {
   });
 
   connectDatabase()
-    .then(() => logger.info('Database ready'))
+    .then(() => {
+      logger.info('Database ready');
+      startAccrualWorker(20_000);
+      logger.info('Accrual Core worker armed');
+    })
     .catch((err) => {
       logger.error('Database connection failed — retrying in 15s:', err);
       setTimeout(() => {
-        connectDatabase().catch((e) => logger.error('Database retry failed:', e));
+        connectDatabase()
+          .then(() => {
+            logger.info('Database ready');
+            startAccrualWorker(20_000);
+          })
+          .catch((e) => logger.error('Database retry failed:', e));
       }, 15000);
     });
 

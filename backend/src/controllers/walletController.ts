@@ -4,6 +4,7 @@ import { prisma } from "../config/database";
 import { AuthRequest } from "../middleware/auth";
 import { createError } from "../middleware/errorHandler";
 import { Prisma } from "@prisma/client";
+import { accrueUser } from "../services/accrualService";
 
 export const getWallet = async (
   req: AuthRequest,
@@ -11,6 +12,7 @@ export const getWallet = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
+    await accrueUser(req.user!.id);
     const wallet = await prisma.wallet.findUnique({
       where: { userId: req.user!.id },
       select: {
@@ -19,6 +21,9 @@ export const getWallet = async (
         cryptoBalance: true,
         lockedBalance: true,
         walletAddress: true,
+        lastAccruedAt: true,
+        totalYieldGenerated: true,
+        approvedCapital: true,
       },
     });
     res.json({ success: true, data: wallet });

@@ -43,10 +43,14 @@ services:
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: APPLE_CLIENT_ID
+        sync: false
       - key: FRONTEND_URL
         value: https://xcapital.investments
       - key: CORS_ORIGINS
-        value: https://xcapital-web.onrender.com
+        value: https://xcapital-web.onrender.com,https://xcapital.investments,https://www.xcapital.investments
       - key: AI_ORACLE_URL
         fromService:
           type: web
@@ -74,3 +78,7 @@ services:
         value: https://xcapital-api.onrender.com/api/v1
       - key: NEXT_PUBLIC_WS_URL
         value: wss://xcapital-api.onrender.com
+      - key: NEXT_PUBLIC_GOOGLE_CLIENT_ID
+        sync: false
+      - key: NEXT_PUBLIC_APPLE_CLIENT_ID
+        sync: false

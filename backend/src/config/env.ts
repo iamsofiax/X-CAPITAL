@@ -37,6 +37,9 @@ export const env = {
 
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || '',
 
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
+  APPLE_CLIENT_ID: process.env.APPLE_CLIENT_ID || '',
+
   RATE_LIMIT_WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
   RATE_LIMIT_MAX: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
 

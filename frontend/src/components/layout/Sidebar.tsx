@@ -22,6 +22,7 @@ import {
 import { useStore } from "@/store/useStore";
 import { XCapitalLogo } from "@/components/brand/XCapitalLogo";
 import { useXEngine } from "@/hooks/useXEngine";
+import { useApiHealth } from "@/hooks/useApiHealth";
 import { cn } from "@/lib/utils";
 import type { EngineRail } from "@/lib/xEngine";
 
@@ -98,7 +99,15 @@ export default function Sidebar() {
   const { sidebarOpen, setSidebarOpen, user, logout, theme } = useStore();
   const { canAccess, nodeId, phaseLabel, unlockedRails } = useXEngine();
   const { time, session } = useUTCClock();
-  const uptime = 99.97;
+  const { health, online } = useApiHealth();
+  const gateway =
+    health?.status === "healthy"
+      ? "LIVE"
+      : health?.status === "degraded"
+        ? "DEGRADED"
+        : online
+          ? "LIVE"
+          : "HOLD";
   const isLight = theme === "light";
   const [logoutConfirm, setLogoutConfirm] = useState(false);
 
@@ -162,11 +171,16 @@ export default function Sidebar() {
           </div>
           {/* System uptime bar */}
           <div className="flex items-center justify-between mb-1">
-            <span className="engine-mono text-[9px] text-white/20 tracking-widest">UPTIME</span>
-            <span className="engine-mono text-[9px] text-emerald-400/70">{uptime}%</span>
+            <span className="engine-mono text-[9px] text-white/20 tracking-widest">GATEWAY</span>
+            <span className="engine-mono text-[9px] text-emerald-400/70">{gateway}</span>
           </div>
           <div className="h-0.5 rounded-full bg-white/[0.05] overflow-hidden">
-            <div className="h-full rounded-full bg-emerald-500/60" style={{ width: `${uptime}%` }} />
+            <div
+              className={cn(
+                "h-full rounded-full",
+                gateway === "LIVE" ? "bg-emerald-500/60 w-full" : "bg-amber-500/60 w-2/3",
+              )}
+            />
           </div>
         </div>
 

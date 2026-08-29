@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "@/store/useStore";
 import { Button } from "@/components/ui/Button";
 import { XCapitalLogoMark } from "@/components/brand/XCapitalLogo";
+import SocialAuthButtons from "@/components/auth/SocialAuthButtons";
 import {
   Eye,
   EyeOff,
@@ -27,7 +28,8 @@ interface FormData {
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { registerUser, isAuthenticated } = useStore();
+  const { registerUser, loginWithGoogle, loginWithApple, isAuthenticated } =
+    useStore();
 
   // Redirect if already logged in
   useEffect(() => {
@@ -61,6 +63,35 @@ export default function RegisterPage() {
     if (/[^A-Za-z0-9]/.test(pw)) score++;
     return score;
   })();
+
+  const enter = useCallback(() => {
+    router.push("/dashboard");
+  }, [router]);
+
+  const handleGoogle = useCallback(
+    async (credential: string) => {
+      const result = await loginWithGoogle(credential);
+      if (!result.success) {
+        throw new Error(result.error || "Google sign-in failed.");
+      }
+      enter();
+    },
+    [loginWithGoogle, enter],
+  );
+
+  const handleApple = useCallback(
+    async (
+      identityToken: string,
+      names?: { firstName?: string; lastName?: string },
+    ) => {
+      const result = await loginWithApple(identityToken, names);
+      if (!result.success) {
+        throw new Error(result.error || "Apple sign-in failed.");
+      }
+      enter();
+    },
+    [loginWithApple, enter],
+  );
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,7 +144,7 @@ export default function RegisterPage() {
       <div
         className="fixed inset-0 pointer-events-none"
         style={{
-          backgroundImage: `radial-gradient(circle at 50% 0%, rgba(124,58,237,0.08) 0%, transparent 60%)`,
+          backgroundImage: `radial-gradient(circle at 50% 0%, rgba(16,185,129,0.06) 0%, transparent 55%)`,
         }}
       />
 
@@ -127,14 +158,28 @@ export default function RegisterPage() {
                 <span className="gradient-text">X-CAPITAL</span>
               </div>
               <p className="text-xc-muted text-sm mt-2">
-                Create your account — free forever
+                Open a node
               </p>
             </div>
           </Link>
         </div>
 
         <div className="bg-xc-card border border-xc-border rounded-2xl p-8 shadow-2xl shadow-black/60 premium-3d-tilt">
-          <h1 className="text-xl font-black text-white mb-6">Get started</h1>
+          <h1 className="text-xl font-black text-white mb-6">Register node</h1>
+
+          <SocialAuthButtons
+            onGoogle={handleGoogle}
+            onApple={handleApple}
+            disabled={loading}
+          />
+
+          <div className="flex items-center gap-3 my-6">
+            <div className="flex-1 h-px bg-xc-border" />
+            <span className="text-[10px] font-mono uppercase tracking-widest text-xc-muted">
+              or email
+            </span>
+            <div className="flex-1 h-px bg-xc-border" />
+          </div>
 
           <form onSubmit={handleRegister} className="space-y-4">
             {/* Name row */}
@@ -152,7 +197,7 @@ export default function RegisterPage() {
                     placeholder="Jane"
                     required
                     autoComplete="given-name"
-                    className="w-full bg-xc-dark/60 border border-xc-border rounded-xl pl-9 pr-3 py-3 text-sm text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-xc-purple/60 transition-colors"
+                    className="w-full bg-xc-dark/60 border border-xc-border rounded-xl pl-9 pr-3 py-3 text-sm text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-emerald-500/50 transition-colors"
                   />
                 </div>
               </div>
@@ -167,7 +212,7 @@ export default function RegisterPage() {
                   placeholder="Smith"
                   required
                   autoComplete="family-name"
-                  className="w-full bg-xc-dark/60 border border-xc-border rounded-xl px-3 py-3 text-sm text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-xc-purple/60 transition-colors"
+                  className="w-full bg-xc-dark/60 border border-xc-border rounded-xl px-3 py-3 text-sm text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-emerald-500/50 transition-colors"
                 />
               </div>
             </div>
@@ -186,7 +231,7 @@ export default function RegisterPage() {
                   placeholder="you@example.com"
                   required
                   autoComplete="email"
-                  className="w-full bg-xc-dark/60 border border-xc-border rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-xc-purple/60 transition-colors"
+                  className="w-full bg-xc-dark/60 border border-xc-border rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-emerald-500/50 transition-colors"
                 />
               </div>
             </div>
@@ -205,7 +250,7 @@ export default function RegisterPage() {
                   placeholder="Min 8 characters"
                   required
                   autoComplete="new-password"
-                  className="w-full bg-xc-dark/60 border border-xc-border rounded-xl pl-10 pr-10 py-3 text-sm text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-xc-purple/60 transition-colors"
+                  className="w-full bg-xc-dark/60 border border-xc-border rounded-xl pl-10 pr-10 py-3 text-sm text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-emerald-500/50 transition-colors"
                 />
                 <button
                   type="button"
@@ -247,7 +292,7 @@ export default function RegisterPage() {
                   placeholder="Repeat password"
                   required
                   autoComplete="new-password"
-                  className="w-full bg-xc-dark/60 border border-xc-border rounded-xl pl-10 pr-10 py-3 text-sm text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-xc-purple/60 transition-colors"
+                  className="w-full bg-xc-dark/60 border border-xc-border rounded-xl pl-10 pr-10 py-3 text-sm text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-emerald-500/50 transition-colors"
                 />
                 {form.confirmPassword.length > 0 && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -296,17 +341,17 @@ export default function RegisterPage() {
               size="lg"
               loading={loading}
             >
-              Create Account
+              Open node
             </Button>
           </form>
 
           <p className="text-center text-sm text-xc-muted mt-5">
-            Already have an account?{" "}
+            Already authenticated?{" "}
             <Link
               href="/auth/login"
               className="text-white/70 hover:text-white font-semibold transition-colors"
             >
-              Sign in
+              Enter
             </Link>
           </p>
         </div>

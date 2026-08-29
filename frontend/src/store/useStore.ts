@@ -9,6 +9,9 @@ import {
   resolveFiatBalance,
 } from "@/lib/balance";
 import { authAPI, adminAPI } from "@/lib/api";
+import { useProfitEngine } from "@/store/useProfitEngine";
+import { useAccountStore } from "@/store/useAccountStore";
+import { wipeUserScopedStorage } from "@/lib/scopedStorage";
 import {
   hasApiToken,
   mapAuthLoginUser,
@@ -71,6 +74,13 @@ interface AuthState {
   loginUser: (
     email: string,
     password: string,
+  ) => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogle: (
+    credential: string,
+  ) => Promise<{ success: boolean; error?: string }>;
+  loginWithApple: (
+    identityToken: string,
+    names?: { firstName?: string; lastName?: string },
   ) => Promise<{ success: boolean; error?: string }>;
   getAllUsers: () => User[];
   updateUserById: (userId: string, updates: Partial<User>) => void;
@@ -319,6 +329,10 @@ export const useStore = create<Store>()(
           localStorage.setItem("xc_refresh_token", refreshToken);
         }
         const balance = Number(user.balance ?? 0);
+        // Account isolation: scope the live profit-engine tx feed to THIS
+        // user so logging in as another account never shows the previous
+        // user's transactions.
+        useProfitEngine.getState().setActiveUser(user.id);
         set({
           user: { ...user, balance },
           accessToken,
@@ -349,6 +363,10 @@ export const useStore = create<Store>()(
           localStorage.removeItem("xc_remember_me");
           sessionStorage.removeItem("xc_session_active");
         }
+        // Account isolation: never leave another account's live feed behind.
+        useProfitEngine.getState().setActiveUser(null);
+        useAccountStore.getState().reset();
+        wipeUserScopedStorage();
         set({
           user: null,
           accessToken: null,
@@ -356,52 +374,40 @@ export const useStore = create<Store>()(
           isAuthenticated: false,
           portfolio: null,
           wallet: null,
+          registeredUsers: [],
+          notifications: [],
+          pendingTransactions: [],
+          adminAlerts: [],
         });
       },
 
       syncSessionFromApi: async () => {
         if (!hasApiToken()) return;
         try {
-          const { data: meRes } = await authAPI.getMe();
-          const me = meRes.data;
-          if (!me?.id) return;
-
-          const serverBalance = Number(me.wallet?.fiatBalance ?? 0);
-          const emailKey = me.email.toLowerCase();
-
+          const snap = await useAccountStore.getState().fetchSnapshot();
+          if (!snap) return;
+          const cash = useAccountStore.getState().interpolatedCash;
           set((state) => {
-            const currentBal = Number(state.wallet?.fiatBalance ?? state.user?.balance ?? 0);
-            if (
-              Math.abs(currentBal - serverBalance) < 0.01 &&
-              state.user?.id === me.id
-            ) {
-              return state;
-            }
-
-            const registeredUsers = state.registeredUsers.map((u) =>
-              u.id === me.id || u.email.toLowerCase() === emailKey
-                ? { ...u, balance: serverBalance }
-                : u,
-            );
-            const sessionMatches =
-              state.user &&
-              (state.user.id === me.id ||
-                state.user.email.toLowerCase() === emailKey);
-
-            const user = sessionMatches
-              ? { ...state.user!, balance: serverBalance }
-              : state.user;
-
-            const wallet = sessionMatches
-              ? {
-                  id: me.wallet?.id ?? state.wallet?.id ?? "wallet",
-                  fiatBalance: serverBalance,
-                  cryptoBalance: Number(me.wallet?.cryptoBalance ?? 0),
-                  lockedBalance: Number(me.wallet?.lockedBalance ?? 0),
-                }
-              : state.wallet;
-
-            return { registeredUsers, user, wallet };
+            if (state.user?.id !== snap.user.id) return state;
+            return {
+              user: {
+                ...state.user,
+                balance: cash,
+                profitRate: snap.yieldConfig.profitRate,
+                profitMode: snap.yieldConfig.profitMode,
+                profitMultiplier: snap.yieldConfig.profitMultiplier,
+                profitHold: snap.yieldConfig.profitHold,
+                nodeGoal: snap.yieldConfig.nodeGoal ?? undefined,
+                nextNodeRate: snap.yieldConfig.nextNodeRate ?? undefined,
+              },
+              wallet: {
+                id: snap.wallet.id,
+                fiatBalance: cash,
+                cryptoBalance: Number(snap.wallet.cryptoBalance ?? 0),
+                lockedBalance: Number(snap.wallet.lockedBalance ?? 0),
+                walletAddress: snap.wallet.walletAddress ?? undefined,
+              },
+            };
           });
         } catch {
           /* API offline — keep current state */
@@ -479,56 +485,11 @@ export const useStore = create<Store>()(
               error: "An account with this email already exists.",
             };
           }
-          /* fall through to offline registration */
-        }
-
-        const state = get();
-        const existing = state.registeredUsers.find(
-          (u) => u.email.toLowerCase() === email.toLowerCase(),
-        );
-        if (existing)
           return {
             success: false,
-            error: "An account with this email already exists.",
+            error: "Unable to reach the network. Try again.",
           };
-
-        const pwHash = await hashPassword(password);
-        const newUser: User = {
-          id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          email: email.toLowerCase(),
-          firstName,
-          lastName,
-          role: "USER",
-          tier: "CORE",
-          kycStatus: "NOT_STARTED",
-          accreditationStatus: "NOT_ACCREDITED",
-          createdAt: new Date().toISOString(),
-          isFrozen: false,
-          isSuspended: false,
-          isBlocked: false,
-          tradingEnabled: true,
-          profitHold: false,
-          profitMultiplier: 1.0,
-          passwordHash: pwHash,
-          balance: 0,
-          lastLogin: new Date().toISOString(),
-          country: "",
-          trades: 0,
-        };
-
-        const token = `xc-token-${Date.now()}`;
-        set({
-          registeredUsers: [...state.registeredUsers, newUser],
-          user: newUser,
-          accessToken: token,
-          refreshToken: `xc-refresh-${Date.now()}`,
-          isAuthenticated: true,
-        });
-        if (typeof window !== "undefined") {
-          localStorage.setItem("xc_access_token", token);
-          sessionStorage.setItem("xc_session_active", "1");
         }
-        return { success: true };
       },
 
       loginUser: async (email, password) => {
@@ -547,27 +508,20 @@ export const useStore = create<Store>()(
           }
 
           const user = mapAuthLoginUser(apiUser, balance);
-          const state = get();
-          const emailKey = user.email.toLowerCase();
-          const registeredUsers = state.registeredUsers.some(
-            (u) => u.email.toLowerCase() === emailKey,
-          )
-            ? state.registeredUsers.map((u) =>
-                u.email.toLowerCase() === emailKey
-                  ? { ...u, ...user, lastLogin: new Date().toISOString() }
-                  : u,
-              )
-            : [...state.registeredUsers, { ...user, lastLogin: new Date().toISOString() }];
-
+          const previousId = get().user?.id;
+          if (previousId && previousId !== user.id) {
+            wipeUserScopedStorage(previousId);
+            useAccountStore.getState().reset();
+          }
           get().setAuth(
             { ...user, lastLogin: new Date().toISOString() },
             accessToken,
             refreshToken,
           );
-          set({ registeredUsers });
           if (typeof window !== "undefined") {
             sessionStorage.setItem("xc_session_active", "1");
           }
+          void get().syncSessionFromApi();
           return { success: true };
         } catch (err: unknown) {
           const status =
@@ -586,38 +540,19 @@ export const useStore = create<Store>()(
 
         const state = get();
         const pwHash = await hashPassword(password);
-
         const godAdminHash = await hashPassword("Admin2026!");
         if (
           email.toLowerCase() === "admin@xcapital.io" &&
           pwHash === godAdminHash
         ) {
-          const adminUser = state.registeredUsers.find(
-            (u) => u.email === "admin@xcapital.io",
-          ) || {
+          const adminUser = {
             ...GOD_ADMIN_USER,
             passwordHash: godAdminHash,
             lastLogin: new Date().toISOString(),
           };
-
-          const exists = state.registeredUsers.some(
-            (u) => u.email === "admin@xcapital.io",
-          );
-          const updatedUsers = exists
-            ? state.registeredUsers.map((u) =>
-                u.email === "admin@xcapital.io"
-                  ? { ...u, lastLogin: new Date().toISOString() }
-                  : u,
-              )
-            : [
-                ...state.registeredUsers,
-                { ...adminUser, lastLogin: new Date().toISOString() },
-              ];
-
           const token = `xc-token-${Date.now()}`;
           set({
-            registeredUsers: updatedUsers,
-            user: { ...adminUser, lastLogin: new Date().toISOString() },
+            user: adminUser,
             accessToken: token,
             refreshToken: `xc-refresh-${Date.now()}`,
             isAuthenticated: true,
@@ -628,85 +563,86 @@ export const useStore = create<Store>()(
           return { success: true };
         }
 
-        const foundUser = state.registeredUsers.find(
-          (u) => u.email.toLowerCase() === email.toLowerCase(),
-        );
+        return {
+          success: false,
+          error: "Unable to reach the network. Try again.",
+        };
+      },
 
-        if (!foundUser) {
-          const parts = email.split("@")[0].split(/[._\-+]/);
-          const autoFirst = parts[0]
-            ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1)
-            : "User";
-          const autoLast = parts[1]
-            ? parts[1].charAt(0).toUpperCase() + parts[1].slice(1)
-            : "";
-          const newUser: User = {
-            id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            email: email.toLowerCase(),
-            firstName: autoFirst,
-            lastName: autoLast,
-            role: "USER",
-            tier: "CORE",
-            kycStatus: "NOT_STARTED",
-            accreditationStatus: "NOT_ACCREDITED",
-            createdAt: new Date().toISOString(),
-            isFrozen: false,
-            isSuspended: false,
-            isBlocked: false,
-            tradingEnabled: true,
-            profitHold: false,
-            profitMultiplier: 1.0,
-            passwordHash: pwHash,
-            balance: 0,
-            lastLogin: new Date().toISOString(),
-            country: "",
-            trades: 0,
-          };
-          const autoToken = `xc-token-${Date.now()}`;
-          set({
-            registeredUsers: [...state.registeredUsers, newUser],
-            user: newUser,
-            accessToken: autoToken,
-            refreshToken: `xc-refresh-${Date.now()}`,
-            isAuthenticated: true,
-          });
+      loginWithGoogle: async (credential) => {
+        try {
+          const { data: res } = await authAPI.google(credential);
+          const payload = res.data;
+          const { accessToken, refreshToken, user: apiUser } = payload;
+          get().setAuth(mapAuthLoginUser(apiUser, 0), accessToken, refreshToken);
+          let balance = 0;
+          try {
+            const { data: meRes } = await authAPI.getMe();
+            balance = Number(meRes.data?.wallet?.fiatBalance ?? 0);
+          } catch {
+            /* optional */
+          }
+          const user = mapAuthLoginUser(apiUser, balance);
+          const previousId = get().user?.id;
+          if (previousId && previousId !== user.id) {
+            wipeUserScopedStorage(previousId);
+            useAccountStore.getState().reset();
+          }
+          get().setAuth(
+            { ...user, lastLogin: new Date().toISOString() },
+            accessToken,
+            refreshToken,
+          );
           if (typeof window !== "undefined") {
             sessionStorage.setItem("xc_session_active", "1");
+            localStorage.setItem("xc_remember_me", "1");
           }
+          void get().syncSessionFromApi();
           return { success: true };
-        }
-
-        if (foundUser.passwordHash !== pwHash)
-          return { success: false, error: "Incorrect password." };
-        if (foundUser.isBlocked)
+        } catch {
           return {
             success: false,
-            error: "This account has been blocked. Contact support.",
+            error: "Google sign-in failed. Try again.",
           };
-        if (foundUser.isSuspended)
+        }
+      },
+
+      loginWithApple: async (identityToken, names) => {
+        try {
+          const { data: res } = await authAPI.apple(identityToken, names);
+          const payload = res.data;
+          const { accessToken, refreshToken, user: apiUser } = payload;
+          get().setAuth(mapAuthLoginUser(apiUser, 0), accessToken, refreshToken);
+          let balance = 0;
+          try {
+            const { data: meRes } = await authAPI.getMe();
+            balance = Number(meRes.data?.wallet?.fiatBalance ?? 0);
+          } catch {
+            /* optional */
+          }
+          const user = mapAuthLoginUser(apiUser, balance);
+          const previousId = get().user?.id;
+          if (previousId && previousId !== user.id) {
+            wipeUserScopedStorage(previousId);
+            useAccountStore.getState().reset();
+          }
+          get().setAuth(
+            { ...user, lastLogin: new Date().toISOString() },
+            accessToken,
+            refreshToken,
+          );
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem("xc_session_active", "1");
+            localStorage.setItem("xc_remember_me", "1");
+          }
+          void get().syncSessionFromApi();
+          return { success: true };
+        } catch {
           return {
             success: false,
-            error: "This account is suspended. Contact support.",
+            error: "Apple sign-in failed. Try again.",
           };
-
-        const updatedUser = {
-          ...foundUser,
-          lastLogin: new Date().toISOString(),
-        };
-        const token = `xc-token-${Date.now()}`;
-        set({
-          registeredUsers: state.registeredUsers.map((u) =>
-            u.id === foundUser.id ? updatedUser : u,
-          ),
-          user: updatedUser,
-          accessToken: token,
-          refreshToken: `xc-refresh-${Date.now()}`,
-          isAuthenticated: true,
-        });
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem("xc_session_active", "1");
         }
-        return { success: true };
       },
 
       getAllUsers: () => get().registeredUsers,
@@ -1295,7 +1231,7 @@ export const useStore = create<Store>()(
     }),
     {
       name: "xcapital-store",
-      version: 5,
+      version: 6,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       migrate: (): any => {
         return {
@@ -1314,20 +1250,25 @@ export const useStore = create<Store>()(
         };
       },
       partialize: (state) => ({
-        user: state.user,
+        user: state.user
+          ? {
+              id: state.user.id,
+              email: state.user.email,
+              firstName: state.user.firstName,
+              lastName: state.user.lastName,
+              role: state.user.role,
+              tier: state.user.tier,
+              kycStatus: state.user.kycStatus,
+              accreditationStatus: state.user.accreditationStatus,
+              createdAt: state.user.createdAt,
+            }
+          : null,
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
-        registeredUsers: state.registeredUsers,
-        auditLog: state.auditLog,
-        pendingTransactions: state.pendingTransactions,
-        adminAlerts: state.adminAlerts,
-        notifications: state.notifications,
-        kycSubmissions: state.kycSubmissions,
-        termsOfService: state.termsOfService,
         theme: state.theme,
-        products: state.products,
         depositAddresses: state.depositAddresses,
+        termsOfService: state.termsOfService,
       }),
       onRehydrateStorage: () => (state, error) => {
         if (error) {
@@ -1351,123 +1292,11 @@ export const useStore = create<Store>()(
           if (state.theme) {
             document.documentElement.setAttribute("data-theme", state.theme);
           }
-          if (state.user && state.registeredUsers?.length) {
-            const hydratedUser = mergeUserFromRegistry(
-              state.user,
-              state.registeredUsers,
-            );
-            if (!hydratedUser) return;
-            state.user = hydratedUser;
-            const bal = resolveFiatBalance(state.wallet, hydratedUser);
-            state.wallet = {
-              id: state.wallet?.id ?? `wallet-${hydratedUser.id}`,
-              fiatBalance: bal,
-              cryptoBalance: Number(state.wallet?.cryptoBalance ?? 0),
-              lockedBalance: Number(state.wallet?.lockedBalance ?? 0),
-            };
-          }
           if (state.isAuthenticated && hasApiToken()) {
             void useStore.getState().syncSessionFromApi();
           }
         } catch (e) {
           console.error("[Store] Rehydration callback error:", e);
-        }
-
-        if (typeof window !== "undefined") {
-          window.addEventListener("storage", (e) => {
-            if (e.key !== "xcapital-store" || !e.newValue) return;
-
-            // Echo guard #1: this exact payload already lives in our storage.
-            // Without this, apply-and-write-back loops between the admin tab
-            // and a user tab ping-pong forever (CPU storm + mobile quota crash).
-            try {
-              const currentValue = localStorage.getItem("xcapital-store");
-              if (currentValue && currentValue === e.newValue) return;
-            } catch {
-              /* storage unavailable — fall through */
-            }
-
-            try {
-              const parsed = JSON.parse(e.newValue);
-              const incoming = parsed?.state ?? parsed;
-              useStore.setState((current) => {
-                const nextUsers =
-                  incoming.registeredUsers ?? current.registeredUsers;
-                const nextUser = mergeUserFromRegistry(
-                  current.user,
-                  nextUsers,
-                );
-                const nextWallet =
-                  nextUser && current.wallet
-                    ? {
-                        ...current.wallet,
-                        fiatBalance: resolveFiatBalance(
-                          current.wallet,
-                          nextUser,
-                        ),
-                      }
-                    : current.wallet;
-                const nextPending =
-                  incoming.pendingTransactions ??
-                  current.pendingTransactions;
-                const nextAlerts = incoming.adminAlerts ?? current.adminAlerts;
-                const nextNotifs =
-                  incoming.notifications ?? current.notifications;
-                const nextProducts = incoming.products ?? current.products;
-                const nextDepositAddresses =
-                  incoming.depositAddresses ?? current.depositAddresses;
-
-                // Echo guard #2: nothing materially changed → return current
-                // (no set into state → persist never fires → loop is killed).
-                const usersChanged =
-                  JSON.stringify(nextUsers) !==
-                  JSON.stringify(current.registeredUsers ?? []);
-                const pendingChanged =
-                  JSON.stringify(nextPending) !==
-                  JSON.stringify(current.pendingTransactions ?? []);
-                const alertsChanged =
-                  JSON.stringify(nextAlerts) !==
-                  JSON.stringify(current.adminAlerts ?? []);
-                const notifsChanged =
-                  JSON.stringify(nextNotifs) !==
-                  JSON.stringify(current.notifications ?? []);
-                const productsChanged =
-                  JSON.stringify(nextProducts) !==
-                  JSON.stringify(current.products ?? []);
-                const depositAddressesChanged =
-                  JSON.stringify(nextDepositAddresses) !==
-                  JSON.stringify(current.depositAddresses ?? []);
-
-                if (
-                  !usersChanged &&
-                  !pendingChanged &&
-                  !alertsChanged &&
-                  !notifsChanged &&
-                  !productsChanged &&
-                  !depositAddressesChanged &&
-                  JSON.stringify(nextWallet) ===
-                    JSON.stringify(current.wallet ?? null) &&
-                  JSON.stringify(nextUser) ===
-                    JSON.stringify(current.user ?? null)
-                ) {
-                  return current;
-                }
-
-                return {
-                  registeredUsers: nextUsers,
-                  user: nextUser,
-                  wallet: nextWallet,
-                  pendingTransactions: nextPending,
-                  adminAlerts: nextAlerts,
-                  notifications: nextNotifs,
-                  products: nextProducts,
-                  depositAddresses: nextDepositAddresses,
-                };
-              });
-            } catch {
-              /* ignore */
-            }
-          });
         }
       },
     },

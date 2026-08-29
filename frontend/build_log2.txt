@@ -1,4 +1,0 @@
-npm notice run x-capital-frontend@1.0.0 build
-npm notice run next build
-memory allocation of 42 bytes failed
-Next.js build worker exited with code: 3221226505 and signal: null

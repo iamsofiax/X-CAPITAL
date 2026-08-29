@@ -146,8 +146,8 @@ export default function FundCard({ fund, onInvest }: FundCardProps) {
           </>
         ) : (
           /* emoji fallback in header */
-          <div className="absolute inset-0 flex items-center justify-center text-6xl opacity-40 group-hover:opacity-60 transition-opacity duration-300">
-            {cat.emoji}
+          <div className="absolute inset-0 flex items-center justify-center text-sm font-mono tracking-[0.2em] text-white/25 uppercase">
+            {fund.category ?? "FUND"}
           </div>
         )}
 

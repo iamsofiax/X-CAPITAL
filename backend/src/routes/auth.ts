@@ -28,6 +28,20 @@ router.post(
   authController.login
 );
 
+router.post(
+  "/google",
+  authRateLimit,
+  [body("credential").isString().notEmpty()],
+  authController.loginGoogle,
+);
+
+router.post(
+  "/apple",
+  authRateLimit,
+  [body("identityToken").isString().notEmpty()],
+  authController.loginApple,
+);
+
 router.post('/refresh', authController.refreshToken);
 router.post('/logout', authenticate, authController.logout);
 router.get('/me', authenticate, authController.getMe);

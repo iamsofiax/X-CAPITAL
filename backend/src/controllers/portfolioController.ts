@@ -1,9 +1,11 @@
 import { Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
 import { AuthRequest } from '../middleware/auth';
+import { accrueUser, buildLedgerSeries } from '../services/accrualService';
 
 export const getPortfolio = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
+    await accrueUser(req.user!.id);
     const portfolio = await prisma.portfolio.findUnique({
       where: { userId: req.user!.id },
       include: {
@@ -21,12 +23,37 @@ export const getPortfolio = async (req: AuthRequest, res: Response, next: NextFu
       return;
     }
 
-    const wallet = await prisma.wallet.findUnique({
-      where: { userId: req.user!.id },
-      select: { fiatBalance: true },
-    });
+    const [wallet, investments] = await Promise.all([
+      prisma.wallet.findUnique({
+        where: { userId: req.user!.id },
+        select: { fiatBalance: true, totalYieldGenerated: true, approvedCapital: true },
+      }),
+      prisma.userInvestment.findMany({
+        where: { userId: req.user!.id, status: 'ACTIVE' },
+        select: { amount: true },
+      }),
+    ]);
 
-    res.json({ success: true, data: { ...portfolio, cashBalance: wallet?.fiatBalance ?? 0 } });
+    const cashBalance = Number(wallet?.fiatBalance ?? 0);
+    const holdingsValue = portfolio.holdings.reduce(
+      (sum, h) => sum + Number(h.currentValue),
+      0,
+    );
+    const fundsValue = investments.reduce((sum, inv) => sum + Number(inv.amount), 0);
+    const nav = Math.round((cashBalance + holdingsValue + fundsValue) * 100) / 100;
+
+    res.json({
+      success: true,
+      data: {
+        ...portfolio,
+        cashBalance,
+        holdingsValue,
+        fundsValue,
+        unallocated: cashBalance,
+        totalValue: nav,
+        nav,
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -51,21 +78,40 @@ export const getHoldings = async (req: AuthRequest, res: Response, next: NextFun
 
 export const getPerformance = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
+    await accrueUser(req.user!.id);
     const { period = '30d' } = req.query;
+    const start = getPeriodStart(String(period));
+    const daysMap: Record<string, number> = { '1d': 1, '7d': 7, '30d': 30, '90d': 90, '1y': 365 };
+    const days = daysMap[String(period)] || 30;
 
-    const transactions = await prisma.transaction.findMany({
-      where: {
-        userId: req.user!.id,
-        status: 'COMPLETED',
-        type: 'TRADE',
-        createdAt: {
-          gte: getPeriodStart(String(period)),
+    const [transactions, wallet] = await Promise.all([
+      prisma.transaction.findMany({
+        where: {
+          userId: req.user!.id,
+          status: 'COMPLETED',
+          createdAt: { gte: start },
         },
-      },
+        orderBy: { createdAt: 'asc' },
+      }),
+      prisma.wallet.findUnique({
+        where: { userId: req.user!.id },
+        select: { fiatBalance: true },
+      }),
+    ]);
+
+    const allTx = await prisma.transaction.findMany({
+      where: { userId: req.user!.id, status: 'COMPLETED' },
       orderBy: { createdAt: 'asc' },
+      select: { type: true, status: true, amount: true, createdAt: true },
     });
 
-    res.json({ success: true, data: transactions });
+    res.json({
+      success: true,
+      data: {
+        transactions,
+        series: buildLedgerSeries(allTx, Number(wallet?.fiatBalance ?? 0), days),
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -80,6 +126,12 @@ export const getAllocation = async (req: AuthRequest, res: Response, next: NextF
 
     if (!portfolio) { res.json({ success: true, data: [] }); return; }
 
+    const wallet = await prisma.wallet.findUnique({
+      where: { userId: req.user!.id },
+      select: { fiatBalance: true },
+    });
+    const cash = Number(wallet?.fiatBalance ?? 0);
+
     const allocation: Record<string, number> = {};
     let total = 0;
 
@@ -87,6 +139,10 @@ export const getAllocation = async (req: AuthRequest, res: Response, next: NextF
       const type = holding.asset.type;
       allocation[type] = (allocation[type] || 0) + Number(holding.currentValue);
       total += Number(holding.currentValue);
+    }
+    if (cash > 0) {
+      allocation.CASH = cash;
+      total += cash;
     }
 
     const result = Object.entries(allocation).map(([type, value]) => ({

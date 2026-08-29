@@ -12,11 +12,11 @@ import { emitCapitalSignal } from "@/lib/capitalSignal";
 import { NodeStat } from "@/components/node-engine";
 import { MissionPanel, YieldGrowthVisualizer } from "@/components/x-engine";
 import { CompoundingHeroGlobe3D } from "@/components/x-engine";
-import { resolveNodeDailyRate } from "@/hooks/useLiveGrowth";
 import { ENGINE_COPY } from "@/lib/xEngine";
 import { useXEngine } from "@/hooks/useXEngine";
 import { NODE_LABELS } from "@/lib/nodeCopy";
 import { formatCurrency, cn } from "@/lib/utils";
+import { useAccountStore, selectSeries } from "@/store/useAccountStore";
 import {
   AreaChart,
   Area,
@@ -61,9 +61,7 @@ import {
   CompoundVelocityBadge,
   YieldVaultModal,
 } from "@/components/retention";
-import DailyRewards from "@/components/gamification/DailyRewards";
 import { useStreakStore } from "@/store/useStreakStore";
-import { useDailyRewards } from "@/store/useDailyRewards";
 
 type ModalType = "deposit" | "withdraw" | null;
 // Deposit pipeline is crypto-only (USDT/BTC/ETH/USDC/SOL/BNB/XRP).
@@ -271,9 +269,6 @@ export default function WalletPage() {
   // power the retention loop.
   const registerTopUp = useStreakStore((s) => s.registerTopUp);
   const registerWithdrawal = useStreakStore((s) => s.registerWithdrawal);
-  const registerTopUpStreakShield = useDailyRewards(
-    (s) => s.registerTopUpStreakShield,
-  );
 
   // One-tap quick deposit: prefills the amount + opens the crypto modal, so
   // frequent 24h/48h/weekly top-ups take one click, not five.
@@ -461,7 +456,6 @@ export default function WalletPage() {
       // shield so the Compound Velocity badge and Daily Rewards tier advance.
       if (user?.id) {
         registerTopUp(user.id);
-        registerTopUpStreakShield(user.id);
       }
       setMessage({
         type: "success",
@@ -528,6 +522,7 @@ export default function WalletPage() {
   };
 
   const cash = useStableBalance();
+  const snapshot = useAccountStore((s) => s.snapshot);
   const locked = Number(wallet?.lockedBalance ?? 0);
 
   // Strictly THIS user's transaction activity — never mixed with other users.
@@ -550,44 +545,50 @@ export default function WalletPage() {
               : `${t.method.toUpperCase()} withdrawal (${t.currency})`,
         },
       }));
-    return [...local, ...transactions];
-  }, [pendingTransactions, transactions, user]);
+    return [
+      ...local,
+      ...((snapshot?.transactions as WalletTransaction[] | undefined) ??
+        transactions),
+    ];
+  }, [pendingTransactions, transactions, user, snapshot]);
   const { phaseLabel, isArmed } = useXEngine();
   const isUnfunded = cash <= 0 && myPending.length === 0;
 
-  // Admin-aware compounding: the daily rate resolves through the profit
-  // engine (bullish-spike override → admin profitRate × multiplier), and
-  // `profitHold` freezes accrual while keeping the balance visible.
-  const effectiveRate = useMemo(() => {
-    const mergedRate = resolveNodeDailyRate(user?.id ?? "anon", user);
-    return mergedRate > 0 ? mergedRate : 0.015;
-  }, [user]);
-  const profitOnHold = user?.profitHold === true;
+  const effectiveRate =
+    snapshot?.yieldConfig.dailyRate && snapshot.yieldConfig.dailyRate > 0
+      ? snapshot.yieldConfig.dailyRate
+      : 0.015;
+  const profitOnHold = snapshot?.yieldConfig.profitHold === true;
 
   const balanceHistory = useMemo(() => {
-    const data = [];
-    let v = cash * 0.4;
-    const now = new Date();
-    for (let i = 30; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      v *= 1 + (Math.random() - 0.42) * 0.04;
-      data.push({
-        date: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-        balance: Math.round(v),
-      });
-    }
-    return data;
-  }, [cash]);
+    const base = selectSeries(snapshot);
+    return base.map((p, i) =>
+      i === base.length - 1
+        ? { date: p.date, balance: cash }
+        : { date: p.date, balance: p.value },
+    );
+  }, [snapshot, cash]);
 
   const flowData = useMemo(() => {
-    const months = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
-    return months.map((m) => ({
-      month: m,
-      inflow: Math.round(Math.random() * 80000 + 20000),
-      outflow: Math.round(Math.random() * 40000 + 5000),
-    }));
-  }, []);
+    const buckets = new Map<
+      string,
+      { month: string; inflow: number; outflow: number }
+    >();
+    for (const tx of displayTx) {
+      const key = new Date(tx.createdAt).toLocaleDateString("en-US", {
+        month: "short",
+      });
+      const cur = buckets.get(key) ?? { month: key, inflow: 0, outflow: 0 };
+      const t = String(tx.type).toUpperCase();
+      if (t.includes("WITHDRAW") || t === "DEBIT") {
+        cur.outflow += Number(tx.amount);
+      } else {
+        cur.inflow += Number(tx.amount);
+      }
+      buckets.set(key, cur);
+    }
+    return Array.from(buckets.values()).slice(-6);
+  }, [displayTx]);
 
   const txBreakdown = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -602,11 +603,11 @@ export default function WalletPage() {
 
   const TX_PIE_COLORS = [
     "#10b981",
-    "#ef4444",
-    "#7c3aed",
-    "#d97706",
-    "#06b6d4",
-    "#a78bfa",
+    "#34d399",
+    "#6ee7b7",
+    "#a7f3d0",
+    "#059669",
+    "#047857",
   ];
 
   // ─── Step indicator component ─────────────────────────────────────────────
@@ -696,19 +697,12 @@ export default function WalletPage() {
           </MissionPanel>
         )}
 
-        {/* ── Retention row: Compound Velocity Engine + Daily Rewards ── */}
         {user && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <CompoundVelocityBadge
-              userId={user.id}
-              balance={cash}
-              onQuickDeposit={handleQuickDeposit}
-            />
-            <DailyRewards
-              userId={user.id}
-              onTopUp={() => handleQuickDeposit(50)}
-            />
-          </div>
+          <CompoundVelocityBadge
+            userId={user.id}
+            balance={cash}
+            onQuickDeposit={handleQuickDeposit}
+          />
         )}
 
         {/* ── Stat Cards ── */}
@@ -790,11 +784,10 @@ export default function WalletPage() {
             <div>
               <p className="text-[10px] font-mono uppercase tracking-[0.32em] text-white/40 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Capital Engine · Real-Time Compounding
+                Accrual Core
               </p>
               <p className="text-xs text-xc-muted mt-1">
-                A = P(1 + r)<sup>t</sup> — your balance grows every tick, live
-                in 3D
+                A = P(1 + r)<sup>t</sup> — cash compounds on the server. This panel interpolates the display.
               </p>
             </div>
           </div>
@@ -839,10 +832,10 @@ export default function WalletPage() {
                     <linearGradient id="balGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop
                         offset="5%"
-                        stopColor="#ffffff"
-                        stopOpacity={0.15}
+                        stopColor="#10b981"
+                        stopOpacity={0.2}
                       />
-                      <stop offset="95%" stopColor="#ffffff" stopOpacity={0} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <XAxis
@@ -875,7 +868,7 @@ export default function WalletPage() {
                   <Area
                     type="monotone"
                     dataKey="balance"
-                    stroke="#ffffff"
+                    stroke="#10b981"
                     strokeWidth={2}
                     fill="url(#balGrad)"
                   />

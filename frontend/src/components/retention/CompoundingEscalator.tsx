@@ -23,7 +23,7 @@ export default function CompoundingEscalator({
   const baseProjection = projectValue(currentBalance, dailyRate, DAYS);
 
   return (
-    <div className="rounded-xl border border-emerald-900/50 bg-black p-6 shadow-[0_0_30px_rgba(16,185,129,0.04)]">
+    <div className="rounded-xl border border-emerald-900/50 bg-[#08080c] p-6 shadow-[0_0_30px_rgba(16,185,129,0.04)]">
       {/* Header */}
       <div className="mb-4 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-950/50">
@@ -140,7 +140,7 @@ export default function CompoundingEscalator({
 
       {/* Footer note */}
       <p className="mt-4 text-center text-[10px] text-white/20">
-        Based on 90-day continuous compounding at {formatCurrency(dailyRate)}/day rate
+        Based on 90-day continuous compounding at {(dailyRate * 100).toFixed(2)}%/day
       </p>
     </div>
   );

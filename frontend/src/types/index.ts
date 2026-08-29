@@ -36,7 +36,8 @@ export type TransactionType =
   | "FEE"
   | "CONVERSION"
   | "FUND_INVESTMENT"
-  | "FUND_REDEMPTION";
+  | "FUND_REDEMPTION"
+  | "YIELD";
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "VERY_HIGH";
 
 export interface User {
@@ -89,7 +90,8 @@ export interface Transaction {
     | "WITHDRAWAL"
     | "TRADE"
     | "FUND_INVESTMENT"
-    | "FUND_REDEMPTION";
+    | "FUND_REDEMPTION"
+    | "YIELD";
   amount: number;
   note: string;
   timestamp: string;
@@ -243,4 +245,75 @@ export interface APIResponse<T> {
   data?: T;
   message?: string;
   errors?: Array<{ msg: string; path: string }>;
+}
+
+export interface YieldConfig {
+  dailyRate: number;
+  profitRate: number;
+  profitMode: "linear" | "compound";
+  profitMultiplier: number;
+  profitHold: boolean;
+  nodeGoal: number | null;
+  nextNodeRate: number | null;
+}
+
+export interface ActiveSpike {
+  id: string;
+  percentage: number;
+  direction: string;
+  label: string;
+  startsAt: string;
+  endsAt: string;
+}
+
+export interface LedgerSnapshot {
+  approvedCapital: number;
+  compoundYield: number;
+  liveBalance: number;
+  totalReturnUsd: number;
+  totalReturnPct: number;
+  nav: number;
+  unallocated: number;
+  eventCount: number;
+}
+
+export interface AccountSnapshot {
+  user: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    phone?: string | null;
+    tier: string;
+    kycStatus: string;
+    accreditationStatus: string;
+    createdAt: string;
+    lastLoginAt?: string | null;
+  };
+  wallet: {
+    id: string;
+    fiatBalance: number;
+    cryptoBalance: number;
+    lockedBalance: number;
+    walletAddress?: string | null;
+    lastAccruedAt: string | null;
+    totalYieldGenerated: number;
+    approvedCapital: number;
+  };
+  yieldConfig: YieldConfig;
+  activeSpike: ActiveSpike | null;
+  portfolio: {
+    id: string | null;
+    cashBalance: number;
+    holdingsValue: number;
+    fundsValue: number;
+    nav: number;
+    unallocated: number;
+    totalCost: number;
+    totalPnL: number;
+    holdings: PortfolioHolding[];
+  };
+  ledger: LedgerSnapshot;
+  series: Array<{ date: string; value: number }>;
+  transactions: WalletTransaction[];
 }

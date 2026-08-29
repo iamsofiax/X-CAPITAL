@@ -14,11 +14,9 @@ interface TickerItem {
 
 const TICKER_SEED: TickerItem[] = [
   { symbol: "TSLA", price: 342.18, change: 3.12, tag: "NYSE" },
-  { symbol: "SpaceX", price: 252.0, change: 6.84, tag: "PRIVATE" },
   { symbol: "NVDA", price: 875.39, change: 2.41, tag: "NASDAQ" },
   { symbol: "BTC", price: 97842.5, change: -1.23, tag: "CRYPTO" },
   { symbol: "DOGE", price: 0.4217, change: 8.52, tag: "CRYPTO" },
-  { symbol: "xAI", price: 180.0, change: 12.4, tag: "PRIVATE" },
   { symbol: "AAPL", price: 213.07, change: 0.84, tag: "NASDAQ" },
   { symbol: "AMZN", price: 196.25, change: -0.62, tag: "NASDAQ" },
   { symbol: "META", price: 513.92, change: 1.37, tag: "NASDAQ" },
@@ -27,9 +25,6 @@ const TICKER_SEED: TickerItem[] = [
   { symbol: "SOL", price: 187.63, change: 5.17, tag: "CRYPTO" },
   { symbol: "MSFT", price: 428.5, change: 0.97, tag: "NASDAQ" },
   { symbol: "GOOGL", price: 178.32, change: -0.14, tag: "NASDAQ" },
-  { symbol: "Starlink", price: 95.0, change: 4.22, tag: "PRIVATE" },
-  { symbol: "Neuralink", price: 48.5, change: 9.8, tag: "PRIVATE" },
-  { symbol: "Boring Co", price: 32.0, change: 2.15, tag: "PRIVATE" },
   { symbol: "AMD", price: 164.82, change: 1.93, tag: "NASDAQ" },
   { symbol: "AVGO", price: 1423.11, change: 3.94, tag: "NASDAQ" },
   { symbol: "MU", price: 104.3, change: 4.11, tag: "NASDAQ" },
