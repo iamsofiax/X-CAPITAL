@@ -4,19 +4,22 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
-  ShieldCheck,
   Lock,
   Landmark,
-  FileCheck2,
   Activity,
   Cpu,
   Radio,
   Server,
   Globe,
+  Scale,
+  Fingerprint,
+  Layers,
+  BookOpen,
 } from "lucide-react";
 import ApiHealthBadge from "@/components/system/ApiHealthBadge";
 import CapitalNetworkTwin from "@/components/network-twin/CapitalNetworkTwin";
 import HeroRocket from "@/components/brand/HeroRocket";
+import { XCapitalLogoMark } from "@/components/brand/XCapitalLogo";
 import { useApiHealth } from "@/hooks/useApiHealth";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { formatCurrency } from "@/lib/utils";
@@ -30,49 +33,49 @@ const RAILS = [
     label: "Public Markets",
     tag: "RAIL 01",
     accent: "#ffffff",
-    desc: "Institutional execution across 14 global exchanges. Sub-ms routing. No retail latency floors.",
+    desc: "Agency execution across primary venues. Routed as a desk, not a retail queue. Settlement reported to the node ledger.",
   },
   {
     id: "private",
     label: "Private Equity",
     tag: "RAIL 02",
     accent: "#f59e0b",
-    desc: "Pre-IPO deal flow, SPV co-investment. SpaceX, xAI, Anduril — before the public.",
+    desc: "Closed-end and SPV participation. Allocation is by mandate, not marketing. Positions post to the same isolated ledger.",
   },
   {
     id: "chain",
     label: "Tokenized Assets",
     tag: "RAIL 03",
     accent: "#a78bfa",
-    desc: "SEC-compliant security tokens. On-chain settlement, whitelisted wallets, real ownership.",
+    desc: "Whitelisted wallets. On-chain settlement instructions. Beneficial ownership recorded against the authenticated node.",
   },
   {
     id: "commerce",
     label: "Commerce-Capital",
     tag: "RAIL 04",
     accent: "#34d399",
-    desc: "Every purchase deploys capital. Buy a Tesla, acquire TSLA. Commerce and portfolio collapse into one.",
+    desc: "Spend that posts as capital. Commerce events settle into the same node — purchase and portfolio share one book.",
   },
   {
     id: "oracle",
     label: "AI Oracle",
     tag: "RAIL 05",
     accent: "#fb7185",
-    desc: "LSTM forecasting, Monte Carlo simulation, sentiment scoring. Positions sized by machine, not intuition.",
+    desc: "Forecasting, scenario, and sentiment as decision support. Sizing is advisory to the desk, never a substitute for mandate.",
   },
   {
     id: "infra",
     label: "Infrastructure Fund",
     tag: "RAIL 06",
     accent: "#818cf8",
-    desc: "AI data centers, geothermal grids, space supply chain. Hard-asset collateral, government-contracted revenue.",
+    desc: "Hard-asset sleeves: compute, energy, logistics. Collateral and cash flows book to the node, not a pooled wrapper.",
   },
   {
     id: "orbital",
     label: "Orbital Economy",
     tag: "RAIL 07",
     accent: "#22d3ee",
-    desc: "Starlink bandwidth routing. 7,200+ satellites. Real yield from data transmission, not fund wrappers.",
+    desc: "Orbital capacity as an infrastructure sleeve. Yield, when booked, is attributed to the node that holds the position.",
   },
 ] as const;
 
@@ -82,21 +85,39 @@ const TIERS = [
   {
     name: "QUANTUM",
     price: "$9,999/mo",
-    desc: "Entry to institutional-grade execution",
-    features: ["50,000+ instruments", "AI Oracle forecasting", "Tokenized asset desk", "Full risk analytics", "24/7 support"],
+    desc: "Desk access for a single node. Full rail map, Accrual Core, isolated ledger.",
+    features: [
+      "50,000+ listed instruments",
+      "Oracle as decision support",
+      "Tokenized-asset instructions",
+      "Risk and NAV on the node",
+      "24/7 ground-station desk",
+    ],
   },
   {
     name: "SOVEREIGN",
     price: "$49,999/mo",
-    desc: "For multi-family offices",
-    features: ["Everything in QUANTUM", "Pre-IPO deal flow & SPVs", "Opportunity Funds", "Space & infra funds", "Private wealth concierge"],
+    desc: "Multi-entity / family-office mandate. Private sleeves and opportunity funds.",
+    features: [
+      "Everything in QUANTUM",
+      "Private and SPV participation",
+      "Opportunity fund sleeves",
+      "Infrastructure allocations",
+      "Named relationship coverage",
+    ],
     featured: true,
   },
   {
     name: "VERTEX",
     price: "By Invitation",
-    desc: "No ceiling. Min $50M AUM.",
-    features: ["Everything in SOVEREIGN", "Founder co-investment rights", "Board access", "Sovereign wealth setup", "Zero execution fees"],
+    desc: "No published ceiling. Qualified capital, typically $50M+ AUM.",
+    features: [
+      "Everything in SOVEREIGN",
+      "Founder co-investment windows",
+      "Board-level access",
+      "Sovereign and endowment setup",
+      "Execution billed at cost",
+    ],
   },
 ];
 
@@ -110,20 +131,47 @@ const NETWORK_STAT_ICONS = [
 const YIELD_FLOW = [
   {
     step: "01",
-    title: "Asset becomes a node",
-    desc: "Any asset you own — vehicle, property, GPU cluster, holding — is integrated into the routing engine.",
+    title: "Asset is booked as a node",
+    desc: "Holdings, cash, and sleeves post to a unique node. The book is the user — never a shared pool.",
   },
   {
     step: "02",
-    title: "Node routes capital",
-    desc: "The engine deploys across seven rails: public markets, private equity, tokenized assets, orbital infrastructure.",
+    title: "Desk routes across seven rails",
+    desc: "Public markets, private equity, tokenized assets, commerce, oracle, infrastructure, orbital — one clearing map.",
   },
   {
     step: "03",
-    title: "Yield returns to you",
-    desc: "Revenue streams settle back into your wallet. Compounding with every cycle. No fund outflow, ever.",
+    title: "Yield settles to the same book",
+    desc: "Accrual Core writes on the server. Display interpolates. History never leaves the authenticated node.",
   },
 ];
+
+const MANDATE = [
+  {
+    code: "01",
+    icon: Fingerprint,
+    title: "Segregated ledgers",
+    desc: "One wallet, one yield config, one transaction history per authenticated node. Rows are never shared across users.",
+  },
+  {
+    code: "02",
+    icon: Scale,
+    title: "Server is the clock",
+    desc: "Accrual Core credits yield on the API. The browser interpolates the panel. Interpolation is never written as history.",
+  },
+  {
+    code: "03",
+    icon: Layers,
+    title: "Seven-rail settlement",
+    desc: "A single desk map: listed markets, private sleeves, tokenized instructions, commerce, oracle, infrastructure, orbital.",
+  },
+  {
+    code: "04",
+    icon: BookOpen,
+    title: "Durable audit trail",
+    desc: "Credits, debits, and yield events persist on Neon Postgres keyed to the node. Sessions and devices do not remix books.",
+  },
+] as const;
 
 export default function LandingPage() {
   const [activeRail, setActiveRail] = useState<string | null>(null);
@@ -232,22 +280,30 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#000000] font-sans">
+      <div className="fixed top-0 inset-x-0 z-[60] border-b border-white/[0.06] bg-black/90 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-6 h-8 flex items-center justify-between gap-4 text-[9px] font-mono uppercase tracking-[0.22em] text-white/35">
+          <span>XC-GS-001 · Ground station desk</span>
+          <span className="hidden sm:inline">Qualified capital · Segregated node ledgers</span>
+          <span className="hidden md:inline">As of 2026 · Confidential</span>
+        </div>
+      </div>
 
-      <nav className="fixed top-0 inset-x-0 z-50 px-6 py-4 border-b border-white/[0.06]" style={{ background: "#000" }}>
+      <nav className="fixed top-8 inset-x-0 z-50 px-6 py-4 border-b border-white/[0.06]" style={{ background: "#000" }}>
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 shrink-0">
+            <XCapitalLogoMark size={32} />
             <span className="text-white text-lg font-black tracking-tight">X·CAPITAL</span>
           </div>
-          <div className="hidden md:flex items-center gap-8 text-sm text-white/50">
+          <div className="hidden md:flex items-center gap-7 text-[11px] font-mono uppercase tracking-[0.16em] text-white/45">
+            <a href="#mandate" className="hover:text-white transition-colors">Mandate</a>
             <a href="#rails" className="hover:text-white transition-colors">Rails</a>
-            <a href="#engine" className="hover:text-white transition-colors">Engine</a>
-            <a href="#tiers" className="hover:text-white transition-colors">Tiers</a>
-            <a href="#cta" className="hover:text-white transition-colors">Access</a>
+            <a href="#custody" className="hover:text-white transition-colors">Custody</a>
+            <a href="#tiers" className="hover:text-white transition-colors">Access</a>
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <ApiHealthBadge className="hidden sm:inline-flex" />
-            <Link href="/auth/login" className="text-sm text-white/40 hover:text-white px-3 py-1.5 transition-colors">Log in</Link>
-            <Link href="/auth/register" className="text-sm text-black bg-white px-5 py-2 rounded font-black hover:bg-white/90 transition-all" style={{ boxShadow: "0 0 20px rgba(255,255,255,0.15)" }}>Register Node</Link>
+            <Link href="/auth/login" className="text-sm text-white/40 hover:text-white px-3 py-1.5 transition-colors">Authenticate</Link>
+            <Link href="/auth/register" className="text-sm text-black bg-white px-5 py-2 rounded font-black hover:bg-white/90 transition-all" style={{ boxShadow: "0 0 20px rgba(255,255,255,0.15)" }}>Open a node</Link>
           </div>
         </div>
       </nav>
@@ -278,16 +334,16 @@ export default function LandingPage() {
         />
         <div className="absolute inset-0 pointer-events-none opacity-[0.05]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
         <div className="relative z-10 max-w-7xl mx-auto px-6 w-full">
-          <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center pt-28 pb-20">
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center pt-36 pb-20">
             <div>
-              <p className="text-[10px] font-mono text-white/40 tracking-[0.3em] mb-6 uppercase">Multiplanetary Capital Deployment</p>
+              <p className="text-[10px] font-mono text-emerald-400/70 tracking-[0.3em] mb-6 uppercase">Multiplanetary capital · Ground station</p>
               <h1 className="font-black text-white leading-[0.95] tracking-[-0.03em]" style={{ fontSize: "clamp(3rem, 9vw, 10.5rem)" }}>
-                Capital<br />Deployed<br /><span className="text-white/40">Into The Future</span>
+                Capital<br />Deployed<br /><span className="text-white/40">Under Mandate</span>
               </h1>
-              <p className="text-sm md:text-base text-white/50 max-w-md mt-6 leading-relaxed">One engine. Seven rails. Ground station clears capital — deploy across markets, funds, blockchain, and orbital infrastructure at full velocity.</p>
+              <p className="text-sm md:text-base text-white/50 max-w-md mt-6 leading-relaxed">A single desk. Seven rails. Accrual Core is the clock — each authenticated node holds its own ledger, yield, and settlement history. No pooled books. No mixed sessions.</p>
               <div className="flex flex-col sm:flex-row items-start gap-3 mt-8">
-                <Link href="/auth/register" className="inline-flex items-center gap-2 bg-white text-black font-black px-8 py-4 rounded text-base hover:bg-white/90 transition-all" style={{ boxShadow: "0 0 40px rgba(255,255,255,0.10)" }}>Register Node <ArrowRight className="w-4 h-4" /></Link>
-                <Link href="/dashboard" className="inline-flex items-center gap-2 bg-black/50 border border-white/[0.15] text-white px-8 py-4 rounded text-base hover:bg-black/70 backdrop-blur transition-all">Dashboard</Link>
+                <Link href="/auth/register" className="inline-flex items-center gap-2 bg-white text-black font-black px-8 py-4 rounded text-base hover:bg-white/90 transition-all" style={{ boxShadow: "0 0 40px rgba(255,255,255,0.10)" }}>Open a node <ArrowRight className="w-4 h-4" /></Link>
+                <Link href="/auth/login" className="inline-flex items-center gap-2 bg-black/50 border border-white/[0.15] text-white px-8 py-4 rounded text-base hover:bg-black/70 backdrop-blur transition-all">Authenticate</Link>
               </div>
 
               {/* Network telemetry strip */}
@@ -314,16 +370,16 @@ export default function LandingPage() {
               </div>
               {/* Institutional integrity strip */}
               <div className="w-full max-w-[520px] rounded-xl border border-white/[0.08] bg-black/40 backdrop-blur px-5 py-4">
-                <p className="text-[9px] font-mono text-white/30 tracking-[0.28em] uppercase mb-3">Institutional Integrity</p>
+                <p className="text-[9px] font-mono text-white/30 tracking-[0.28em] uppercase mb-3">Desk controls</p>
                 <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] font-mono text-white/40">
-                  <span className="flex items-center gap-1.5"><Landmark className="w-3 h-3 text-emerald-400/70" /> SEC / FINRA</span>
-                  <span className="flex items-center gap-1.5"><ShieldCheck className="w-3 h-3 text-emerald-400/70" /> SOC 2 II</span>
-                  <span className="flex items-center gap-1.5"><FileCheck2 className="w-3 h-3 text-emerald-400/70" /> D&B Verified</span>
-                  <span className="flex items-center gap-1.5"><Lock className="w-3 h-3 text-emerald-400/70" /> Custody 1:1</span>
+                  <span className="flex items-center gap-1.5"><Fingerprint className="w-3 h-3 text-emerald-400/70" /> Isolated node</span>
+                  <span className="flex items-center gap-1.5"><Scale className="w-3 h-3 text-emerald-400/70" /> Accrual Core</span>
+                  <span className="flex items-center gap-1.5"><Lock className="w-3 h-3 text-emerald-400/70" /> 1:1 book</span>
+                  <span className="flex items-center gap-1.5"><Landmark className="w-3 h-3 text-emerald-400/70" /> Seven rails</span>
                 </div>
                 <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/[0.05] text-[9px] font-mono text-white/25">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  REALTIME MARKET INFRASTRUCTURE · EST. 2026
+                  SERVER CLOCK · NEON LEDGER · EST. 2026
                 </div>
               </div>
             </div>
@@ -346,13 +402,42 @@ export default function LandingPage() {
         </div>
       </div>
 
+      <section id="mandate" className="py-24 px-6 bg-[#000000]" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+            <div>
+              <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-4">Operating mandate</p>
+              <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">How the desk is run.</h2>
+            </div>
+            <p className="text-sm text-white/35 max-w-md leading-relaxed">
+              Architecture first. The API is the clock. Neon holds history. Each login hydrates one node — never another user’s book.
+            </p>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {MANDATE.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.code} className="rounded-2xl border border-white/[0.08] bg-white/[0.015] p-7 hover-lift">
+                  <div className="flex items-center justify-between mb-5">
+                    <span className="text-[10px] font-mono font-black text-emerald-400/60 tracking-[0.3em]">{item.code}</span>
+                    <Icon className="w-4 h-4 text-white/30" />
+                  </div>
+                  <h3 className="text-lg font-black text-white mb-2 tracking-tight">{item.title}</h3>
+                  <p className="text-sm text-white/40 leading-relaxed">{item.desc}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* ── ASSET → NODE → YIELD FLOW ─────────────────────────────────── */}
       <section id="engine" className="py-28 px-6 bg-[#000000]" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-4">The Engine</p>
-            <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">Asset to node. <span className="text-white/40">Node to yield.</span></h2>
-            <p className="text-white/35 text-sm max-w-lg mx-auto mt-4">Every asset in your orbit becomes a capital node. The engine routes it across seven rails and settles the yield back to you.</p>
+            <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-4">Clearing map</p>
+            <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">Asset to node. <span className="text-white/40">Node to book.</span></h2>
+            <p className="text-white/35 text-sm max-w-lg mx-auto mt-4">Every position posts to the authenticated node. The engine routes across seven rails. Yield settles to the same ledger.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-4">
             {YIELD_FLOW.map((step) => (
@@ -405,8 +490,8 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto relative">
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none opacity-40" />
           <div className="text-center mb-16 relative z-10">
-            <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-4">Seven Capital Rails</p>
-            <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">Seven routes. <span className="text-white/40">One platform.</span></h2>
+            <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-4">Seven capital rails</p>
+            <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">Seven venues. <span className="text-white/40">One book.</span></h2>
           </div>
           <div className="relative z-10 grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
             {RAILS.map((rail, i) => (
@@ -426,11 +511,36 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <section id="custody" className="py-28 px-6 bg-[#000000]" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 items-start">
+          <div>
+            <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-4">Custody architecture</p>
+            <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">History stays with the node.</h2>
+            <p className="text-white/40 text-sm mt-5 leading-relaxed max-w-md">
+              Login issues a JWT bound to a single user id. Snapshots, wallets, and transactions are queried with that id only. Switching accounts wipes scoped browser storage. Neon is the system of record — not localStorage.
+            </p>
+          </div>
+          <div className="space-y-3">
+            {[
+              { k: "Identity", v: "Bearer token · unique user id on every read and write" },
+              { k: "Wallet", v: "One wallet row per user. Unique constraint. No shared cash" },
+              { k: "Yield", v: "UserYieldConfig per node. Accrual worker credits that wallet only" },
+              { k: "Persistence", v: "Neon Postgres (pooled + direct). Render is compute, not the book" },
+            ].map((row) => (
+              <div key={row.k} className="rounded-xl border border-white/[0.08] bg-white/[0.015] px-5 py-4 flex gap-6">
+                <span className="text-[10px] font-mono font-black text-emerald-400/70 tracking-[0.2em] w-24 shrink-0 pt-0.5">{row.k.toUpperCase()}</span>
+                <span className="text-sm text-white/45 leading-relaxed">{row.v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section id="tiers" className="py-28 px-6 bg-[#000000]" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-4">Institutional Access</p>
-            <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">Three tiers. <span className="text-white/40">One network.</span></h2>
+            <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-4">Desk access</p>
+            <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">Three mandates. <span className="text-white/40">One ledger model.</span></h2>
           </div>
           <div className="grid md:grid-cols-3 gap-4">
             {TIERS.map((tier, i) => (
@@ -454,8 +564,8 @@ export default function LandingPage() {
           <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
             <div>
               <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-4">Capital Network Twin · Live</p>
-              <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">Your capital deployed <span className="text-white/40">across the network.</span></h2>
-              <p className="text-white/35 text-sm max-w-md mt-4 leading-relaxed">The digital twin of the X-CAPITAL infrastructure. A settlement core routes capital across seven rails in real time — efficiency, liquidity, latency and reserve integrity read live at mission control.</p>
+              <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">Settlement map of the <span className="text-white/40">seven-rail desk.</span></h2>
+              <p className="text-white/35 text-sm max-w-md mt-4 leading-relaxed">Digital twin of the clearing fabric. Efficiency, liquidity, latency, and reserve integrity are instruments on the panel — the ledger remains on the server, scoped to the authenticated node.</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8">
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-4 py-3">
                   <div className="text-[9px] font-mono text-white/25 tracking-wider">GATEWAY</div>
@@ -484,13 +594,13 @@ export default function LandingPage() {
 
       <section id="cta" className="py-28 px-6 bg-[#000000]">
         <div className="max-w-3xl mx-auto text-center">
-          <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-6">Institutional Access</p>
-          <h2 className="text-4xl md:text-6xl font-black text-white leading-[1.05] tracking-tight mb-5">You are not competing with apps.<br /><span className="text-white/40">You are competing with Goldman.</span></h2>
+          <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-6">Qualified access</p>
+          <h2 className="text-4xl md:text-6xl font-black text-white leading-[1.05] tracking-tight mb-5">A desk, not an app.<br /><span className="text-white/40">A node, not a pooled account.</span></h2>
 
-          <p className="text-white/30 text-sm max-w-md mx-auto mb-10">Seven rails. Regulated. Orbital-grade latency.</p>
+          <p className="text-white/30 text-sm max-w-md mx-auto mb-10">Seven rails. Server clock. Isolated history on Neon.</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link href="/auth/register" className="inline-flex items-center gap-2 bg-white text-black font-black px-9 py-4 rounded text-sm hover:bg-white/90 transition-all" style={{ boxShadow: "0 0 40px rgba(255,255,255,0.08)" }}>Register Your Node <ArrowRight className="w-4 h-4" /></Link>
-            <Link href="/engine" className="inline-flex items-center gap-2 bg-white/[0.06] border border-white/[0.10] text-white px-7 py-4 rounded text-sm hover:bg-white/[0.10] transition-all">Explore Engine</Link>
+            <Link href="/auth/register" className="inline-flex items-center gap-2 bg-white text-black font-black px-9 py-4 rounded text-sm hover:bg-white/90 transition-all" style={{ boxShadow: "0 0 40px rgba(255,255,255,0.08)" }}>Open a node <ArrowRight className="w-4 h-4" /></Link>
+            <Link href="/auth/login" className="inline-flex items-center gap-2 bg-white/[0.06] border border-white/[0.10] text-white px-7 py-4 rounded text-sm hover:bg-white/[0.10] transition-all">Authenticate</Link>
           </div>
         </div>
       </section>
@@ -498,15 +608,15 @@ export default function LandingPage() {
       {/* ── INSTITUTIONAL TRUST BAR ── */}
       <div className="border-t border-white/[0.05] bg-[#000000]">
         <div className="max-w-6xl mx-auto px-6 py-5 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-[10px] font-mono uppercase tracking-wider text-white/25">
-          <span className="flex items-center gap-2"><ShieldCheck className="w-3.5 h-3.5 text-emerald-500/60" /> SOC 2 Type II Audited</span>
+          <span className="flex items-center gap-2"><Fingerprint className="w-3.5 h-3.5 text-emerald-500/60" /> Isolated node ledgers</span>
           <span className="hidden sm:inline text-white/10">·</span>
-          <span className="flex items-center gap-2"><Lock className="w-3.5 h-3.5 text-emerald-500/60" /> Bank-Grade Custody</span>
+          <span className="flex items-center gap-2"><Lock className="w-3.5 h-3.5 text-emerald-500/60" /> Accrual Core clock</span>
           <span className="hidden sm:inline text-white/10">·</span>
-          <span>SEC / FINRA REGISTERED ENTITIES</span>
+          <span>NEON SYSTEM OF RECORD</span>
           <span className="hidden sm:inline text-white/10">·</span>
-          <span>D&B VERIFIED</span>
+          <span>SEVEN RAILS</span>
           <span className="hidden sm:inline text-white/10">·</span>
-          <span className="text-white/40">RESERVES 1:1</span>
+          <span className="text-white/40">BOOK 1:1</span>
           <span className="hidden sm:inline text-white/10">·</span>
           <span>EST. 2026</span>
         </div>
@@ -518,15 +628,15 @@ export default function LandingPage() {
             <Globe className="w-3.5 h-3.5 text-emerald-500/60" />
             <span>&copy; 2026 X·CAPITAL. All rights reserved.</span>
           </div>
-          <span>Multiplanetary capital deployment. Seven rails. One command center.</span>
+          <div className="flex items-center gap-5">
+            <Link href="/legal/terms" className="hover:text-white/50 transition-colors">Terms</Link>
+            <Link href="/legal/privacy" className="hover:text-white/50 transition-colors">Privacy</Link>
+            <span className="hidden sm:inline">Ground station · seven rails · one book</span>
+          </div>
         </div>
         <div className="max-w-6xl mx-auto mt-6 pt-6 border-t border-white/[0.04]">
           <p className="text-[10px] leading-relaxed text-white/15 max-w-4xl">
-            Disclosure: X·CAPITAL operates as a technology platform enabling access to diversified investment vehicles.
-            All investment products carry risk, including possible loss of principal. Past performance is not indicative of
-            future results. Projected yield figures are illustrative modelling outputs based on platform assumptions and do
-            not constitute a guarantee or offer of return. Securities offered through registered broker-dealers and
-            regulated entities. Not FDIC insured. Digital asset products are not bank deposits.
+            Disclosure: X·CAPITAL is a capital-deployment terminal. Access is for authenticated nodes. Yield, NAV, and rail availability are governed by the operator and by the Accrual Core on the API. Capital products carry risk, including possible loss of principal. Past performance is not indicative of future results. Projected yield figures are illustrative modelling outputs based on platform assumptions and do not constitute a guarantee or offer of return. Not FDIC insured. Digital asset products are not bank deposits. This site is not a solicitation to any person in any jurisdiction where such an offer would be unlawful.
           </p>
         </div>
       </footer>

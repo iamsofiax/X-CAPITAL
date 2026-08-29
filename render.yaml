@@ -28,7 +28,7 @@ services:
     name: xcapital-api
     runtime: node
     rootDir: backend
-    plan: free
+    plan: starter
     buildCommand: npm ci && npx prisma generate && npm run build
     startCommand: npm run start:render
     healthCheckPath: /health
@@ -69,6 +69,8 @@ services:
         value: https://paper-api.alpaca.markets
       - key: ALPACA_DATA_URL
         value: https://data.alpaca.markets
+      - key: KEEP_ALIVE_URL
+        value: https://xcapital-api.onrender.com
 
   - type: web
     name: xcapital-web

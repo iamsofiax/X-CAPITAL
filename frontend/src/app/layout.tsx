@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     template: "%s | X-CAPITAL",
   },
   description:
-    "X-CAPITAL is the multi-rail capital execution system for public markets, private equity, tokenized assets, and infrastructure investing. One interface. Total control.",
+    "X-CAPITAL is the ground-station terminal for multi-rail capital: public markets, private sleeves, tokenized assets, and infrastructure. Isolated node ledgers. Accrual Core on the API.",
   keywords: [
     "X-CAPITAL",
     "capital deployment",
