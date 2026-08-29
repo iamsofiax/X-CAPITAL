@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useStore } from "@/store/useStore";
 import { Button } from "@/components/ui/Button";
 import { XCapitalLogoMark } from "@/components/brand/XCapitalLogo";
+import { wakeApi } from "@/lib/api";
 import SocialAuthButtons from "@/components/auth/SocialAuthButtons";
 import {
   Eye,
@@ -35,6 +36,10 @@ export default function RegisterPage() {
   useEffect(() => {
     if (isAuthenticated) router.replace("/dashboard");
   }, [isAuthenticated, router]);
+
+  useEffect(() => {
+    void wakeApi();
+  }, []);
   const [form, setForm] = useState<FormData>({
     firstName: "",
     lastName: "",

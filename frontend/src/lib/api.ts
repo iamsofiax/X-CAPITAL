@@ -5,10 +5,12 @@ import axios from 'axios';
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || 'https://xcapital-api.onrender.com/api/v1';
 
+export const API_ORIGIN = API_URL.replace(/\/api\/v1\/?$/, '');
+
 export const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 15000,
+  timeout: 30000,
 });
 
 // Attach auth token from localStorage on every request
@@ -92,13 +94,33 @@ export const systemAPI = {
 };
 
 /**
+ * Ping origin `/health` (liveness). This is the cheap wake-up for Render
+ * cold starts and is what the badge uses — not the heavier `/api/v1/health`
+ * probe that also talks to the oracle.
+ */
+export const wakeApi = async (timeoutMs = 45_000): Promise<boolean> => {
+  try {
+    const { status, data } = await axios.get(`${API_ORIGIN}/health`, {
+      timeout: timeoutMs,
+    });
+    return status === 200 && (data?.status === 'healthy' || data?.status === 'starting' || data?.status === 'degraded');
+  } catch {
+    return false;
+  }
+};
+
+/**
  * Health probe with a much longer timeout + 503 retry.
  *
  * Render free-tier backends cold-start in 30–60s and answer 503 while they
- * boot. The shared 15s axios timeout would fail the first probe and the badge
+ * boot. The shared axios timeout would fail the first probe and the badge
  * would show "API OFFLINE" even though the API is just waking up. This
  * dedicated probe waits up to 60s and retries 503s so real cold-starts read
  * as "CHECKING…" until the API answers.
+ *
+ * Liveness (`/health`) is the source of truth for ONLINE/OFFLINE. Detailed
+ * `/api/v1/health` is best-effort and must not flip the badge to OFFLINE
+ * if the process is up but the oracle is slow.
  */
 export const healthProbe = async (
   attempts = 5,
@@ -106,14 +128,44 @@ export const healthProbe = async (
 ): Promise<SystemHealth | null> => {
   for (let i = 0; i < attempts; i++) {
     try {
-      const { data } = await api.get('/health', { timeout: timeoutMs });
-      const health: SystemHealth | null = data?.data ?? null;
-      if (health) return health;
+      const live = await axios.get(`${API_ORIGIN}/health`, { timeout: timeoutMs });
+      if (live.status !== 200) {
+        throw new Error('liveness not 200');
+      }
+      let detailed: SystemHealth | null = null;
+      try {
+        const { data } = await api.get('/health', { timeout: 8_000 });
+        detailed = data?.data ?? null;
+      } catch {
+        detailed = null;
+      }
+      if (detailed) return detailed;
+      const dbUp = Boolean(live.data?.database);
+      return {
+        status: dbUp ? 'healthy' : 'degraded',
+        service: live.data?.service || 'X-CAPITAL API',
+        version: live.data?.version || '1.0.0',
+        environment: live.data?.environment || 'production',
+        uptimeSeconds: 0,
+        timestamp: live.data?.timestamp || new Date().toISOString(),
+        services: [
+          {
+            name: 'database',
+            status: dbUp ? 'operational' : 'offline',
+          },
+        ],
+        summary: {
+          operational: dbUp ? 1 : 0,
+          degraded: 0,
+          offline: dbUp ? 0 : 1,
+          total: 1,
+        },
+      };
     } catch (error) {
       const status = (error as { response?: { status?: number } } | undefined)
         ?.response?.status;
       // 503 = Render cold-start; retry with backoff instead of declaring offline.
-      if (status === 503 && i < attempts - 1) {
+      if ((status === 503 || !status) && i < attempts - 1) {
         await new Promise((r) => setTimeout(r, 4000 * (i + 1)));
         continue;
       }
@@ -125,14 +177,15 @@ export const healthProbe = async (
 
 export const authAPI = {
   register: (data: { email: string; password: string; firstName: string; lastName: string }) =>
-    api.post('/auth/register', data),
+    api.post('/auth/register', data, { timeout: 45_000 }),
   login: (email: string, password: string) =>
-    api.post('/auth/login', { email, password }),
-  google: (credential: string) => api.post('/auth/google', { credential }),
+    api.post('/auth/login', { email, password }, { timeout: 45_000 }),
+  google: (credential: string) =>
+    api.post('/auth/google', { credential }, { timeout: 45_000 }),
   apple: (
     identityToken: string,
     names?: { firstName?: string; lastName?: string },
-  ) => api.post('/auth/apple', { identityToken, ...names }),
+  ) => api.post('/auth/apple', { identityToken, ...names }, { timeout: 45_000 }),
   logout: (refreshToken: string) =>
     api.post('/auth/logout', { refreshToken }),
   getMe: () => api.get('/auth/me'),

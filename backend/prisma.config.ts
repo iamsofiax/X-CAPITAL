@@ -1,10 +1,21 @@
-import "dotenv/config";
+import path from "node:path";
+import dotenv from "dotenv";
 import { defineConfig } from "prisma/config";
+
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+dotenv.config({ path: path.resolve(process.cwd(), "../.env") });
+dotenv.config({
+  path: path.resolve(process.cwd(), "../.env.local"),
+  override: true,
+});
 
 // Prisma 7: connection URL lives here (not in schema.prisma).
 // Placeholder allows `prisma generate` during CI/Render build without a live DB.
+// Prefer the unpooled Neon URL for prisma db push / migrations.
 const databaseUrl =
-  process.env.DATABASE_URL ??
+  process.env.DATABASE_URL_UNPOOLED ||
+  process.env.DIRECT_URL ||
+  process.env.DATABASE_URL ||
   "postgresql://build:build@127.0.0.1:5432/build?sslmode=disable";
 
 export default defineConfig({

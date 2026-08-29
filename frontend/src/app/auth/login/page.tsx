@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useStore } from "@/store/useStore";
 import { Button } from "@/components/ui/Button";
 import { XCapitalLogoMark } from "@/components/brand/XCapitalLogo";
+import { wakeApi } from "@/lib/api";
 import SocialAuthButtons from "@/components/auth/SocialAuthButtons";
 import { Eye, EyeOff, Mail, Lock, AlertCircle } from "lucide-react";
 
@@ -23,6 +24,10 @@ export default function LoginPage() {
   useEffect(() => {
     if (isAuthenticated) router.replace("/dashboard");
   }, [isAuthenticated, router]);
+
+  useEffect(() => {
+    void wakeApi();
+  }, []);
 
   useEffect(() => {
     try {

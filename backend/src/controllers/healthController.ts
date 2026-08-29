@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import axios from 'axios';
 import { prisma } from '../config/database';
 import { env } from '../config/env';
+import { withTimeout } from '../utils/withTimeout';
 
 const startedAt = Date.now();
 
@@ -20,11 +21,11 @@ interface ServiceStatus {
 export async function getSystemHealth(_req: Request, res: Response) {
   const services: ServiceStatus[] = [];
 
-  // ── Database ────────────────────────────────────────────────────────────────
+  // ── Database (hard-capped — a hung Postgres must not stall this route) ──────
   const dbStart = Date.now();
   let dbLatency: number | undefined;
   try {
-    await prisma.$queryRaw`SELECT 1`;
+    await withTimeout(prisma.$queryRaw`SELECT 1`, 2000, 'db-timeout');
     dbLatency = Date.now() - dbStart;
     services.push({ name: 'database', status: 'operational', latencyMs: dbLatency });
   } catch {
@@ -49,8 +50,10 @@ export async function getSystemHealth(_req: Request, res: Response) {
   const operational = services.filter((s) => s.status === 'operational').length;
   const degraded = services.filter((s) => s.status === 'degraded').length;
   const offline = services.filter((s) => s.status === 'offline').length;
-  const overall: 'healthy' | 'degraded' | 'offline' =
-    offline > 0 ? 'degraded' : degraded > 0 ? 'degraded' : operational > 0 ? 'healthy' : 'offline';
+  const dbOk = services.some((s) => s.name === 'database' && s.status === 'operational');
+  const overall: 'healthy' | 'degraded' | 'offline' = dbOk
+    ? (offline > 0 || degraded > 0 ? 'degraded' : 'healthy')
+    : 'degraded';
 
   res.status(200).json({
     success: true,

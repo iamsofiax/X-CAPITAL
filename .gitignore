@@ -19,6 +19,8 @@ pages-config.json
 .env.production.local
 *.env
 RENDER_PASTE.env
+backend/.env
+!backend/.env.example
 
 # Logs
 logs/

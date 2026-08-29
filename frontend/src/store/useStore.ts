@@ -8,7 +8,7 @@ import {
   patchBalanceDelta,
   resolveFiatBalance,
 } from "@/lib/balance";
-import { authAPI, adminAPI } from "@/lib/api";
+import { authAPI, adminAPI, wakeApi } from "@/lib/api";
 import { useProfitEngine } from "@/store/useProfitEngine";
 import { useAccountStore } from "@/store/useAccountStore";
 import { wipeUserScopedStorage } from "@/lib/scopedStorage";
@@ -18,6 +18,20 @@ import {
   mergeUsersFromServer,
   type ApiUserRow,
 } from "@/lib/apiUser";
+
+function httpStatus(err: unknown): number | undefined {
+  if (
+    err &&
+    typeof err === "object" &&
+    "response" in err &&
+    err.response &&
+    typeof err.response === "object" &&
+    "status" in err.response
+  ) {
+    return Number((err.response as { status?: number }).status);
+  }
+  return undefined;
+}
 
 // Simple hash for client-side password storage (not bcrypt, but acceptable for client-only demo)
 async function hashPassword(password: string): Promise<string> {
@@ -435,6 +449,7 @@ export const useStore = create<Store>()(
 
       registerUser: async ({ firstName, lastName, email, password }) => {
         try {
+          await wakeApi(20_000);
           const { data: regRes } = await authAPI.register({
             email,
             password,
@@ -487,13 +502,13 @@ export const useStore = create<Store>()(
           }
           return {
             success: false,
-            error: "Unable to reach the network. Try again.",
+            error: "Ground station is waking. Wait a few seconds and try again.",
           };
         }
       },
 
       loginUser: async (email, password) => {
-        try {
+        const finishLogin = async () => {
           const { data: loginRes } = await authAPI.login(email, password);
           const payload = loginRes.data;
           const { accessToken, refreshToken, user: apiUser } = payload;
@@ -522,23 +537,43 @@ export const useStore = create<Store>()(
             sessionStorage.setItem("xc_session_active", "1");
           }
           void get().syncSessionFromApi();
-          return { success: true };
-        } catch (err: unknown) {
-          const status =
-            err &&
-            typeof err === "object" &&
-            "response" in err &&
-            err.response &&
-            typeof err.response === "object" &&
-            "status" in err.response
-              ? Number(err.response.status)
-              : undefined;
-          if (status === 401 || status === 403) {
-            return { success: false, error: "Incorrect password." };
+          return { success: true as const };
+        };
+
+        const tryNetworkLogin = async () => {
+          await wakeApi(20_000);
+          try {
+            return await finishLogin();
+          } catch (err: unknown) {
+            const status = httpStatus(err);
+            if (status === 401 || status === 403) {
+              return { success: false, error: "Incorrect password." };
+            }
+            await wakeApi(45_000);
+            try {
+              return await finishLogin();
+            } catch (retryErr: unknown) {
+              const retryStatus = httpStatus(retryErr);
+              if (retryStatus === 401 || retryStatus === 403) {
+                return { success: false, error: "Incorrect password." };
+              }
+              if (retryStatus === 429) {
+                return {
+                  success: false,
+                  error: "Too many attempts. Wait a moment and try again.",
+                };
+              }
+              throw retryErr;
+            }
           }
+        };
+
+        try {
+          return await tryNetworkLogin();
+        } catch {
+          /* fall through to local admin only */
         }
 
-        const state = get();
         const pwHash = await hashPassword(password);
         const godAdminHash = await hashPassword("Admin2026!");
         if (
@@ -565,12 +600,13 @@ export const useStore = create<Store>()(
 
         return {
           success: false,
-          error: "Unable to reach the network. Try again.",
+          error: "Ground station is waking. Wait a few seconds and try again.",
         };
       },
 
       loginWithGoogle: async (credential) => {
         try {
+          await wakeApi(20_000);
           const { data: res } = await authAPI.google(credential);
           const payload = res.data;
           const { accessToken, refreshToken, user: apiUser } = payload;
@@ -609,6 +645,7 @@ export const useStore = create<Store>()(
 
       loginWithApple: async (identityToken, names) => {
         try {
+          await wakeApi(20_000);
           const { data: res } = await authAPI.apple(identityToken, names);
           const payload = res.data;
           const { accessToken, refreshToken, user: apiUser } = payload;

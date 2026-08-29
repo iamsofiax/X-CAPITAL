@@ -11,23 +11,23 @@ async function bootstrap(): Promise<void> {
     logger.info(`X-CAPITAL API listening on port ${env.PORT} [${env.NODE_ENV}]`);
   });
 
-  connectDatabase()
-    .then(() => {
-      logger.info('Database ready');
-      startAccrualWorker(20_000);
-      logger.info('Accrual Core worker armed');
-    })
-    .catch((err) => {
-      logger.error('Database connection failed — retrying in 15s:', err);
-      setTimeout(() => {
-        connectDatabase()
-          .then(() => {
-            logger.info('Database ready');
-            startAccrualWorker(20_000);
-          })
-          .catch((e) => logger.error('Database retry failed:', e));
-      }, 15000);
-    });
+  let accrualArmed = false;
+  const connectWithRetry = (delayMs = 8000) => {
+    connectDatabase()
+      .then(() => {
+        logger.info('Database ready');
+        if (!accrualArmed) {
+          accrualArmed = true;
+          startAccrualWorker(20_000);
+          logger.info('Accrual Core worker armed');
+        }
+      })
+      .catch((err) => {
+        logger.error('Database connection failed — retrying:', err);
+        setTimeout(() => connectWithRetry(Math.min(delayMs * 1.5, 30_000)), delayMs);
+      });
+  };
+  connectWithRetry();
 
   const shutdown = async (signal: string) => {
     logger.info(`${signal} received — shutting down gracefully`);
@@ -55,7 +55,7 @@ async function bootstrap(): Promise<void> {
   // never spins down from inactivity → the API stays constantly live.
   if (process.env.RENDER_EXTERNAL_URL || process.env.KEEP_ALIVE_URL) {
     const selfPing = () => {
-      const base = process.env.KEEP_ALIVE_URL || process.env.RENDER_EXTERNAL_URL;
+      const base = (process.env.KEEP_ALIVE_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/$/, '');
       fetch(`${base}/health`)
         .then(() => logger.debug('Keep-alive ping OK'))
         .catch((e) => {
@@ -64,7 +64,7 @@ async function bootstrap(): Promise<void> {
         });
     };
     selfPing();
-    const keepAliveTimer = setInterval(selfPing, 60_000);
+    const keepAliveTimer = setInterval(selfPing, 50_000);
     keepAliveTimer.unref();
   }
 }
