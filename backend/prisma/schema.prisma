@@ -385,3 +385,27 @@ model AdminAlert {
 
   @@map("admin_alerts")
 }
+
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actorEmail String
+  action     String
+  target     String
+  level      String   @default("action")
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorId])
+  @@map("admin_audit_logs")
+}
+
+model CommerceProduct {
+  id        String   @id
+  payload   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("commerce_products")
+}

@@ -2,6 +2,7 @@ import { Response, NextFunction } from "express";
 import { ProfitMode } from "@prisma/client";
 import { prisma } from "../config/database";
 import { AuthRequest } from "../middleware/auth";
+import { writeAdminAudit } from "../services/adminAudit";
 import {
   accrueUser,
   clampDailyRate,
@@ -140,6 +141,14 @@ export const putYieldConfig = async (
 
     await accrueUser(userId);
 
+    await writeAdminAudit({
+      actorId: req.user!.id,
+      actorEmail: req.user!.email,
+      action: "Updated yield config",
+      target: userId,
+      level: "action",
+    });
+
     res.json({
       success: true,
       data: {
@@ -176,6 +185,13 @@ export const setYieldHold = async (
       data: { profitHold },
     });
     await accrueUser(userId);
+    await writeAdminAudit({
+      actorId: req.user!.id,
+      actorEmail: req.user!.email,
+      action: profitHold ? "Yield hold on" : "Yield hold off",
+      target: userId,
+      level: "action",
+    });
     res.json({ success: true, data: { profitHold: config.profitHold } });
   } catch (error) {
     next(error);
@@ -250,6 +266,13 @@ export const createYieldSpike = async (
       });
     }
 
+    await writeAdminAudit({
+      actorId: req.user!.id,
+      actorEmail: req.user!.email,
+      action: "Created yield spike",
+      target: userId,
+      level: "action",
+    });
     res.status(201).json({ success: true, data: spike });
   } catch (error) {
     next(error);
@@ -274,6 +297,13 @@ export const resolveYieldSpike = async (
         data: { active: false },
       });
     }
+    await writeAdminAudit({
+      actorId: req.user!.id,
+      actorEmail: req.user!.email,
+      action: "Resolved yield spike",
+      target: userId,
+      level: "action",
+    });
     res.json({ success: true, message: "Spike resolved" });
   } catch (error) {
     next(error);

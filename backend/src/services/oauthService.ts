@@ -23,13 +23,13 @@ export async function verifyGoogleCredential(
   credential: string,
 ): Promise<SocialProfile> {
   if (!env.GOOGLE_CLIENT_ID) {
-    throw Object.assign(new Error("Google sign-in is not configured"), {
+    throw Object.assign(new Error("Google sign-in is not available"), {
       status: 503,
     });
   }
   const client = googleClient();
   if (!client) {
-    throw Object.assign(new Error("Google sign-in is not configured"), {
+    throw Object.assign(new Error("Google sign-in is not available"), {
       status: 503,
     });
   }
@@ -57,7 +57,7 @@ export async function verifyAppleIdentityToken(
   identityToken: string,
 ): Promise<SocialProfile> {
   if (!env.APPLE_CLIENT_ID) {
-    throw Object.assign(new Error("Apple sign-in is not configured"), {
+    throw Object.assign(new Error("Apple sign-in is not available"), {
       status: 503,
     });
   }

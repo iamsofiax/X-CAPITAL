@@ -1,9 +1,10 @@
 import { Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import { validationResult } from 'express-validator';
-import { TransactionType } from '@prisma/client';
+import { Prisma, TransactionType } from '@prisma/client';
 import { prisma } from '../config/database';
 import { AuthRequest } from '../middleware/auth';
+import { writeAdminAudit } from '../services/adminAudit';
 
 export const getAlerts = async (
   req: AuthRequest,
@@ -148,6 +149,15 @@ export const approveAlert = async (
       });
     });
 
+    await writeAdminAudit({
+      actorId: req.user!.id,
+      actorEmail: req.user!.email,
+      action: `Approved ${alert.type}`,
+      target: alert.userId,
+      level: 'success',
+      metadata: { alertId: id, amount },
+    });
+
     res.json({ success: true, message: 'Alert approved and balance updated' });
   } catch (error) {
     if (error instanceof Error && error.message === 'Insufficient balance') {
@@ -200,6 +210,35 @@ export const approveByTransactionId = async (
   }
 };
 
+export const rejectByTransactionId = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { transactionId, reason } = req.body as {
+      transactionId: string;
+      reason?: string;
+    };
+    if (!transactionId) {
+      res.status(400).json({ success: false, message: 'transactionId is required' });
+      return;
+    }
+    const alert = await prisma.adminAlert.findFirst({
+      where: { transactionId, status: 'PENDING' },
+    });
+    if (!alert) {
+      res.status(404).json({ success: false, message: 'No pending alert found for this transaction' });
+      return;
+    }
+    req.params.id = alert.id;
+    req.body = { reason };
+    return rejectAlert(req, res, next);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const rejectAlert = async (
   req: AuthRequest,
   res: Response,
@@ -238,6 +277,15 @@ export const rejectAlert = async (
       });
     });
 
+    await writeAdminAudit({
+      actorId: req.user!.id,
+      actorEmail: req.user!.email,
+      action: 'Rejected alert',
+      target: alert.userId,
+      level: 'warning',
+      metadata: { alertId: id, reason: reason ?? '' },
+    });
+
     res.json({ success: true, message: 'Alert rejected' });
   } catch (error) {
     next(error);
@@ -250,7 +298,28 @@ export const listUsers = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const users = await prisma.user.findMany({
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100);
+    const cursor =
+      typeof req.query.cursor === 'string' && req.query.cursor
+        ? req.query.cursor
+        : undefined;
+    const q =
+      typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const where: Prisma.UserWhereInput | undefined = q
+      ? {
+          OR: [
+            { email: { contains: q, mode: 'insensitive' } },
+            { firstName: { contains: q, mode: 'insensitive' } },
+            { lastName: { contains: q, mode: 'insensitive' } },
+          ],
+        }
+      : undefined;
+
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+      take: limit + 1,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      where,
       select: {
         id: true,
         email: true,
@@ -280,7 +349,7 @@ export const listUsers = async (
         },
         transactions: {
           orderBy: { createdAt: 'desc' },
-          take: 40,
+          take: 8,
           select: {
             id: true,
             amount: true,
@@ -291,10 +360,44 @@ export const listUsers = async (
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    }),
+      prisma.user.count({ where: where ?? {} }),
+    ]);
+
+    const hasMore = users.length > limit;
+    const page = hasMore ? users.slice(0, limit) : users;
+    const nextCursor = hasMore ? page[page.length - 1]?.id ?? null : null;
+
+    res.json({ success: true, data: page, nextCursor, total });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listAudit = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100);
+    const cursor =
+      typeof req.query.cursor === 'string' && req.query.cursor
+        ? req.query.cursor
+        : undefined;
+
+    const rows = await prisma.adminAuditLog.findMany({
+      take: limit + 1,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
 
-    res.json({ success: true, data: users });
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const nextCursor = hasMore ? page[page.length - 1]?.id ?? null : null;
+
+    res.json({ success: true, data: page, nextCursor });
   } catch (error) {
     next(error);
   }
@@ -379,6 +482,15 @@ export const adjustUserBalance = async (
       return { wallet, transaction };
     });
 
+    await writeAdminAudit({
+      actorId: req.user!.id,
+      actorEmail: req.user!.email,
+      action: direction === 'credit' ? 'Credited balance' : 'Debited balance',
+      target: userId,
+      level: 'action',
+      metadata: { amount, direction, note: note ?? '' },
+    });
+
     res.json({
       success: true,
       message: 'Balance updated',
@@ -447,6 +559,14 @@ export const createUser = async (
       return newUser;
     });
 
+    await writeAdminAudit({
+      actorId: req.user!.id,
+      actorEmail: req.user!.email,
+      action: 'Created node',
+      target: user.email,
+      level: 'success',
+    });
+
     res.status(201).json({
       success: true,
       data: {
@@ -513,10 +633,40 @@ export const requestFundInvest = async (
 
     res.status(201).json({
       success: true,
-      message: 'Fund investment signal sent for admin clearance',
+      message: 'Fund investment signal sent for operator clearance',
       data: { transaction, alert: true },
     });
   } catch (error) {
     next(error);
   }
 };
+
+export const upsertCommerceProduct = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const payload = req.body as { id?: string; deleted?: boolean };
+    if (!payload?.id || typeof payload.id !== 'string') {
+      res.status(400).json({ success: false, message: 'Product id required' });
+      return;
+    }
+    await prisma.commerceProduct.upsert({
+      where: { id: payload.id },
+      create: { id: payload.id, payload },
+      update: { payload },
+    });
+    await writeAdminAudit({
+      actorId: req.user!.id,
+      actorEmail: req.user!.email,
+      action: payload.deleted ? 'Removed commerce product' : 'Upserted commerce product',
+      target: payload.id,
+      level: 'action',
+    });
+    res.json({ success: true, data: payload });
+  } catch (error) {
+    next(error);
+  }
+};
+

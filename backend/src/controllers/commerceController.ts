@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
+import { prisma } from '../config/database';
 
 // Product catalog — in production pulled from partner APIs / CMS
 const PRODUCTS = [
@@ -69,9 +70,24 @@ const PRODUCTS = [
   },
 ];
 
+async function catalog() {
+  const stored = await prisma.commerceProduct.findMany();
+  const byId = new Map(PRODUCTS.map((p) => [p.id, p as Record<string, unknown>]));
+  for (const row of stored) {
+    const payload = row.payload as Record<string, unknown> | null;
+    if (!payload || typeof payload !== 'object') continue;
+    if (payload.deleted) {
+      byId.delete(row.id);
+      continue;
+    }
+    byId.set(row.id, { ...payload, id: row.id });
+  }
+  return Array.from(byId.values()) as Array<Record<string, unknown> & { id: string }>;
+}
+
 export const getProducts = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    res.json({ success: true, data: PRODUCTS });
+    res.json({ success: true, data: await catalog() });
   } catch (error) {
     next(error);
   }
@@ -79,7 +95,7 @@ export const getProducts = async (_req: Request, res: Response, next: NextFuncti
 
 export const getProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const product = PRODUCTS.find((p) => p.id === req.params.id);
+    const product = (await catalog()).find((p) => p.id === req.params.id);
     if (!product) {
       res.status(404).json({ success: false, message: 'Product not found' });
       return;
@@ -100,7 +116,7 @@ export const initiateCheckout = async (req: Request, res: Response, next: NextFu
 
     const { productId, paymentMethod, investmentBundle, investmentPercent } = req.body;
 
-    const product = PRODUCTS.find((p) => p.id === productId);
+    const product = (await catalog()).find((p) => p.id === productId) as typeof PRODUCTS[0] | undefined;
     if (!product) {
       res.status(404).json({ success: false, message: 'Product not found' });
       return;
