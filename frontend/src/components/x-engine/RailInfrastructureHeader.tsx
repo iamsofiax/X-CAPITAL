@@ -60,7 +60,7 @@ function RailInfrastructureHeader({ rail, className }: RailInfrastructureHeaderP
           ) : (
             <Lock className="w-3.5 h-3.5" />
           )}
-          {open ? (adminCleared ? "Cleared by ground station" : "Rail live") : phaseLabel}
+          {open ? (adminCleared ? "Cleared by operator" : "Rail live") : phaseLabel}
         </div>
       </div>
       <div className="px-5 md:px-7 py-4 grid sm:grid-cols-3 gap-3 bg-black/20">

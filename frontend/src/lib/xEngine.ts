@@ -34,7 +34,7 @@ export const PHASE_LABEL: Record<NodePhase, string> = {
 
   DETECTING: "UPLINK OPEN",
 
-  PENDING: "GROUND HOLD",
+  PENDING: "CLEARANCE HOLD",
 
   ARMED: "ARMED",
 
@@ -90,7 +90,7 @@ export const RAIL_REGISTRY: Record<
 
     title: "Capital Uplink",
 
-    subtitle: "Fiat ingress · settlement · ground-station clearance",
+    subtitle: "Fiat ingress · settlement · operator clearance",
 
     mission:
 
@@ -120,7 +120,7 @@ export const RAIL_REGISTRY: Record<
 
     mission:
 
-      "Institutional-grade order entry with pre-trade risk checks, ground-station approval on capital events, and sub-second quote propagation across listed and digital venues.",
+      "Order entry with pre-trade risk checks, operator clearance on capital events, and quote propagation across listed and digital venues.",
 
     capabilities: [
 
@@ -172,7 +172,7 @@ export const RAIL_REGISTRY: Record<
 
     mission:
 
-      "Access curated private-market sleeves with documented mandates, minimum tickets, and ground-station subscription workflow before capital is deployed.",
+      "Private-market sleeves with documented mandates, minimum tickets, and operator subscription workflow before capital is deployed.",
 
     capabilities: [
 
@@ -276,7 +276,7 @@ export const ENGINE_COPY = {
 
   groundHold:
 
-    "Ground station hold — capital event pending operator clearance",
+    "Operator hold — capital event pending clearance",
 
   nodeCold: "Node cold — zero loadout on record",
 
@@ -284,13 +284,13 @@ export const ENGINE_COPY = {
 
   signalDetected:
 
-    "Inbound capital signal detected. Awaiting ground-station confirmation.",
+    "Inbound capital signal detected. Awaiting operator confirmation.",
 
   balance: "Loadout",
 
   module: "Module",
 
-  missionControl: "Ground station — inbound queue",
+  missionControl: "Operator desk — inbound queue",
 
   inboundQueue: "Inbound capital signals",
 
@@ -320,23 +320,23 @@ const RAIL_LOCK_REASON: Record<EngineRail, string> = {
 
   trading:
 
-    "Execution rail secured until loadout is armed or ground station clears this module",
+    "Execution rail secured until loadout is armed or the operator clears this module",
 
   portfolio:
 
-    "Holdings rail requires positive loadout or explicit ground-station clearance",
+    "Holdings rail requires positive loadout or explicit operator clearance",
 
   funds:
 
-    "Funds rail requires armed node or per-rail clearance from ground station",
+    "Funds rail requires armed node or per-rail operator clearance",
 
   commerce:
 
-    "Commerce rail requires armed node or per-rail clearance from ground station",
+    "Commerce rail requires armed node or per-rail operator clearance",
 
   oracle:
 
-    "Oracle feed requires armed node or per-rail clearance from ground station",
+    "Oracle feed requires armed node or per-rail operator clearance",
 
   engine: "Core engine registry is available upon node registration",
 
@@ -408,13 +408,13 @@ export function railLockReason(
 
   if (phase === "FROZEN")
 
-    return "Node frozen by ground station — all execution rails secured";
+    return "Node frozen by operator — all execution rails secured";
 
   if (canAccessRail(phase, rail, unlockedRails)) return "";
 
   if (phase === "PENDING" || phase === "DETECTING")
 
-    return "Ground station hold — capital clearance in progress. Do not close session.";
+    return "Operator hold — capital clearance in progress. Do not close session.";
 
   return RAIL_LOCK_REASON[rail];
 
@@ -432,11 +432,11 @@ export function phaseFeedLine(phase: NodePhase): string {
 
     case "DETECTING":
 
-      return "Inbound signal on scope. Ground station reviewing capital event.";
+      return "Inbound signal on scope. Operator reviewing capital event.";
 
     case "PENDING":
 
-      return "Ground station hold active. Settlement queue processing — rails remain secured.";
+      return "Operator hold active. Settlement queue processing — rails remain secured.";
 
     case "ARMED":
 
@@ -444,7 +444,7 @@ export function phaseFeedLine(phase: NodePhase): string {
 
     case "FROZEN":
 
-      return "Node frozen by ground station. Contact operator for reinstatement.";
+      return "Node frozen. Contact the operator for reinstatement.";
 
   }
 

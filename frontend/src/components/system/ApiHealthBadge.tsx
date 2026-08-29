@@ -10,9 +10,9 @@ interface ApiHealthBadgeProps {
 
 /**
  * ApiHealthBadge — live front↔back connectivity indicator.
- * GREEN  "ALL SYSTEMS OPERATIONAL"   — API + DB healthy
- * AMBER  "DEGRADED"                  — API reachable, some service offline
- * RED    "API OFFLINE"               — backend unreachable
+ * GREEN  "DESK LIVE"                 — API + ledger healthy
+ * AMBER  "DEGRADED"                  — desk reachable, ledger not connected
+ * RED    "DESK UNREACHABLE"          — backend unreachable
  */
 export default function ApiHealthBadge({
   className,
@@ -29,10 +29,10 @@ export default function ApiHealthBadge({
         : "bg-red-500";
   const label =
     status === "healthy"
-      ? "ALL SYSTEMS OPERATIONAL"
+      ? "DESK LIVE"
       : status === "degraded"
         ? "DEGRADED"
-        : "API OFFLINE";
+        : "DESK UNREACHABLE";
   const labelClass =
     status === "healthy"
       ? "text-emerald-400/90"

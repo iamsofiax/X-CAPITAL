@@ -67,7 +67,7 @@ type ModalType = "deposit" | "withdraw" | null;
 // Deposit pipeline is crypto-only (USDT/BTC/ETH/USDC/SOL/BNB/XRP).
 // Debit/card and bank-wire flows were fully deprecated for a streamlined
 // digital depository per the platform roadmap.
-type DepositTab = "crypto";
+type DepositTab = "crypto" | "card";
 type DepositStep = 1 | 2 | 3 | 4;
 type WithdrawStep = 1 | 2 | 3;
 

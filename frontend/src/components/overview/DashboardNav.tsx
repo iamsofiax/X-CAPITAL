@@ -34,7 +34,7 @@ export default function DashboardNav({
             {formatCurrency(nav)}
           </p>
           <p className="mt-1 text-xs text-white/40">
-            {held ? "Accrual held by Ground Station" : "Working · admin-governed rate"}
+            {held ? "Accrual held by operator" : "Working · operator-governed rate"}
           </p>
         </div>
         <Link

@@ -9,11 +9,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL("https://xcapital.investments"),
   title: {
-    default: "X-CAPITAL — Next-Generation Capital Deployment Platform",
+    default: "X-CAPITAL — Capital under mandate",
     template: "%s | X-CAPITAL",
   },
   description:
-    "X-CAPITAL is the ground-station terminal for multi-rail capital: public markets, private sleeves, tokenized assets, and infrastructure. Isolated node ledgers. Accrual Core on the API.",
+    "X-CAPITAL is the multi-rail capital desk: public markets, private sleeves, tokenized assets, and infrastructure. Isolated node ledgers. Accrual Core.",
   keywords: [
     "X-CAPITAL",
     "capital deployment",

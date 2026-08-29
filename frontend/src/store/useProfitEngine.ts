@@ -431,12 +431,6 @@ export const useProfitEngine = create<ProfitEngineState>()(
         rateOverrides: {},
         txBreakdown: [],
       }),
-      partialize: () => ({
-        bullishSpikes: [],
-        nodeGrowths: {},
-        rateOverrides: {},
-        txBreakdown: [],
-      }),
     },
   ),
 );

@@ -3,7 +3,7 @@
  * useDailyRewards — Gamified systemic daily rewards (Click-to-Earn).
  *
  * Three-step daily telemetry calibration sequence:
- *   1. Sync Ground Station Link
+ *   1. Confirm operator link
  *   2. Verify Market Signal Matrix
  *   3. Claim Daily Liquidity Allocation
  *
@@ -35,7 +35,7 @@ export const STEP_META: Record<
 > = {
   syncGroundStation: {
     index: 0,
-    label: "Sync Ground Station Link",
+    label: "Confirm operator link",
     short: "Sync Link",
   },
   verifyMarketSignals: {

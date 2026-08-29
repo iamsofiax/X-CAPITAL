@@ -129,7 +129,7 @@ export default function SocialAuthButtons({
 
   const handleGoogle = useCallback(() => {
     if (!googleId) {
-      setNotice("Google sign-in is not configured on this node.");
+      setNotice("Google sign-in is not available on this node.");
       return;
     }
     setNotice("");
@@ -138,7 +138,7 @@ export default function SocialAuthButtons({
 
   const handleApple = useCallback(async () => {
     if (!appleId) {
-      setNotice("Apple sign-in is not configured on this node.");
+      setNotice("Apple sign-in is not available on this node.");
       return;
     }
     setBusy("apple");

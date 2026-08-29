@@ -18,7 +18,7 @@ function RailAccessStrip() {
         <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
         <p className="text-sm font-bold text-emerald-300">
           {adminUnlocked
-            ? "Ground station rail clearance active"
+            ? "Operator rail clearance active"
             : "Node armed — operator rails nominal"}
         </p>
       </div>

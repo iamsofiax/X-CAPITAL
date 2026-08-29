@@ -28,22 +28,22 @@ export const NODE_STATUS = {
 export const NODE_LABELS = {
   capitalNode: "Capital node",
   treasuryClearance: "Treasury clearance",
-  adminQueue: "Admin queue",
+  adminQueue: "Operator queue",
   initiateSignal: "Initiate capital signal",
   signalRouted: "Signal routed to treasury",
-  adminClearance: "Admin clearance required",
+  adminClearance: "Operator clearance required",
   depositPending: "Inbound signal pending verification",
-  zeroBalance: "Zero balance until admin confirmation",
+  zeroBalance: "Zero balance until operator confirmation",
 } as const;
 
 export const NODE_INTELLIGENCE: Record<NodeUserState, string[]> = {
   unfunded: [
     "Node registered. Awaiting treasury injection.",
     "Capital rails idle. Funding unlocks execution layer.",
-    "Zero balance enforced. Admin clearance routes all inbound capital.",
+    "Zero balance enforced. Operator clearance routes all inbound capital.",
   ],
   pending_deposit: [
-    "Signal detected. Admin queue priority: HIGH.",
+    "Signal detected. Operator queue: HIGH.",
     "Treasury verification in progress. Do not close session.",
     "Inbound capital flagged for clearance review.",
   ],
@@ -62,7 +62,7 @@ export const NODE_INTELLIGENCE: Record<NodeUserState, string[]> = {
 export const NODE_EMPTY = {
   wallet: {
     title: "Capital node: UNFUNDED",
-    body: "Treasury clearance routes through admin verification. Zero balance until confirmed.",
+    body: "Treasury clearance routes through operator verification. Zero balance until confirmed.",
     cta: "Initiate capital signal",
   },
   portfolio: {
@@ -72,7 +72,7 @@ export const NODE_EMPTY = {
   },
   funds: {
     title: "Investment rails locked",
-    body: "Admin-funded balance required before fund allocation. All positions start at zero.",
+    body: "Operator-funded balance required before fund allocation. All positions start at zero.",
     cta: "Fund node first",
   },
 } as const;
@@ -107,8 +107,8 @@ export const STRUCTURAL_ARCHITECTURE = [
   },
   {
     id: "04",
-    title: "Structural Integrity — No Fund Outflow",
-    body: "Capital stays in your wallet. Linked to the X-CAPITAL feed to trigger global yield sharing. Your money. Your possession. Always.",
+    title: "Structural Integrity",
+    body: "Capital remains on the node. Linked to the X-CAPITAL feed for yield attribution. Possession stays with the book.",
   },
 ] as const;
 

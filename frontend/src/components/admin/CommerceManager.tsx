@@ -2,15 +2,16 @@
 
 import { useState, useMemo } from "react";
 import { cn, formatCurrency } from "@/lib/utils";
+import { adminAPI } from "@/lib/api";
+import { hasApiToken } from "@/lib/apiUser";
 import { useStore } from "@/store/useStore";
 import type { Product } from "@/components/commerce/ProductCard";
 import { Save, Trash2, Pencil, Plus, Package, Star, Rocket, Zap, Cpu, Eye, X } from "lucide-react";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    X-CAPITAL — Commerce Manager (Admin)
-   Full CRUD for the live product catalog. Changes persist instantly (store is
-   persisted to localStorage) and show up on /commerce immediately — no DB
-   migration, no redeploy, no server round-trip needed for the merchant rail.
+   Full CRUD for the live product catalog. When a session token is present,
+   writes go to the desk. The panel mirrors the book.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const EMPTY_PRODUCT: Product = {
@@ -78,9 +79,15 @@ export default function CommerceManager() {
       affiliateUrl: product.affiliateUrl || undefined,
       specs: product.specs && Object.keys(product.specs).length ? product.specs : undefined,
       features: product.features?.length ? product.features : undefined,
-      highlights: product.highlights?.length ? product.highlights : undefined,
     };
     upsertProduct(normalized);
+    if (hasApiToken()) {
+      void adminAPI
+        .upsertCommerceProduct(normalized as unknown as Record<string, unknown>)
+        .catch(() => {
+          showToast("Desk did not persist this product. Try again.", "error");
+        });
+    }
     showToast(`${isNew ? "Created" : "Saved"} ${normalized.name}`);
     setCreating(false);
     setEditing(null);
@@ -89,6 +96,11 @@ export default function CommerceManager() {
   const handleDelete = (id: string) => {
     const target = products.find((p) => p.id === id);
     deleteProduct(id);
+    if (hasApiToken()) {
+      void adminAPI
+        .upsertCommerceProduct({ id, deleted: true })
+        .catch(() => undefined);
+    }
     setConfirmDelete(null);
     showToast(`Deleted ${target?.name ?? "product"}`, "error");
   };
@@ -518,8 +530,7 @@ function ProductForm({
 
 /* ── Device image upload ────────────────────────────────────────────────────
    Reads a local image file and converts it to a base64 data URL. The product
-   catalog persists to localStorage, so a data URL keeps the image available
-   to /commerce without any server round-trip. */
+   product payload holds a data URL so the rail can render without a CDN. */
 function ImageUpload({
   value,
   onChange,
@@ -537,7 +548,7 @@ function ImageUpload({
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      setError("Image is too large — max 2MB (data URLs live in localStorage).");
+      setError("Image is too large — max 2MB.");
       return;
     }
     setError("");

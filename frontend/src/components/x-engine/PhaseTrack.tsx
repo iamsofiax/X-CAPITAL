@@ -16,7 +16,7 @@ const PHASES = [
   {
     id: "II",
     title: "Capital uplink",
-    body: "Fiat ingress through settlement queue. Ground station confirms loadout before rails sequence.",
+    body: "Fiat ingress through settlement queue. Operator confirms loadout before rails sequence.",
     doneKey: "capital" as const,
   },
   {

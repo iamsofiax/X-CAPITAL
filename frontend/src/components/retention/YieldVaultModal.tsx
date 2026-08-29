@@ -195,8 +195,7 @@ export default function YieldVaultModal({
         <div className="flex items-start gap-2 rounded-xl border border-emerald-900/20 bg-emerald-950/10 px-4 py-3">
           <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
           <p className="text-[11px] text-white/40">
-            Your principal is never at risk. These are projected compound returns
-            you would forfeit by withdrawing now — not fees or penalties.
+            Projected compound returns you would forfeit by withdrawing now — illustrative modelling, not a guarantee of principal.
           </p>
         </div>
 

@@ -63,7 +63,8 @@ export function resolveNodeDailyRate(
   } | null,
 ): number {
   const snapshot = useAccountStore.getState().snapshot;
-  if (snapshot?.yieldConfig?.dailyRate > 0) {
+  const dailyRate = snapshot?.yieldConfig?.dailyRate ?? 0;
+  if (snapshot && dailyRate > 0) {
     const multiplier = Math.max(0.1, snapshot.yieldConfig.profitMultiplier ?? 1);
     const balance = useAccountStore.getState().interpolatedCash;
     if (
@@ -75,7 +76,7 @@ export function resolveNodeDailyRate(
     ) {
       return Math.min(0.15, snapshot.yieldConfig.nextNodeRate / 100);
     }
-    return Math.min(0.15, snapshot.yieldConfig.dailyRate * multiplier);
+    return Math.min(0.15, dailyRate * multiplier);
   }
 
   const balance = Math.max(0, Number(user?.balance ?? 0));

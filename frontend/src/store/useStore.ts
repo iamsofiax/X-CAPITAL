@@ -8,7 +8,8 @@ import {
   patchBalanceDelta,
   resolveFiatBalance,
 } from "@/lib/balance";
-import { authAPI, adminAPI, wakeApi } from "@/lib/api";
+import { authAPI, adminAPI, wakeApi, probeDesk } from "@/lib/api";
+import { authFailureMessage, httpStatus } from "@/lib/authFailure";
 import { useProfitEngine } from "@/store/useProfitEngine";
 import { useAccountStore } from "@/store/useAccountStore";
 import { wipeUserScopedStorage } from "@/lib/scopedStorage";
@@ -19,21 +20,6 @@ import {
   type ApiUserRow,
 } from "@/lib/apiUser";
 
-function httpStatus(err: unknown): number | undefined {
-  if (
-    err &&
-    typeof err === "object" &&
-    "response" in err &&
-    err.response &&
-    typeof err.response === "object" &&
-    "status" in err.response
-  ) {
-    return Number((err.response as { status?: number }).status);
-  }
-  return undefined;
-}
-
-// Simple hash for client-side password storage (not bcrypt, but acceptable for client-only demo)
 async function hashPassword(password: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(password + "xcapital-salt-2026");
@@ -42,33 +28,6 @@ async function hashPassword(password: string): Promise<string> {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
-
-// Default God Admin account — always available
-const GOD_ADMIN_USER: User = {
-  id: "god-admin-001",
-  email: "admin@xcapital.io",
-  firstName: "Platform",
-  lastName: "Admin",
-  role: "GOD_ADMIN",
-  tier: "BLACK" as const,
-  kycStatus: "APPROVED" as const,
-  accreditationStatus: "ACCREDITED" as const,
-  createdAt: "2024-01-01T00:00:00Z",
-  isFrozen: false,
-  isSuspended: false,
-  isBlocked: false,
-  tradingEnabled: true,
-  profitHold: false,
-  profitMultiplier: 1.0,
-  balance: 0,
-  country: "US",
-  trades: 0,
-  passwordHash: "",
-};
-
-const _GOD_ADMIN_PW_HASH =
-  "6e3a6c3f8e4b2a1d9c8f7e6d5b4a3c2e1f0d9c8b7a6e5d4c3b2a1f0e9d8c7b6";
-void _GOD_ADMIN_PW_HASH;
 
 interface AuthState {
   user: User | null;
@@ -112,7 +71,11 @@ interface AuthState {
     newPassword: string,
   ) => Promise<{ success: boolean; error?: string }>;
   syncSessionFromApi: () => Promise<void>;
-  loadAdminUsersFromApi: () => Promise<boolean>;
+  loadAdminUsersFromApi: (opts?: {
+    cursor?: string;
+    q?: string;
+    append?: boolean;
+  }) => Promise<{ ok: boolean; nextCursor: string | null; total: number | null }>;
   addAuditEntry: (entry: AuditEntry) => void;
   auditLog: AuditEntry[];
 }
@@ -428,28 +391,49 @@ export const useStore = create<Store>()(
         }
       },
 
-      loadAdminUsersFromApi: async () => {
-        if (!hasApiToken()) return false;
+      loadAdminUsersFromApi: async (opts) => {
+        if (!hasApiToken()) {
+          return { ok: false, nextCursor: null, total: null };
+        }
         try {
-          const { data: res } = await adminAPI.listUsers();
+          const { data: res } = await adminAPI.listUsers({
+            limit: 50,
+            cursor: opts?.cursor,
+            q: opts?.q || undefined,
+          });
           const rows = (res.data ?? []) as ApiUserRow[];
+          const nextCursor =
+            typeof res.nextCursor === "string" ? res.nextCursor : null;
+          const total = typeof res.total === "number" ? res.total : null;
           const adminEmail = get().user?.email;
-          set((state) => ({
-            registeredUsers: mergeUsersFromServer(
+          const append = Boolean(opts?.append);
+          set((state) => {
+            const page = mergeUsersFromServer(
               state.registeredUsers,
               rows,
               adminEmail,
-            ),
-          }));
-          return true;
+            );
+            if (!append) {
+              return { registeredUsers: page };
+            }
+            const seen = new Set(page.map((u) => u.id));
+            return {
+              registeredUsers: [
+                ...state.registeredUsers.filter((u) => !seen.has(u.id)),
+                ...page,
+              ],
+            };
+          });
+          return { ok: true, nextCursor, total };
         } catch {
-          return false;
+          return { ok: false, nextCursor: null, total: null };
         }
       },
 
       registerUser: async ({ firstName, lastName, email, password }) => {
+        const desk = await probeDesk(12_000);
+        if (!desk.ledger) await wakeApi(20_000);
         try {
-          await wakeApi(20_000);
           const { data: regRes } = await authAPI.register({
             email,
             password,
@@ -485,24 +469,9 @@ export const useStore = create<Store>()(
           }
           return { success: true };
         } catch (err: unknown) {
-          const status =
-            err &&
-            typeof err === "object" &&
-            "response" in err &&
-            err.response &&
-            typeof err.response === "object" &&
-            "status" in err.response
-              ? Number(err.response.status)
-              : undefined;
-          if (status === 409) {
-            return {
-              success: false,
-              error: "An account with this email already exists.",
-            };
-          }
           return {
             success: false,
-            error: "Ground station is waking. Wait a few seconds and try again.",
+            error: authFailureMessage(err),
           };
         }
       },
@@ -541,72 +510,40 @@ export const useStore = create<Store>()(
         };
 
         const tryNetworkLogin = async () => {
-          await wakeApi(20_000);
+          let desk = await probeDesk(12_000);
+          if (!desk.ledger) {
+            await wakeApi(20_000);
+            desk = await probeDesk(8_000);
+          }
           try {
             return await finishLogin();
           } catch (err: unknown) {
             const status = httpStatus(err);
-            if (status === 401 || status === 403) {
-              return { success: false, error: "Incorrect password." };
+            if (status === 401 || status === 403 || status === 429) {
+              return { success: false, error: authFailureMessage(err) };
             }
-            await wakeApi(45_000);
-            try {
-              return await finishLogin();
-            } catch (retryErr: unknown) {
-              const retryStatus = httpStatus(retryErr);
-              if (retryStatus === 401 || retryStatus === 403) {
-                return { success: false, error: "Incorrect password." };
-              }
-              if (retryStatus === 429) {
+            if (!desk.ledger) {
+              await wakeApi(20_000);
+              try {
+                return await finishLogin();
+              } catch (retryErr: unknown) {
                 return {
                   success: false,
-                  error: "Too many attempts. Wait a moment and try again.",
+                  error: authFailureMessage(retryErr),
                 };
               }
-              throw retryErr;
             }
+            return { success: false, error: authFailureMessage(err) };
           }
         };
 
-        try {
-          return await tryNetworkLogin();
-        } catch {
-          /* fall through to local admin only */
-        }
-
-        const pwHash = await hashPassword(password);
-        const godAdminHash = await hashPassword("Admin2026!");
-        if (
-          email.toLowerCase() === "admin@xcapital.io" &&
-          pwHash === godAdminHash
-        ) {
-          const adminUser = {
-            ...GOD_ADMIN_USER,
-            passwordHash: godAdminHash,
-            lastLogin: new Date().toISOString(),
-          };
-          const token = `xc-token-${Date.now()}`;
-          set({
-            user: adminUser,
-            accessToken: token,
-            refreshToken: `xc-refresh-${Date.now()}`,
-            isAuthenticated: true,
-          });
-          if (typeof window !== "undefined") {
-            sessionStorage.setItem("xc_session_active", "1");
-          }
-          return { success: true };
-        }
-
-        return {
-          success: false,
-          error: "Ground station is waking. Wait a few seconds and try again.",
-        };
+        return tryNetworkLogin();
       },
 
       loginWithGoogle: async (credential) => {
         try {
-          await wakeApi(20_000);
+          const desk = await probeDesk(12_000);
+          if (!desk.ledger) await wakeApi(20_000);
           const { data: res } = await authAPI.google(credential);
           const payload = res.data;
           const { accessToken, refreshToken, user: apiUser } = payload;
@@ -635,17 +572,18 @@ export const useStore = create<Store>()(
           }
           void get().syncSessionFromApi();
           return { success: true };
-        } catch {
+        } catch (err: unknown) {
           return {
             success: false,
-            error: "Google sign-in failed. Try again.",
+            error: authFailureMessage(err),
           };
         }
       },
 
       loginWithApple: async (identityToken, names) => {
         try {
-          await wakeApi(20_000);
+          const desk = await probeDesk(12_000);
+          if (!desk.ledger) await wakeApi(20_000);
           const { data: res } = await authAPI.apple(identityToken, names);
           const payload = res.data;
           const { accessToken, refreshToken, user: apiUser } = payload;
@@ -674,10 +612,10 @@ export const useStore = create<Store>()(
           }
           void get().syncSessionFromApi();
           return { success: true };
-        } catch {
+        } catch (err: unknown) {
           return {
             success: false,
-            error: "Apple sign-in failed. Try again.",
+            error: authFailureMessage(err),
           };
         }
       },

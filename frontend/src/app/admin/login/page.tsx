@@ -30,7 +30,7 @@ export default function AdminLoginPage() {
     try {
       const result = await loginUser(email, password);
       if (!result.success) {
-        setError("Invalid credentials.");
+        setError(result.error || "Credentials not recognized.");
         return;
       }
 
@@ -43,13 +43,13 @@ export default function AdminLoginPage() {
       ) {
         // Not an admin — log them out and show error
         store.logout();
-        setError("Access restricted to administrators only.");
+        setError("Operator clearance required.");
         return;
       }
 
       router.push("/admin");
     } catch {
-      setError("An unexpected error occurred.");
+        setError("Desk unavailable. Try again.");
     } finally {
       setLoading(false);
     }
@@ -72,11 +72,11 @@ export default function AdminLoginPage() {
           <h1 className="text-xl font-black text-white tracking-tight">
             X-CAPITAL{" "}
             <span className="text-white/40 font-normal text-sm ml-1">
-              ADMIN
+              OPERATOR
             </span>
           </h1>
           <p className="text-gray-500 text-xs mt-1">
-            Authorized personnel only
+            Operator desk
           </p>
         </div>
 
@@ -86,7 +86,7 @@ export default function AdminLoginPage() {
             {/* Email */}
             <div>
               <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                Admin Email
+                Operator email
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />

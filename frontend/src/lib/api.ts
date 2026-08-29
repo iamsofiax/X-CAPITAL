@@ -7,6 +7,23 @@ const API_URL =
 
 export const API_ORIGIN = API_URL.replace(/\/api\/v1\/?$/, '');
 
+export type DeskHealth = { reachable: boolean; ledger: boolean };
+
+/** Cheap liveness: process up, and whether the book answered. */
+export const probeDesk = async (timeoutMs = 12_000): Promise<DeskHealth> => {
+  try {
+    const { status, data } = await axios.get(`${API_ORIGIN}/health`, {
+      timeout: timeoutMs,
+    });
+    return {
+      reachable: status === 200,
+      ledger: Boolean(data?.database) || data?.status === "healthy",
+    };
+  } catch {
+    return { reachable: false, ledger: false };
+  }
+};
+
 export const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
@@ -255,7 +272,8 @@ export const accountAPI = {
 };
 
 export const adminAPI = {
-  listUsers: () => api.get('/admin/users'),
+  listUsers: (params?: { cursor?: string; limit?: number; q?: string }) =>
+    api.get('/admin/users', { params }),
   createUser: (data: {
     email: string;
     password: string;
@@ -275,9 +293,15 @@ export const adminAPI = {
   ) => api.post(`/admin/users/${userId}/balance`, body),
   getAlerts: (status?: string) =>
     api.get('/admin/alerts', { params: status ? { status } : {} }),
+  listAudit: (params?: { cursor?: string; limit?: number }) =>
+    api.get('/admin/audit', { params }),
+  upsertCommerceProduct: (product: Record<string, unknown>) =>
+    api.put('/admin/commerce/products', product),
   approveAlert: (id: string) => api.post(`/admin/alerts/${id}/approve`),
   rejectAlert: (id: string, reason?: string) =>
     api.post(`/admin/alerts/${id}/reject`, { reason }),
+  rejectByTransactionId: (transactionId: string, reason?: string) =>
+    api.post('/admin/alerts/reject-by-tx', { transactionId, reason }),
   getYieldConfig: (userId: string) =>
     api.get(`/admin/users/${userId}/yield-config`),
   putYieldConfig: (

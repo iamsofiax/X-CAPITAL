@@ -93,7 +93,7 @@ export default function LoginPage() {
         setError(result.error || "Credentials rejected.");
       }
     } catch {
-      setError("Network unreachable. Try again.");
+      setError("Desk unavailable. Try again.");
     } finally {
       setLoading(false);
     }
@@ -121,7 +121,7 @@ export default function LoginPage() {
                 <div className="font-black text-2xl sm:text-3xl tracking-tight">
                   <span className="gradient-text">X-CAPITAL</span>
                 </div>
-                <p className="text-xc-muted text-sm mt-2">Ground station access</p>
+                <p className="text-xc-muted text-sm mt-2">Authenticate</p>
               </div>
             </Link>
           </div>
@@ -244,7 +244,7 @@ export default function LoginPage() {
                 size="lg"
                 loading={loading}
               >
-                Enter
+                {loading ? "Opening session…" : "Enter"}
               </Button>
             </form>
 
