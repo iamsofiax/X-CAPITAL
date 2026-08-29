@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { authAPI } from "@/lib/api";
 
 declare global {
   interface Window {
@@ -52,8 +53,8 @@ function loadScript(src: string, id: string): Promise<void> {
   });
 }
 
-const GOOGLE_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
-const APPLE_ID = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID ?? "";
+const BUILD_GOOGLE = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
+const BUILD_APPLE = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID ?? "";
 
 export default function SocialAuthButtons({
   onGoogle,
@@ -69,18 +70,41 @@ export default function SocialAuthButtons({
 }) {
   const [busy, setBusy] = useState<"google" | "apple" | null>(null);
   const [notice, setNotice] = useState("");
+  const [googleId, setGoogleId] = useState(BUILD_GOOGLE);
+  const [appleId, setAppleId] = useState(BUILD_APPLE);
   const googleInit = useRef(false);
   const appleInit = useRef(false);
   const onGoogleRef = useRef(onGoogle);
   onGoogleRef.current = onGoogle;
 
   useEffect(() => {
-    if (!GOOGLE_ID) return;
+    let cancelled = false;
+    void authAPI
+      .oauthConfig()
+      .then((res) => {
+        const cfg = res.data?.data ?? res.data ?? {};
+        if (cancelled) return;
+        if (typeof cfg.googleClientId === "string" && cfg.googleClientId) {
+          setGoogleId(cfg.googleClientId);
+        }
+        if (typeof cfg.appleClientId === "string" && cfg.appleClientId) {
+          setAppleId(cfg.appleClientId);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!googleId) return;
+    googleInit.current = false;
     void loadScript("https://accounts.google.com/gsi/client", "xc-gsi").then(
       () => {
         if (!window.google || googleInit.current) return;
         window.google.accounts.id.initialize({
-          client_id: GOOGLE_ID,
+          client_id: googleId,
           ux_mode: "popup",
           auto_select: true,
           callback: async (res) => {
@@ -101,19 +125,19 @@ export default function SocialAuthButtons({
         googleInit.current = true;
       },
     );
-  }, []);
+  }, [googleId]);
 
   const handleGoogle = useCallback(() => {
-    if (!GOOGLE_ID) {
+    if (!googleId) {
       setNotice("Google sign-in is not configured on this node.");
       return;
     }
     setNotice("");
     window.google?.accounts.id.prompt();
-  }, []);
+  }, [googleId]);
 
   const handleApple = useCallback(async () => {
-    if (!APPLE_ID) {
+    if (!appleId) {
       setNotice("Apple sign-in is not configured on this node.");
       return;
     }
@@ -126,7 +150,7 @@ export default function SocialAuthButtons({
           "xc-apple",
         );
         window.AppleID?.auth.init({
-          clientId: APPLE_ID,
+          clientId: appleId,
           scope: "name email",
           redirectURI: window.location.origin,
           usePopup: true,
@@ -143,7 +167,7 @@ export default function SocialAuthButtons({
     } finally {
       setBusy(null);
     }
-  }, [onApple]);
+  }, [onApple, appleId]);
 
   return (
     <div className="space-y-3">

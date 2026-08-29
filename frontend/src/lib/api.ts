@@ -180,6 +180,7 @@ export const authAPI = {
     api.post('/auth/register', data, { timeout: 45_000 }),
   login: (email: string, password: string) =>
     api.post('/auth/login', { email, password }, { timeout: 45_000 }),
+  oauthConfig: () => api.get('/auth/oauth-config', { timeout: 12_000 }),
   google: (credential: string) =>
     api.post('/auth/google', { credential }, { timeout: 45_000 }),
   apple: (

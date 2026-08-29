@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import ApiHealthBadge from "@/components/system/ApiHealthBadge";
 import CapitalNetworkTwin from "@/components/network-twin/CapitalNetworkTwin";
-import HeroRocket from "@/components/brand/HeroRocket";
+import HeroLaunchVideo from "@/components/brand/HeroLaunchVideo";
 import { XCapitalLogoMark } from "@/components/brand/XCapitalLogo";
 import { useApiHealth } from "@/hooks/useApiHealth";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
@@ -309,20 +309,10 @@ export default function LandingPage() {
       </nav>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          HERO — rocket video always on, near full brightness, vector rocket
+          HERO — launch video is the only rocket, always playing
           ═══════════════════════════════════════════════════════════════════ */}
       <section className="relative min-h-screen flex items-center overflow-hidden bg-[#000000]" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-        {/* Background video — orbital launch loop, always visible. No poster
-            image: nothing brand-related may flash before the video starts. */}
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          className="absolute inset-0 w-full h-full object-cover opacity-[0.9] pointer-events-none animate-hero-zoom"
-          src="/videos/hero-hd.mp4"
-        />
+        <HeroLaunchVideo />
         {/* Light cinematic darkening — keeps the video clearly visible */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/20 to-black pointer-events-none" />
         <div
@@ -358,16 +348,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Hero centerpiece — the rocket. Clear sky, nothing obstructing it. */}
             <div className="flex flex-col items-center gap-6 lg:items-end">
-              {/* Mobile rocket mark — sits below the headline, no overlap */}
-              <div className="lg:hidden">
-                <HeroRocket mobile />
-              </div>
-              {/* Desktop rocket — 4K-native vector, right column */}
-              <div className="hidden lg:flex animate-float-rocket">
-                <HeroRocket height={400} />
-              </div>
               {/* Institutional integrity strip */}
               <div className="w-full max-w-[520px] rounded-xl border border-white/[0.08] bg-black/40 backdrop-blur px-5 py-4">
                 <p className="text-[9px] font-mono text-white/30 tracking-[0.28em] uppercase mb-3">Desk controls</p>

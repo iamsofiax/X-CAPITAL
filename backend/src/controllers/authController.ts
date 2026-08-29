@@ -237,6 +237,17 @@ async function issueSession(
   });
 }
 
+/** Public OAuth client IDs — GIS/Apple JS need these in the browser. */
+export const getOAuthConfig = (_req: Request, res: Response): void => {
+  res.status(200).json({
+    success: true,
+    data: {
+      googleClientId: env.GOOGLE_CLIENT_ID || "",
+      appleClientId: env.APPLE_CLIENT_ID || "",
+    },
+  });
+};
+
 export const loginGoogle = async (
   req: Request,
   res: Response,

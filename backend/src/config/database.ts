@@ -15,21 +15,42 @@ function needsSsl(url: string): boolean {
   );
 }
 
+/**
+ * Neon + node-pg on Render: query-string sslmode is not enough — Node still
+ * rejects the chain as a self-signed cert. Strip sslmode/channel_binding and
+ * pass ssl: { rejectUnauthorized: false } into the adapter's pg Pool.
+ */
+export function sanitizeDatabaseUrl(raw: string): string {
+  try {
+    const u = new URL(raw);
+    u.searchParams.delete("sslmode");
+    u.searchParams.delete("channel_binding");
+    return u.toString();
+  } catch {
+    return raw
+      .replace(/([?&])sslmode=[^&]*/gi, "$1")
+      .replace(/([?&])channel_binding=[^&]*/gi, "$1")
+      .replace(/\?&/, "?")
+      .replace(/&&/g, "&")
+      .replace(/[?&]$/, "");
+  }
+}
+
 function getDatabaseUrl(): string {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set");
-  if (url.includes("neon.tech")) {
-    const stripped = url.replace(/([?&])sslmode=[^&]*/g, "$1").replace(/\?&/, "?").replace(/&&/g, "&").replace(/[?&]$/, "");
-    return stripped.includes("?")
-      ? `${stripped}&sslmode=no-verify`
-      : `${stripped}?sslmode=no-verify`;
-  }
-  if (url.includes("sslmode=") || !needsSsl(url)) return url;
-  return url.includes("?") ? `${url}&sslmode=require` : `${url}?sslmode=require`;
+  return sanitizeDatabaseUrl(url);
 }
 
 function createPrismaClient(): PrismaClient {
-  const adapter = new PrismaPg({ connectionString: getDatabaseUrl() });
+  const connectionString = getDatabaseUrl();
+  const adapter = new PrismaPg({
+    connectionString,
+    ssl: needsSsl(connectionString) ? { rejectUnauthorized: false } : undefined,
+    max: 10,
+    idleTimeoutMillis: 20_000,
+    connectionTimeoutMillis: 8_000,
+  } as ConstructorParameters<typeof PrismaPg>[0]);
   return new PrismaClient({
     adapter,
     log:

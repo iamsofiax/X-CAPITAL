@@ -23,14 +23,21 @@ function fail(msg) {
 
 function ensureSsl(url) {
   if (!url) return url;
-  if (url.includes("neon.tech")) {
-    const stripped = url.replace(/([?&])sslmode=[^&]*/g, "$1").replace(/\?&/, "?").replace(/&&/g, "&").replace(/[?&]$/, "");
+  let stripped = url
+    .replace(/([?&])sslmode=[^&]*/gi, "$1")
+    .replace(/([?&])channel_binding=[^&]*/gi, "$1")
+    .replace(/\?&/, "?")
+    .replace(/&&/g, "&")
+    .replace(/[?&]$/, "");
+  if (stripped.includes("neon.tech") || process.env.NODE_ENV === "production") {
     return stripped.includes("?")
       ? `${stripped}&sslmode=no-verify`
       : `${stripped}?sslmode=no-verify`;
   }
   if (url.includes("sslmode=")) return url;
-  return url.includes("?") ? `${url}&sslmode=require` : `${url}?sslmode=require`;
+  return stripped.includes("?")
+    ? `${stripped}&sslmode=require`
+    : `${stripped}?sslmode=require`;
 }
 
 async function applySchemaInBackground() {
@@ -38,7 +45,12 @@ async function applySchemaInBackground() {
     process.env.DATABASE_URL_UNPOOLED ||
     process.env.DIRECT_URL ||
     process.env.DATABASE_URL;
-  const pushEnv = { ...process.env, DATABASE_URL: ensureSsl(pushUrl) };
+  const pushEnv = {
+    ...process.env,
+    DATABASE_URL: ensureSsl(pushUrl),
+    PGSSLMODE: "no-verify",
+    NODE_TLS_REJECT_UNAUTHORIZED: "0",
+  };
 
   for (let attempt = 1; attempt <= 30; attempt++) {
     try {
@@ -88,6 +100,7 @@ async function main() {
 
   databaseUrl = ensureSsl(databaseUrl);
   process.env.DATABASE_URL = databaseUrl;
+  process.env.PGSSLMODE = process.env.PGSSLMODE || "no-verify";
   if (process.env.DATABASE_URL_UNPOOLED) {
     process.env.DATABASE_URL_UNPOOLED = ensureSsl(
       process.env.DATABASE_URL_UNPOOLED,

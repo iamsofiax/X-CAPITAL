@@ -71,6 +71,8 @@ services:
         value: https://data.alpaca.markets
       - key: KEEP_ALIVE_URL
         value: https://xcapital-api.onrender.com
+      - key: PGSSLMODE
+        value: no-verify
 
   - type: web
     name: xcapital-web

@@ -3,6 +3,7 @@ import axios from 'axios';
 import { prisma } from '../config/database';
 import { env } from '../config/env';
 import { withTimeout } from '../utils/withTimeout';
+import { logger } from '../utils/logger';
 
 const startedAt = Date.now();
 
@@ -28,8 +29,10 @@ export async function getSystemHealth(_req: Request, res: Response) {
     await withTimeout(prisma.$queryRaw`SELECT 1`, 2000, 'db-timeout');
     dbLatency = Date.now() - dbStart;
     services.push({ name: 'database', status: 'operational', latencyMs: dbLatency });
-  } catch {
-    services.push({ name: 'database', status: 'offline' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'unknown';
+    logger.warn(`Database health check failed: ${message}`);
+    services.push({ name: 'database', status: 'offline', detail: 'ledger unreachable' });
   }
 
   // ── AI Oracle ───────────────────────────────────────────────────────────────
@@ -50,10 +53,10 @@ export async function getSystemHealth(_req: Request, res: Response) {
   const operational = services.filter((s) => s.status === 'operational').length;
   const degraded = services.filter((s) => s.status === 'degraded').length;
   const offline = services.filter((s) => s.status === 'offline').length;
+  // Ground-station badge: API + Neon ledger. Oracle is advisory — it must
+  // not paint the whole node DEGRADED when the book is connected.
   const dbOk = services.some((s) => s.name === 'database' && s.status === 'operational');
-  const overall: 'healthy' | 'degraded' | 'offline' = dbOk
-    ? (offline > 0 || degraded > 0 ? 'degraded' : 'healthy')
-    : 'degraded';
+  const overall: 'healthy' | 'degraded' | 'offline' = dbOk ? 'healthy' : 'degraded';
 
   res.status(200).json({
     success: true,

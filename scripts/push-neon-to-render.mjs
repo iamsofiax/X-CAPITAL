@@ -36,6 +36,8 @@ function readCliToken() {
   const p = path.join(os.homedir(), ".render", "cli.yaml");
   if (!fs.existsSync(p)) return "";
   const text = fs.readFileSync(p, "utf8");
+  const nested = text.match(/api:\s*\r?\n\s+key:\s*["']?([^\s"']+)/);
+  if (nested) return nested[1];
   const m =
     text.match(/apiKey:\s*["']?([^\s"']+)/) ||
     text.match(/api_key:\s*["']?([^\s"']+)/) ||
@@ -113,7 +115,10 @@ const keys = [
   ["DATABASE_URL", databaseUrl],
   ["DATABASE_URL_UNPOOLED", unpooled || databaseUrl],
   ["KEEP_ALIVE_URL", "https://xcapital-api.onrender.com"],
+  ["PGSSLMODE", "no-verify"],
 ];
+if (local.GOOGLE_CLIENT_ID) keys.push(["GOOGLE_CLIENT_ID", local.GOOGLE_CLIENT_ID]);
+if (local.APPLE_CLIENT_ID) keys.push(["APPLE_CLIENT_ID", local.APPLE_CLIENT_ID]);
 
 for (const [key, value] of keys) {
   if (!value) continue;

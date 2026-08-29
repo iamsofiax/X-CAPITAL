@@ -6,6 +6,8 @@ import { authRateLimit } from '../middleware/rateLimit';
 
 const router = Router();
 
+router.get("/oauth-config", authController.getOAuthConfig);
+
 router.post(
   '/register',
   authRateLimit,

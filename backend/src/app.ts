@@ -64,8 +64,10 @@ app.get('/health', async (_req, res) => {
   try {
     await withTimeout(prisma.$queryRaw`SELECT 1`, 1500, 'db-timeout');
     db = true;
-  } catch {
+  } catch (err) {
     db = false;
+    const message = err instanceof Error ? err.message : 'unknown';
+    console.warn(`[health] database not ready: ${message}`);
   }
   res.status(200).json({
     status: db ? 'healthy' : 'starting',
