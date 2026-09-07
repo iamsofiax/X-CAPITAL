@@ -135,14 +135,6 @@ export default function LoginPage() {
               disabled={loading}
             />
 
-            <div className="flex items-center gap-3 my-6">
-              <div className="flex-1 h-px bg-xc-border" />
-              <span className="text-[10px] font-mono uppercase tracking-widest text-xc-muted">
-                or email
-              </span>
-              <div className="flex-1 h-px bg-xc-border" />
-            </div>
-
             <form onSubmit={handleLogin} className="space-y-5">
               <div>
                 <label className="block text-xs font-medium text-xc-muted mb-1.5">

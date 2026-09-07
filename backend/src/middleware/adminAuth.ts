@@ -3,7 +3,7 @@ import { AuthRequest } from '../middleware/auth';
 import { env } from '../config/env';
 
 const adminEmails = (): string[] =>
-  (process.env.ADMIN_EMAILS ?? 'admin@xcapital.io,demo@xcapital.investments')
+  (process.env.ADMIN_EMAILS ?? `${env.ADMIN_EMAIL},demo@xcapital.investments`)
     .split(',')
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);

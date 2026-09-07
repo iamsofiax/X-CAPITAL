@@ -4,6 +4,7 @@ import { env } from './config/env';
 import { connectDatabase, disconnectDatabase } from './config/database';
 import { logger } from './utils/logger';
 import { startAccrualWorker } from './services/accrualService';
+import { ensurePlatformAdmin } from './services/adminBootstrap';
 
 async function bootstrap(): Promise<void> {
   // Listen first so Render health checks pass while DB connects
@@ -18,6 +19,15 @@ async function bootstrap(): Promise<void> {
         logger.info('Database ready');
         if (!accrualArmed) {
           accrualArmed = true;
+          const bootstrapAdmin = () => {
+            void ensurePlatformAdmin()
+              .then(() => logger.info('Platform admin account ready'))
+              .catch((err) => {
+                logger.error('Platform admin bootstrap failed — retrying:', err);
+                setTimeout(bootstrapAdmin, 10_000);
+              });
+          };
+          bootstrapAdmin();
           startAccrualWorker(20_000);
           logger.info('Accrual Core worker armed');
         }

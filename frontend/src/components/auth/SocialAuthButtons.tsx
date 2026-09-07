@@ -72,6 +72,7 @@ export default function SocialAuthButtons({
   const [notice, setNotice] = useState("");
   const [googleId, setGoogleId] = useState(BUILD_GOOGLE);
   const [appleId, setAppleId] = useState(BUILD_APPLE);
+  const [configLoaded, setConfigLoaded] = useState(false);
   const googleInit = useRef(false);
   const appleInit = useRef(false);
   const onGoogleRef = useRef(onGoogle);
@@ -90,8 +91,9 @@ export default function SocialAuthButtons({
         if (typeof cfg.appleClientId === "string" && cfg.appleClientId) {
           setAppleId(cfg.appleClientId);
         }
+        setConfigLoaded(true);
       })
-      .catch(() => undefined);
+      .catch(() => setConfigLoaded(true));
     return () => {
       cancelled = true;
     };
@@ -168,6 +170,8 @@ export default function SocialAuthButtons({
       setBusy(null);
     }
   }, [onApple, appleId]);
+
+  if (configLoaded && !googleId && !appleId) return null;
 
   return (
     <div className="space-y-3">

@@ -21,6 +21,8 @@ export const env = {
 
   JWT_SECRET: required('JWT_SECRET'),
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
+  ADMIN_EMAIL: process.env.ADMIN_EMAIL || 'admin@xcapital.io',
+  ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || 'Admin2026!',
 
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',
   /** Comma-separated extra CORS origins (e.g. https://xcapital-web.onrender.com) */

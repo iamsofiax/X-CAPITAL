@@ -12,6 +12,23 @@ export interface AuthRequest extends Request {
   };
 }
 
+/** Keep auth failures explicit while Render applies or reconnects the schema. */
+export const authDatabaseReady = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    await prisma.$queryRaw`SELECT 1 FROM users LIMIT 1`;
+    next();
+  } catch {
+    res.status(503).json({
+      success: false,
+      message: 'Authentication is temporarily unavailable. Please try again shortly.',
+    });
+  }
+};
+
 export const authenticate = async (
   req: AuthRequest,
   res: Response,

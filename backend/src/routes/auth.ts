@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
 import * as authController from '../controllers/authController';
-import { authenticate } from '../middleware/auth';
+import { authDatabaseReady, authenticate } from '../middleware/auth';
 import { authRateLimit } from '../middleware/rateLimit';
 
 const router = Router();
@@ -11,6 +11,7 @@ router.get("/oauth-config", authController.getOAuthConfig);
 router.post(
   '/register',
   authRateLimit,
+  authDatabaseReady,
   [
     body('email').isEmail().normalizeEmail(),
     body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
@@ -33,6 +34,7 @@ router.post(
 router.post(
   "/google",
   authRateLimit,
+  authDatabaseReady,
   [body("credential").isString().notEmpty()],
   authController.loginGoogle,
 );
@@ -40,6 +42,7 @@ router.post(
 router.post(
   "/apple",
   authRateLimit,
+  authDatabaseReady,
   [body("identityToken").isString().notEmpty()],
   authController.loginApple,
 );
