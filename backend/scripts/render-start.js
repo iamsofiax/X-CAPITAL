@@ -48,6 +48,8 @@ async function applySchemaInBackground() {
   const pushEnv = {
     ...process.env,
     DATABASE_URL: ensureSsl(pushUrl),
+    DATABASE_URL_UNPOOLED: ensureSsl(pushUrl),
+    DIRECT_URL: ensureSsl(pushUrl),
     PGSSLMODE: "no-verify",
     NODE_TLS_REJECT_UNAUTHORIZED: "0",
   };
@@ -55,7 +57,7 @@ async function applySchemaInBackground() {
   for (let attempt = 1; attempt <= 30; attempt++) {
     try {
       console.log(`Applying schema (prisma db push) attempt ${attempt}/30...`);
-      execSync("npx prisma db push", {
+      execSync("npx prisma db push --skip-generate", {
         stdio: "inherit",
         env: pushEnv,
       });
