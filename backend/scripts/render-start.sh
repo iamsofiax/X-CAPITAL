@@ -3,6 +3,9 @@ set -e
 
 echo "=== X-CAPITAL API startup (Render) ==="
 
+DATABASE_URL="${DATABASE_URL_UNPOOLED:-${DIRECT_URL:-$DATABASE_URL}}"
+export DATABASE_URL
+
 if [ -z "$DATABASE_URL" ]; then
   echo ""
   echo "ERROR: DATABASE_URL is not set."
@@ -50,7 +53,7 @@ echo "Applying schema (prisma db push)..."
 attempt=1
 max=5
 while [ "$attempt" -le "$max" ]; do
-  if npx prisma db push --skip-generate; then
+  if npx prisma db push; then
     echo "Schema applied."
     break
   fi

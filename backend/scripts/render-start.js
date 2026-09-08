@@ -42,9 +42,9 @@ function ensureSsl(url) {
 
 async function applySchemaInBackground() {
   const pushUrl =
-    process.env.DATABASE_URL ||
     process.env.DATABASE_URL_UNPOOLED ||
-    process.env.DIRECT_URL;
+    process.env.DIRECT_URL ||
+    process.env.DATABASE_URL;
   const pushEnv = {
     ...process.env,
     DATABASE_URL: ensureSsl(pushUrl),
@@ -57,7 +57,7 @@ async function applySchemaInBackground() {
   for (let attempt = 1; attempt <= 30; attempt++) {
     try {
       console.log(`Applying schema (prisma db push) attempt ${attempt}/30...`);
-      execSync("npx prisma db push --skip-generate", {
+      execSync("npx prisma db push", {
         stdio: "inherit",
         env: pushEnv,
       });
@@ -76,7 +76,10 @@ async function applySchemaInBackground() {
 async function main() {
   console.log("=== X-CAPITAL API startup (Render) ===");
 
-  let databaseUrl = process.env.DATABASE_URL;
+  let databaseUrl =
+    process.env.DATABASE_URL_UNPOOLED ||
+    process.env.DIRECT_URL ||
+    process.env.DATABASE_URL;
   const jwtSecret = process.env.JWT_SECRET;
 
   if (!databaseUrl) {
