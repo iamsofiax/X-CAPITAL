@@ -42,9 +42,9 @@ function ensureSsl(url) {
 
 async function applySchemaInBackground() {
   const pushUrl =
+    process.env.DATABASE_URL ||
     process.env.DATABASE_URL_UNPOOLED ||
-    process.env.DIRECT_URL ||
-    process.env.DATABASE_URL;
+    process.env.DIRECT_URL;
   const pushEnv = {
     ...process.env,
     DATABASE_URL: ensureSsl(pushUrl),
