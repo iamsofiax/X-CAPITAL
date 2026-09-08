@@ -127,6 +127,10 @@ model User {
   tier                UserTier            @default(CORE)
   walletAddress       String?
   isActive            Boolean             @default(true)
+  isFrozen             Boolean             @default(false)
+  isBlocked            Boolean             @default(false)
+  tradingEnabled       Boolean             @default(true)
+  unlockedRails        Json?
   lastLoginAt         DateTime?
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt

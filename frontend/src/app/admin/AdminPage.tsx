@@ -256,30 +256,62 @@ export default function AdminPage() {
     setRejectReason("");
   };
 
-  const handleKycApprove = (u: User) => {
+  const handleKycApprove = async (u: User) => {
     const sub = kycSubmissions.find((s) => s.userId === u.id && s.status === "PENDING");
+    if (hasApiToken()) {
+      try {
+        await adminAPI.setKycStatus(u.id, "APPROVED");
+      } catch {
+        showToast("KYC approval was not posted", "error");
+        return;
+      }
+    }
     applyKycApprove(sub, u, currentUser?.email || "admin", { approveKYC, updateUserById, addNotification });
     audit("KYC_APPROVED", u.email, "success");
     showToast(`KYC approved for ${u.firstName}`);
   };
 
-  const handleKycReject = (u: User) => {
+  const handleKycReject = async (u: User) => {
     const sub = kycSubmissions.find((s) => s.userId === u.id && s.status === "PENDING");
+    if (hasApiToken()) {
+      try {
+        await adminAPI.setKycStatus(u.id, "REJECTED");
+      } catch {
+        showToast("KYC rejection was not posted", "error");
+        return;
+      }
+    }
     if (sub) rejectKYC(sub.id, currentUser?.email || "admin", "Rejected by admin");
     else updateUserById(u.id, { kycStatus: "REJECTED" });
     showToast(`KYC rejected for ${u.firstName}`, "error");
   };
 
-  const handleKycApproveUser = (sub: KYCSubmission) => {
+  const handleKycApproveUser = async (sub: KYCSubmission) => {
     const u = registeredUsers.find((x) => x.id === sub.userId) ?? {
       id: sub.userId, email: sub.userEmail, firstName: sub.userName, lastName: "",
     } as User;
+    if (hasApiToken()) {
+      try {
+        await adminAPI.setKycStatus(u.id, "APPROVED");
+      } catch {
+        showToast("KYC approval was not posted", "error");
+        return;
+      }
+    }
     applyKycApprove(sub, u, currentUser?.email || "admin", { approveKYC, updateUserById, addNotification });
     audit("KYC_APPROVED", sub.userEmail, "success");
     showToast(`KYC approved for ${sub.userEmail}`);
   };
 
-  const handleKycRejectSub = (sub: KYCSubmission, reason: string) => {
+  const handleKycRejectSub = async (sub: KYCSubmission, reason: string) => {
+    if (hasApiToken()) {
+      try {
+        await adminAPI.setKycStatus(sub.userId, "REJECTED");
+      } catch {
+        showToast("KYC rejection was not posted", "error");
+        return;
+      }
+    }
     rejectKYC(sub.id, currentUser?.email || "admin", reason);
     addNotification({
       id: Math.random().toString(36).slice(2, 10),
@@ -292,6 +324,22 @@ export default function AdminPage() {
     });
     audit("KYC_REJECTED", sub.userEmail, "danger");
     showToast(`KYC rejected for ${sub.userEmail}`, "error");
+  };
+
+  const updateControls = async (
+    u: User,
+    controls: Parameters<typeof adminAPI.updateControls>[1],
+  ) => {
+    if (hasApiToken()) {
+      try {
+        await adminAPI.updateControls(u.id, controls);
+      } catch {
+        showToast("Account control was not posted", "error");
+        return;
+      }
+    }
+    updateUserById(u.id, controls);
+    showToast(`Updated controls for ${u.firstName}`);
   };
 
   const handleSendNotification = () => {
@@ -489,9 +537,9 @@ export default function AdminPage() {
             hasMore={Boolean(userNextCursor)}
             loadingMore={loadingMoreUsers}
             onLoadMore={() => void handleLoadMoreUsers()}
-            onFreeze={(u) => { updateUserById(u.id, { isFrozen: !u.isFrozen }); showToast(`${u.firstName} ${u.isFrozen ? "unfrozen" : "frozen"}`); }}
-            onBlock={(u) => { updateUserById(u.id, { isBlocked: !u.isBlocked }); showToast(`${u.firstName} ${u.isBlocked ? "unblocked" : "blocked"}`); }}
-            onTrade={(u) => { const enabled = u.tradingEnabled === false; updateUserById(u.id, { tradingEnabled: enabled }); showToast(`Trading ${enabled ? "started" : "stopped"} for ${u.firstName}`); }}
+            onFreeze={(u) => { void updateControls(u, { isFrozen: !u.isFrozen }); }}
+            onBlock={(u) => { void updateControls(u, { isBlocked: !u.isBlocked }); }}
+            onTrade={(u) => { void updateControls(u, { tradingEnabled: u.tradingEnabled === false }); }}
             onFund={(u) => setFundModal({ userId: u.id, mode: "fund" })}
             onDebit={(u) => setFundModal({ userId: u.id, mode: "debit" })}
             onEdit={(u) => { setEditForm({ firstName: u.firstName, lastName: u.lastName, email: u.email, phone: u.phone || "", tier: u.tier, country: u.country || "" }); setEditModal(u); }}
@@ -539,11 +587,10 @@ export default function AdminPage() {
             onToggleRail={(u, rail) => {
               const unlocked = u.unlockedRails ?? [];
               const already = unlocked.includes(rail);
-              updateUserById(u.id, { unlockedRails: already ? unlocked.filter((r) => r !== rail) : [...unlocked, rail] });
-              showToast(`${rail} ${already ? "locked" : "unlocked"} for ${u.firstName}`);
+              void updateControls(u, { unlockedRails: already ? unlocked.filter((r) => r !== rail) : [...unlocked, rail] });
             }}
-            onUnlockAll={(u) => { updateUserById(u.id, { unlockedRails: ["trading", "portfolio", "funds", "commerce", "oracle"] }); showToast(`All rails unlocked for ${u.firstName}`); }}
-            onLockAll={(u) => { updateUserById(u.id, { unlockedRails: [] }); showToast(`All rails locked for ${u.firstName}`); }}
+            onUnlockAll={(u) => { void updateControls(u, { unlockedRails: ["trading", "portfolio", "funds", "commerce", "oracle"] }); }}
+            onLockAll={(u) => { void updateControls(u, { unlockedRails: [] }); }}
           />
         )}
         {activeTab === "create" && (

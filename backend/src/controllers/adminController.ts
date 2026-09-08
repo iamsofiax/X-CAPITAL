@@ -330,6 +330,10 @@ export const listUsers = async (
         kycStatus: true,
         accreditationStatus: true,
         isActive: true,
+        isFrozen: true,
+        isBlocked: true,
+        tradingEnabled: true,
+        unlockedRails: true,
         createdAt: true,
         lastLoginAt: true,
         wallet: {
@@ -579,6 +583,73 @@ export const createUser = async (
         balance: 0,
       },
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const setUserKycStatus = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const status = req.body?.status;
+    if (status !== 'APPROVED' && status !== 'REJECTED' && status !== 'PENDING') {
+      res.status(400).json({ success: false, message: 'Invalid KYC status' });
+      return;
+    }
+    const user = await prisma.user.update({
+      where: { id: req.params.userId },
+      data: { kycStatus: status },
+      select: { id: true, email: true, kycStatus: true },
+    });
+    await writeAdminAudit({
+      actorId: req.user!.id,
+      actorEmail: req.user!.email,
+      action: `KYC ${status.toLowerCase()}`,
+      target: user.email,
+      level: status === 'APPROVED' ? 'success' : 'warning',
+    });
+    res.json({ success: true, data: user });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateUserControls = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const body = req.body ?? {};
+    const data: Record<string, unknown> = {};
+    if (typeof body.isFrozen === 'boolean') data.isFrozen = body.isFrozen;
+    if (typeof body.isBlocked === 'boolean') data.isBlocked = body.isBlocked;
+    if (typeof body.tradingEnabled === 'boolean') data.tradingEnabled = body.tradingEnabled;
+    if (Array.isArray(body.unlockedRails)) data.unlockedRails = body.unlockedRails;
+    if (!Object.keys(data).length) {
+      res.status(400).json({ success: false, message: 'No account controls supplied' });
+      return;
+    }
+    const user = await prisma.user.update({
+      where: { id: req.params.userId },
+      data: data as Prisma.UserUpdateInput,
+      select: {
+        id: true, email: true, isFrozen: true, isBlocked: true,
+        tradingEnabled: true, unlockedRails: true,
+      },
+    });
+    await writeAdminAudit({
+      actorId: req.user!.id,
+      actorEmail: req.user!.email,
+      action: 'Updated account controls',
+      target: user.email,
+      level: 'action',
+      metadata: body,
+    });
+    res.json({ success: true, data: user });
   } catch (error) {
     next(error);
   }

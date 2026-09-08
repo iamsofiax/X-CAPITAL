@@ -12,6 +12,8 @@ import {
   listAudit,
   adjustUserBalance,
   createUser,
+  setUserKycStatus,
+  updateUserControls,
   upsertCommerceProduct,
 } from '../controllers/adminController';
 import {
@@ -39,6 +41,8 @@ router.post(
   createUser,
 );
 router.post('/users/:userId/balance', adjustUserBalance);
+router.patch('/users/:userId/kyc', setUserKycStatus);
+router.patch('/users/:userId/controls', updateUserControls);
 router.get('/users/:userId/yield-config', getYieldConfig);
 router.put('/users/:userId/yield-config', putYieldConfig);
 router.post('/users/:userId/hold', setYieldHold);

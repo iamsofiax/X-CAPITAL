@@ -16,6 +16,7 @@ import {
   projectReturns as rateAwareProjectReturns,
 } from "@/lib/compoundMath";
 import { getNodeProgress } from "@/lib/nodeLadder";
+import type { User } from "@/types";
 
 export function projectCompound(
   principal: number,
@@ -116,6 +117,8 @@ export function useLiveGrowth() {
   const interpolate = useAccountStore((s) => s.interpolate);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const interpRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const userRef = useRef(user);
+  userRef.current = user;
 
   useEffect(() => {
     if (!user) {
@@ -126,7 +129,7 @@ export function useLiveGrowth() {
   }, [user?.id, user]);
 
   useEffect(() => {
-    if (!user || !hasApiToken()) return;
+    if (!userRef.current || !hasApiToken()) return;
 
     const run = () => {
       if (document.hidden) return;
@@ -147,6 +150,15 @@ export function useLiveGrowth() {
         }
         store.updateUser({
           balance: cash,
+          tier: snap.user.tier as User["tier"],
+          kycStatus: snap.user.kycStatus as User["kycStatus"],
+          accreditationStatus: snap.user.accreditationStatus as User["accreditationStatus"],
+          isFrozen: Boolean((snap.user as { isFrozen?: boolean }).isFrozen),
+          isBlocked: Boolean((snap.user as { isBlocked?: boolean }).isBlocked),
+          tradingEnabled: (snap.user as { tradingEnabled?: boolean }).tradingEnabled !== false,
+          unlockedRails: Array.isArray((snap.user as { unlockedRails?: unknown }).unlockedRails)
+            ? ((snap.user as unknown as { unlockedRails: unknown[] }).unlockedRails).filter((v): v is string => typeof v === "string")
+            : [],
           profitRate: snap.yieldConfig.profitRate,
           profitMode: snap.yieldConfig.profitMode,
           profitMultiplier: snap.yieldConfig.profitMultiplier,
@@ -171,7 +183,7 @@ export function useLiveGrowth() {
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);
     };
-  }, [user?.id, fetchSnapshot, user]);
+  }, [user?.id, fetchSnapshot]);
 
   useEffect(() => {
     if (!snapshot) return;

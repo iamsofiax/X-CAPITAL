@@ -370,6 +370,16 @@ export const useStore = create<Store>()(
               user: {
                 ...state.user,
                 balance: cash,
+                tier: snap.user.tier as User["tier"],
+                kycStatus: snap.user.kycStatus as User["kycStatus"],
+                accreditationStatus:
+                  snap.user.accreditationStatus as User["accreditationStatus"],
+                isFrozen: Boolean((snap.user as { isFrozen?: boolean }).isFrozen),
+                isBlocked: Boolean((snap.user as { isBlocked?: boolean }).isBlocked),
+                tradingEnabled: (snap.user as { tradingEnabled?: boolean }).tradingEnabled !== false,
+                unlockedRails: Array.isArray((snap.user as { unlockedRails?: unknown }).unlockedRails)
+                  ? ((snap.user as unknown as { unlockedRails: unknown[] }).unlockedRails).filter((v): v is string => typeof v === "string")
+                  : [],
                 profitRate: snap.yieldConfig.profitRate,
                 profitMode: snap.yieldConfig.profitMode,
                 profitMultiplier: snap.yieldConfig.profitMultiplier,

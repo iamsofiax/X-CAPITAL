@@ -291,6 +291,14 @@ export const adminAPI = {
       txType?: string;
     },
   ) => api.post(`/admin/users/${userId}/balance`, body),
+  setKycStatus: (userId: string, status: 'PENDING' | 'APPROVED' | 'REJECTED') =>
+    api.patch(`/admin/users/${userId}/kyc`, { status }),
+  updateControls: (userId: string, body: {
+    isFrozen?: boolean;
+    isBlocked?: boolean;
+    tradingEnabled?: boolean;
+    unlockedRails?: string[];
+  }) => api.patch(`/admin/users/${userId}/controls`, body),
   getAlerts: (status?: string) =>
     api.get('/admin/alerts', { params: status ? { status } : {} }),
   listAudit: (params?: { cursor?: string; limit?: number }) =>

@@ -392,6 +392,10 @@ export const getMe = async (
         tier: true,
         kycStatus: true,
         accreditationStatus: true,
+        isFrozen: true,
+        isBlocked: true,
+        tradingEnabled: true,
+        unlockedRails: true,
         createdAt: true,
         wallet: {
           select: {

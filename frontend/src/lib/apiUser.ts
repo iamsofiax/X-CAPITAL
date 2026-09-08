@@ -68,6 +68,10 @@ export type ApiUserRow = {
   kycStatus: string;
   accreditationStatus: string;
   isActive: boolean;
+  isFrozen?: boolean;
+  isBlocked?: boolean;
+  tradingEnabled?: boolean;
+  unlockedRails?: unknown;
   createdAt: string;
   lastLoginAt?: string | null;
   wallet?: {
@@ -116,10 +120,11 @@ export function mapApiUserRow(row: ApiUserRow, adminEmail?: string): User {
     kycStatus: mapKycStatus(row.kycStatus),
     accreditationStatus: row.accreditationStatus as User["accreditationStatus"],
     createdAt: row.createdAt,
-    isFrozen: false,
     isSuspended: !row.isActive,
-    isBlocked: !row.isActive,
-    tradingEnabled: true,
+    isBlocked: Boolean(row.isBlocked) || !row.isActive,
+    isFrozen: Boolean(row.isFrozen),
+    tradingEnabled: row.tradingEnabled !== false,
+    unlockedRails: Array.isArray(row.unlockedRails) ? row.unlockedRails.filter((v): v is string => typeof v === "string") : [],
     profitHold: Boolean(row.yieldConfig?.profitHold),
     profitMultiplier: Number(row.yieldConfig?.profitMultiplier ?? 1) || 1,
     profitRate: dailyRate > 0 ? dailyRate * 100 : undefined,
