@@ -112,6 +112,11 @@ async function main() {
     );
   }
 
+  // Prisma 7 can start with an incomplete generated client after a cached deploy.
+  // Fail before serving requests rather than exposing a broken authentication API.
+  console.log("Generating Prisma client...");
+  execSync("npx prisma generate", { stdio: "inherit", env: process.env });
+
   const port = process.env.PORT || "4000";
   console.log(`Starting API on port ${port} (schema apply in background)...`);
   const child = spawn("node", ["dist/server.js"], {

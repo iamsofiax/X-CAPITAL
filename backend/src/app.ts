@@ -61,17 +61,21 @@ app.use('/api/', (req, res, next) => {
 // endpoint — Render treats a timeout as a dead service and restarts it.
 app.get('/health', async (_req, res) => {
   let db = false;
+  let authSchema = false;
   try {
     await withTimeout(prisma.$queryRaw`SELECT 1`, 1500, 'db-timeout');
     db = true;
+    await withTimeout(prisma.$queryRaw`SELECT 1 FROM users LIMIT 1`, 1500, 'auth-schema-timeout');
+    authSchema = true;
   } catch (err) {
-    db = false;
+    if (!db) db = false;
     const message = err instanceof Error ? err.message : 'unknown';
     console.warn(`[health] database not ready: ${message}`);
   }
   res.status(200).json({
-    status: db ? 'healthy' : 'starting',
+    status: db && authSchema ? 'healthy' : 'starting',
     database: db,
+    authSchema,
     service: 'X-CAPITAL API',
     version: '1.0.0',
     timestamp: new Date().toISOString(),

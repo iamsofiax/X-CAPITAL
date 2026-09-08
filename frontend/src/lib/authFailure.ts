@@ -57,6 +57,9 @@ export function authFailureMessage(err: unknown): string {
   if (status === 429) {
     return fromApi || "Too many attempts. Wait a moment.";
   }
+  if (status === 503 && fromApi) {
+    return fromApi;
+  }
   if (
     status === 502 ||
     status === 503 ||
