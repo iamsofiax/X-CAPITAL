@@ -31,7 +31,7 @@ function Conviction() {
 
   if (!account || !metrics) {
     return (
-      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 text-sm text-white/55">
+      <div className="sim-glass p-6 text-sm text-white/55">
         Opening the book
       </div>
     );

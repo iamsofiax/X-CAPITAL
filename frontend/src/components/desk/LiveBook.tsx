@@ -1,20 +1,26 @@
 "use client";
 
 import Link from "next/link";
+import { Landmark, Wallet } from "lucide-react";
 import { useLiveYield } from "@/hooks/useLiveYield";
+import { operatedOf } from "@/lib/yieldDesk";
 import { fmtUsdc } from "@/lib/sim/format";
 
 export function LiveBook() {
-  const { live, posted, accruing, rate, fleetPerMin, fleetPending } = useLiveYield();
-  const quiet = rate <= 0 && fleetPerMin <= 0;
+  const { live, posted, accruing, rate, weekly, active, mandate, fleetPerMin, fleetPending } = useLiveYield();
+  const operated = mandate ? operatedOf(mandate) : 0;
+  const quiet = !active && fleetPerMin <= 0;
 
   return (
-    <section className="rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.04] p-5 md:p-6">
+    <section className="sim-glass sim-glass-edge p-5 md:p-7">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-emerald-300/80 flex items-center gap-2">
+          <p className="sim-label text-emerald-300/80 flex items-center gap-2">
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04]">
+              <Landmark className="h-3.5 w-3.5" aria-hidden />
+            </span>
             {!quiet && <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />}
-            Book value · live
+            Your node · live
           </p>
           <p className="mt-2 text-4xl md:text-5xl font-black tabular-nums tracking-tight text-white">
             {fmtUsdc(live, { decimals: rate > 0 || fleetPerMin > 0 ? 4 : 2 })}
@@ -22,16 +28,16 @@ export function LiveBook() {
           </p>
           <p className="mt-2 text-sm text-white/55">
             {quiet
-              ? "Posted and ready. Daily growth appears here when ground station assigns a rate. Adding capital raises the base it accrues on."
+              ? "This node stays flat until the desk confirms the funds and sets the operated percent. Gains and execution open on that activation."
               : [
-                  rate > 0 ? `${rate}% per day on ${fmtUsdc(posted)} posted. Today +${fmtUsdc(accruing, { decimals: 4 })} USD.` : "",
+                  rate > 0 ? `${operated}% operated · ${rate}% a day, ${weekly.toFixed(2)}% this week, on ${fmtUsdc(posted)} posted. Today +${fmtUsdc(accruing, { decimals: 4 })} USD.` : "",
                   fleetPerMin > 0 ? `Fleet occupancy +${fmtUsdc(fleetPending, { decimals: 4 })} USD open, ${fmtUsdc(fleetPerMin, { decimals: 4 })} USD each minute.` : "",
                 ].filter(Boolean).join(" ")}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href="/wallet" className="sim-btn sim-btn-primary">Fund the book</Link>
-          <Link href="/portfolio" className="sim-btn sim-btn-ghost">Open portfolio</Link>
+          <Link href="/wallet" className="sim-btn sim-btn-primary"><Wallet className="h-4 w-4" aria-hidden /> Fund node</Link>
+          <Link href="/portfolio" className="sim-btn sim-btn-ghost">Open book</Link>
         </div>
       </div>
       {!quiet && (

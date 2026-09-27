@@ -6,9 +6,11 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Panel, Notice } from "@/components/sim/Panel";
 import { useSim } from "@/hooks/useSim";
 import { useStore } from "@/store/useStore";
-import { pushNotice } from "@/lib/yieldDesk";
+import { nodeActivated, pushNotice, readMandate, saveReceipt, type TradeReceipt as Slip } from "@/lib/yieldDesk";
+import { TradeReceipt } from "@/components/desk/TradeReceipt";
 import { useSimQuotes } from "@/hooks/useSimQuotes";
 import { INSTRUMENTS, INSTRUMENT_BY_SYMBOL, type InstrumentClass } from "@/lib/sim/instruments";
+import { nodeTradeFill } from "@/lib/nodeTrade";
 import { fmtNum, fmtPct, fmtPrice, fmtUsdc, signClass } from "@/lib/sim/format";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +32,7 @@ export default function ExecutionPage() {
 function Execution() {
   const { account, actions } = useSim();
   const userId = useStore((s) => s.user?.id);
-  const { quotes, liveCount } = useSimQuotes();
+  const { quotes, liveCount, markedCount } = useSimQuotes();
   const [cls, setCls] = useState<InstrumentClass | "all">("all");
   const [symbol, setSymbol] = useState("BTC");
   const [side, setSide] = useState<"BUY" | "SELL">("BUY");
@@ -38,6 +40,15 @@ function Execution() {
   const [msg, setMsg] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
+  const [slip, setSlip] = useState<Slip | null>(null);
+  const [liveNode, setLiveNode] = useState(false);
+
+  useEffect(() => {
+    const pull = () => setLiveNode(nodeActivated(userId ? readMandate(userId) : null));
+    pull();
+    window.addEventListener("xc-yield", pull);
+    return () => window.removeEventListener("xc-yield", pull);
+  }, [userId]);
 
   useEffect(() => {
     const s = new URLSearchParams(window.location.search).get("symbol");
@@ -63,7 +74,7 @@ function Execution() {
 
   if (!account || !quote) {
     return (
-      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 text-sm text-white/55">
+      <div className="sim-glass p-6 text-sm text-white/55">
         Opening the book
       </div>
     );
@@ -76,11 +87,29 @@ function Execution() {
 
   const submit = () => {
     setMsg(null);
+    if (!liveNode) {
+      setMsg({ tone: "error", text: "Execution opens after the desk confirms funds and activates the node." });
+      return;
+    }
     const res = actions.trade(quote, side, side === "BUY" ? { notional: value } : { qty: value });
     if (res.ok) {
-      const text = `${side === "BUY" ? "Bought" : "Sold"} ${fmtNum(preview.qty, 6)} ${symbol} @ ${fmtPrice(side === "BUY" ? quote.ask : quote.bid)} (${quote.source}).`;
+      const fillPx = side === "BUY" ? quote.ask : quote.bid;
+      const text = `${side === "BUY" ? "Bought" : "Sold"} ${fmtNum(preview.qty, 6)} ${symbol} @ ${fmtPrice(fillPx)} (${quote.source}).`;
       setMsg({ tone: "success", text });
-      if (userId) pushNotice(userId, side === "BUY" ? "Buy filled" : "Sell filled", text);
+      if (userId) {
+        const saved = saveReceipt({
+          userId,
+          side,
+          symbol,
+          name: inst.name,
+          qty: preview.qty,
+          price: fillPx,
+          notional: preview.notional,
+          spread: preview.spread,
+        });
+        setSlip(saved);
+        pushNotice(userId, side === "SELL" ? "Settlement receipt" : "Fill receipt", `${saved.id} · ${text}`);
+      }
       setAmount("");
     } else {
       setMsg({ tone: "error", text: res.error });
@@ -89,7 +118,32 @@ function Execution() {
 
   const positions = Object.entries(account.positions);
 
+  const fill = nodeTradeFill(account);
+
   return (
+    <div className="space-y-5">
+      {!liveNode && (
+        <section className="sim-glass p-4 md:p-5">
+          <p className="sim-label">Node</p>
+          <p className="mt-1 text-sm text-white/70">Execution is closed. It opens when the desk confirms the deposit and sets the operated percent for this node.</p>
+        </section>
+      )}
+      <section className="sim-glass p-4 md:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="sim-label">Node trade</p>
+            <p className="mt-1 text-sm text-white/70">
+              {fill >= 0.999
+                ? "Filled 100%. Treasury can release a withdrawal."
+                : `${(fill * 100).toFixed(0)}% of the node is deployed. Withdrawals stay paused until this is 100%.`}
+            </p>
+          </div>
+          <p className="text-2xl font-black tabular-nums">{(fill * 100).toFixed(0)}%</p>
+        </div>
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+          <div className="h-full rounded-full bg-emerald-400" style={{ width: `${Math.min(100, fill * 100)}%` }} />
+        </div>
+      </section>
     <div className="grid xl:grid-cols-[1fr_380px] gap-5">
       <div className="space-y-5 min-w-0">
         <Panel
@@ -97,7 +151,7 @@ function Execution() {
           title="Instruments"
           action={
             <span className={cn("sim-chip", liveCount > 0 ? "sim-chip-live" : "sim-chip-warn")}>
-              <Radio className="w-3 h-3" /> {liveCount}/{INSTRUMENTS.length} live feeds
+              <Radio className="w-3 h-3" /> {liveCount} confirmed{markedCount > 0 ? ` · ${markedCount} on the index` : ""}
             </span>
           }
           bodyClassName="p-0"
@@ -137,7 +191,14 @@ function Execution() {
                   return (
                     <tr
                       key={i.symbol}
+                      tabIndex={0}
                       onClick={() => setSymbol(i.symbol)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setSymbol(i.symbol);
+                        }
+                      }}
                       className={cn("border-b border-white/[0.03] cursor-pointer", symbol === i.symbol ? "bg-white/[0.05]" : "hover:bg-white/[0.02]")}
                     >
                       <td className="px-5 py-2.5">
@@ -148,7 +209,9 @@ function Execution() {
                       <td className="px-2 py-2.5 text-right sim-pos">{fmtPrice(q.ask)}</td>
                       <td className="px-2 py-2.5 text-right text-white/45">{i.spreadBps} bp</td>
                       <td className={cn("px-2 py-2.5 text-right", signClass(q.change24h))}>{q.change24h >= 0 ? "+" : ""}{q.change24h.toFixed(2)}%</td>
-                      <td className={cn("px-5 py-2.5 text-right text-[9px] tracking-widest", q.source === "LIVE" ? "text-emerald-400/70" : "text-amber-300/60")}>{q.source}</td>
+                      <td className={cn("px-5 py-2.5 text-right text-[9px] tracking-widest", q.source === "LIVE" ? "text-emerald-400/70" : q.source === "MARKED" ? "text-sky-300/70" : "text-amber-300/60")}>
+                        {q.source === "LIVE" ? "Confirmed" : q.source === "MARKED" ? "Index" : "Indicative"}
+                      </td>
                     </tr>
                   );
                 })}
@@ -268,7 +331,7 @@ function Execution() {
           <button
             type="button"
             onClick={submit}
-            disabled={!(value > 0) || !!account.tradingHalted}
+            disabled={!(value > 0) || !!account.tradingHalted || !liveNode}
             className={cn("sim-btn w-full mt-4", side === "BUY" ? "sim-btn-primary" : "bg-red-500/90 text-white")}
           >
             {side === "BUY" ? "Execute buy" : "Execute sell"}
@@ -279,6 +342,8 @@ function Execution() {
           </p>
         </Panel>
       </div>
+    </div>
+    {slip && <TradeReceipt slip={slip} onClose={() => setSlip(null)} />}
     </div>
   );
 }

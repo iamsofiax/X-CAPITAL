@@ -1,11 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Lock } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { walletAPI } from "@/lib/api";
 import { pushNotice } from "@/lib/yieldDesk";
 import { useStore } from "@/store/useStore";
+import { useSim } from "@/hooks/useSim";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
+import { nodeTradeFill, withdrawalsOpen } from "@/lib/nodeTrade";
 import { FundDesk } from "@/components/desk/FundDesk";
+import { CoinMark } from "@/components/desk/Marks";
 
 type Balances = Record<string, { cash: string; reserved: string }>;
 
@@ -41,7 +46,7 @@ const ASSETS = ["BTC", "ETH", "USDT", "BNB", "DOGE", "TRX"] as const;
 
 export default function WalletPage() {
   return (
-    <DashboardLayout title="Ledger" subtitle="Cash accounts · on-chain deposits · withdrawals">
+    <DashboardLayout title="Fund node" subtitle="Treasury · cash, deposits, and the node ledger">
       <LedgerDesk />
     </DashboardLayout>
   );
@@ -59,6 +64,10 @@ function LedgerDesk() {
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const userId = useStore((s) => s.user?.id);
+  const { account } = useSim();
+  const fill = nodeTradeFill(account);
+  const canWithdraw = withdrawalsOpen(account);
+  const { prices } = useMarketPrices({ stocks: false, etfs: false, refreshInterval: 20_000 });
 
   const load = useCallback(async () => {
     setError("");
@@ -83,6 +92,10 @@ function LedgerDesk() {
 
   const submitWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canWithdraw) {
+      setError("Withdrawals stay paused until the node trade is filled 100%.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -112,38 +125,70 @@ function LedgerDesk() {
         MODE {mode || "—"} · balances from journal lines · deposits credit after confirmation
       </p>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {ASSETS.map((sym) => (
-          <div key={sym} className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
-            <p className="text-[10px] font-mono text-white/35 tracking-widest">{sym}</p>
-            <p className="text-xl font-black mt-1">{fmt(balances[sym]?.cash)}</p>
-            <p className="text-[11px] text-white/40 mt-1">Reserved {fmt(balances[sym]?.reserved)}</p>
-          </div>
-        ))}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        {ASSETS.map((sym) => {
+          const px = prices[sym]?.price;
+          const cash = Number(balances[sym]?.cash);
+          const usd = px && Number.isFinite(cash) ? cash * px : null;
+          return (
+            <div key={sym} className="sim-glass p-4 sm:p-5">
+              <div className="flex items-center gap-2.5">
+                <CoinMark asset={sym} size={32} />
+                <div>
+                  <p className="text-sm font-bold text-white">{sym}</p>
+                  <p className="text-[11px] text-white/40 tabular-nums">
+                    {px ? `$${px.toLocaleString(undefined, { maximumFractionDigits: px >= 100 ? 2 : 4 })} confirmed` : "Awaiting print"}
+                  </p>
+                </div>
+              </div>
+              <p className="text-xl font-black mt-3 tabular-nums">{fmt(balances[sym]?.cash)}</p>
+              <p className="text-[11px] text-white/40 mt-1">
+                Reserved {fmt(balances[sym]?.reserved)}
+                {usd != null ? ` · ${usd.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 2 })}` : ""}
+              </p>
+            </div>
+          );
+        })}
       </div>
 
-      <section className="rounded-2xl border border-white/[0.08] p-5">
-        <p className="font-black mb-3">Withdraw</p>
+      <section className="sim-glass p-5 md:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+          <div>
+            <p className="font-black flex items-center gap-2">
+              {!canWithdraw && <Lock className="h-4 w-4 text-amber-300" aria-hidden />}
+              Withdraw
+            </p>
+            <p className="text-[12px] text-white/45 mt-1 max-w-xl">
+              {canWithdraw
+                ? "The node trade is filled. Cash is reserved first. The provider broadcasts after desk confirmation."
+                : `Paused. The node trade is ${(fill * 100).toFixed(0)}%. Cash leaves only after that sleeve is filled 100% on Execution.`}
+            </p>
+          </div>
+          <p className="sim-label">{(fill * 100).toFixed(0)}% filled</p>
+        </div>
+        <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+          <div className="h-full rounded-full bg-emerald-400" style={{ width: `${Math.min(100, fill * 100)}%` }} />
+        </div>
         <form onSubmit={submitWithdraw} className="grid md:grid-cols-4 gap-3">
           <select
-            className="bg-black border border-white/15 rounded px-3 py-2 text-sm"
+            className="sim-input"
             value={asset}
+            disabled={!canWithdraw}
             onChange={(e) => setAsset(e.target.value as (typeof ASSETS)[number])}
           >
             {ASSETS.map((a) => (
               <option key={a} value={a}>{a}</option>
             ))}
           </select>
-          <input className="sim-input" placeholder="Destination address" value={toAddress} onChange={(e) => setToAddress(e.target.value)} required />
-          <input className="sim-input" placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} required />
-          <button type="submit" disabled={busy} className="sim-btn sim-btn-primary">Reserve &amp; broadcast</button>
+          <input className="sim-input" placeholder="Destination address" value={toAddress} onChange={(e) => setToAddress(e.target.value)} required disabled={!canWithdraw} />
+          <input className="sim-input" placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} required disabled={!canWithdraw} />
+          <button type="submit" disabled={busy || !canWithdraw} className="sim-btn sim-btn-primary">
+            {canWithdraw ? "Reserve and broadcast" : "Withdrawals paused"}
+          </button>
         </form>
-        <p className="text-[12px] text-white/40 mt-2">
-          Cash is reserved first. The provider broadcasts. Settlement or fail is a second journal entry.
-        </p>
       </section>
 
-      <section className="rounded-2xl border border-white/[0.08] overflow-hidden">
+      <section className="sim-glass overflow-hidden">
         <p className="px-5 py-3 font-black border-b border-white/[0.06]">On-chain deposits</p>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13px]">
@@ -174,7 +219,7 @@ function LedgerDesk() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/[0.08] overflow-hidden">
+      <section className="sim-glass overflow-hidden">
         <p className="px-5 py-3 font-black border-b border-white/[0.06]">Withdrawals</p>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13px]">
@@ -205,7 +250,7 @@ function LedgerDesk() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/[0.08] overflow-hidden">
+      <section className="sim-glass overflow-hidden">
         <p className="px-5 py-3 font-black border-b border-white/[0.06]">Journal</p>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13px]">

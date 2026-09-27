@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { Check, Copy, ExternalLink } from "lucide-react";
+import { CoinMark, VenueMark, coinColor } from "@/components/desk/Marks";
 import { FUND_RAILS, ONRAMPS, qrImageUrl, type FundAsset } from "@/lib/fundRails";
 import { walletAPI } from "@/lib/api";
-import { pushNotice } from "@/lib/yieldDesk";
+import { pushNotice, queueDeposit } from "@/lib/yieldDesk";
 import { useStore } from "@/store/useStore";
 import { cn } from "@/lib/utils";
 
@@ -12,11 +13,12 @@ const STEPS = [
   { n: "01", t: "Choose the asset", d: "Pick the coin you will send. Each one has its own network." },
   { n: "02", t: "Buy it if you need to", d: "Open a provider, purchase there, then come back. This desk never asks for that login." },
   { n: "03", t: "Send to the vault", d: "Scan the QR or copy the address. Send only on the network printed under it." },
-  { n: "04", t: "Paste the hash", d: "The credit posts after the transfer confirms." },
+  { n: "04", t: "Paste the hash", d: "The credit posts only after an operator confirms the transfer." },
 ];
 
 export function FundDesk() {
-  const userId = useStore((s) => s.user?.id);
+  const user = useStore((s) => s.user);
+  const userId = user?.id;
   const [asset, setAsset] = useState<FundAsset>("BTC");
   const [copied, setCopied] = useState(false);
   const [txHash, setTxHash] = useState("");
@@ -36,23 +38,36 @@ export function FundDesk() {
     setBusy(true);
     setError("");
     setNote("");
+    const hash = txHash.trim();
     try {
-      await walletAPI.claimDeposit(asset, txHash.trim());
+      if (userId) {
+        queueDeposit({
+          userId,
+          email: user?.email ?? userId,
+          asset,
+          txHash: hash,
+        });
+        pushNotice(userId, "Deposit submitted", `${asset} is waiting for operator confirmation. The book stays at zero until then.`);
+      }
+      try {
+        await walletAPI.claimDeposit(asset, hash);
+      } catch {
+        // The local queue is the record the operator confirms. The API may be offline.
+      }
       setTxHash("");
-      setNote("Hash received. The credit posts when the transfer confirms.");
-      if (userId) pushNotice(userId, "Deposit submitted", `${asset} hash received. Credit posts after confirmation.`);
+      setNote("Hash received. The book stays at 0 USD until an operator confirms this transfer.");
     } catch (err) {
-      setError(readErr(err, "That hash could not be matched to this vault yet."));
+      setError(readErr(err, "That hash could not be recorded."));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <section className="rounded-3xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
+    <section className="sim-glass overflow-hidden">
       <div className="px-5 md:px-8 pt-7 pb-2">
-        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-emerald-300/80">Fund the book</p>
-        <h2 className="mt-2 text-2xl md:text-3xl font-black tracking-tight">Add capital in four quiet steps</h2>
+        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-emerald-300/80">Fund node</p>
+        <h2 className="mt-2 text-2xl md:text-3xl font-black tracking-tight">Fund the node in four steps</h2>
         <p className="mt-2 max-w-2xl text-sm text-white/50 leading-relaxed">
           Buy the coin at any desk you already use, send it to the vault below, and paste the hash. The address on the QR is the one that receives the transfer.
         </p>
@@ -60,7 +75,7 @@ export function FundDesk() {
 
       <ol className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3 px-5 md:px-8 py-5">
         {STEPS.map((s) => (
-          <li key={s.n} className="rounded-2xl border border-white/[0.06] bg-black/30 px-4 py-3">
+          <li key={s.n} className="rounded-2xl border border-white/[0.12] bg-black/45 px-4 py-4">
             <p className="font-mono text-[10px] text-emerald-300/80">{s.n}</p>
             <p className="mt-1 text-sm font-semibold text-white">{s.t}</p>
             <p className="mt-1 text-[12px] text-white/45 leading-snug">{s.d}</p>
@@ -80,13 +95,17 @@ export function FundDesk() {
                   onClick={() => { setAsset(r.asset); setCopied(false); setError(""); }}
                   className={cn(
                     "rounded-2xl border px-3 py-3 text-left transition-colors",
-                    r.asset === asset
-                      ? "border-emerald-400/40 bg-emerald-400/[0.07]"
-                      : "border-white/[0.06] hover:bg-white/[0.03]",
+                    r.asset === asset ? "bg-white/[0.04]" : "border-white/[0.08] hover:bg-white/[0.03]",
                   )}
+                  style={r.asset === asset ? { borderColor: coinColor(r.asset) } : undefined}
                 >
-                  <p className="text-sm font-bold text-white">{r.asset}</p>
-                  <p className="text-[11px] text-white/40 mt-0.5">{r.network}</p>
+                  <span className="flex items-center gap-2.5">
+                    <CoinMark asset={r.asset} size={32} />
+                    <span className="min-w-0">
+                      <p className="text-sm font-bold text-white">{r.name}</p>
+                      <p className="text-[11px] text-white/40 mt-0.5 truncate">{r.asset} · {r.network}</p>
+                    </span>
+                  </span>
                 </button>
               ))}
             </div>
@@ -102,13 +121,16 @@ export function FundDesk() {
                   href={p.href(asset)}
                   target="_blank"
                   rel="noreferrer"
-                  className="group rounded-2xl border border-white/[0.06] bg-black/20 px-3 py-3 hover:border-white/15 hover:bg-white/[0.03]"
+                  className="group flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-black/30 px-3 py-3 hover:border-white/20 hover:bg-white/[0.03]"
                 >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="text-[13px] font-semibold text-white">{p.name}</span>
-                    <ExternalLink className="w-3 h-3 text-white/25 group-hover:text-white/60" />
+                  <VenueMark id={p.id} />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="text-[13px] font-semibold text-white truncate">{p.name}</span>
+                      <ExternalLink className="w-3 h-3 shrink-0 text-white/25 group-hover:text-white/70" />
+                    </span>
+                    <span className="block text-[11px] text-white/40 mt-0.5">{p.note}</span>
                   </span>
-                  <span className="block text-[11px] text-white/35 mt-0.5">{p.note}</span>
                 </a>
               ))}
             </div>
@@ -126,7 +148,7 @@ export function FundDesk() {
                 minLength={20}
               />
               <button type="submit" disabled={busy} className="sim-btn sim-btn-primary shrink-0">
-                {busy ? "Checking" : "Verify and credit"}
+                {busy ? "Checking" : "Submit to fund node"}
               </button>
             </div>
             {note && <p className="text-sm text-emerald-300/90 mt-3">{note}</p>}
@@ -135,7 +157,10 @@ export function FundDesk() {
         </div>
 
         <aside className="lg:sticky lg:top-20 h-fit rounded-3xl border border-emerald-400/20 bg-[#07110d] p-5 text-center">
-          <p className="text-[10px] font-mono uppercase tracking-widest text-emerald-300/70">3 · Send {rail.asset}</p>
+          <div className="flex items-center justify-center gap-2">
+            <CoinMark asset={rail.asset} size={28} />
+            <p className="text-[10px] font-mono uppercase tracking-widest text-emerald-300/70">3 · Send {rail.asset}</p>
+          </div>
           <p className="text-lg font-black mt-1">{rail.network}</p>
           <div className="mt-4 mx-auto w-[220px] rounded-2xl bg-[#f4fff8] p-3">
             <img

@@ -18,17 +18,17 @@ export function Panel({
   bodyClassName?: string;
 }) {
   return (
-    <section className={cn("sim-glass", edge && "sim-glass-edge", className)}>
+    <section className={cn("pnl-stage", edge && "sim-glass-edge", className)}>
       {(title || code || action) && (
-        <header className="flex items-center justify-between gap-3 px-5 pt-4 pb-3 border-b border-white/[0.05]">
+        <header className="flex items-center justify-between gap-3 px-5 pt-5 pb-3 border-b border-white/[0.06]">
           <div className="min-w-0">
-            {code && <p className="sim-label mb-0.5">{code}</p>}
-            {title && <h2 className="text-[15px] font-bold text-white tracking-tight truncate">{title}</h2>}
+            {code && <p className="sim-label mb-1 text-emerald-300/80">{code}</p>}
+            {title && <h2 className="text-lg md:text-xl font-black text-white tracking-tight truncate">{title}</h2>}
           </div>
           {action && <div className="shrink-0">{action}</div>}
         </header>
       )}
-      <div className={cn("p-5", bodyClassName)}>{children}</div>
+      <div className={cn("p-5 md:p-6", bodyClassName)}>{children}</div>
     </section>
   );
 }
@@ -47,19 +47,20 @@ export function Stat({
   className?: string;
 }) {
   return (
-    <div className={cn("min-w-0", className)}>
-      <p className="sim-label mb-1.5">{label}</p>
+    <div className={cn("pnl-card min-w-0", tone === "neg" ? "pnl-card-neg" : tone === "warn" ? "pnl-card-warn" : "pnl-card-pos", className)}>
+      <p className="sim-label">{label}</p>
       <p
         className={cn(
-          "sim-num text-xl md:text-2xl font-bold text-white truncate",
-          tone === "pos" && "sim-pos",
-          tone === "neg" && "sim-neg",
+          "pnl-figure truncate",
+          tone === "pos" && "text-emerald-300",
+          tone === "neg" && "text-red-300",
           tone === "warn" && "text-amber-300",
+          !tone && "text-white",
         )}
       >
         {value}
       </p>
-      {sub && <p className="sim-num text-[11px] text-white/40 mt-1 truncate">{sub}</p>}
+      {sub && <p className="text-[12px] text-white/40 mt-2 truncate">{sub}</p>}
     </div>
   );
 }

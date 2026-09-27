@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   Activity,
@@ -18,12 +17,7 @@ import {
 } from "lucide-react";
 import { XCapitalLogoMark } from "@/components/brand/XCapitalLogo";
 import { DeskStatus } from "@/components/landing/DeskStatus";
-
-const CapitalNetworkTwin = dynamic(
-  () =>
-    import("@/components/landing/CapitalNetworkTwin").then((m) => m.CapitalNetworkTwin),
-  { ssr: false },
-);
+import { CoreSimulation } from "@/components/landing/CoreSimulation";
 import { useHealth } from "@/hooks/useHealth";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { formatCurrency } from "@/lib/utils";
@@ -335,8 +329,7 @@ export default function LandingPage() {
             </Link>
             <Link
               href="/auth/register"
-              className="text-sm text-black bg-white px-5 py-2 rounded font-black hover:bg-white/90 transition-all"
-              style={{ boxShadow: "0 0 20px rgba(255,255,255,0.15)" }}
+              className="sim-btn sim-btn-primary px-5 py-2 text-sm"
             >
               Open a node
             </Link>
@@ -366,80 +359,72 @@ export default function LandingPage() {
           }}
         />
         <div className="relative z-10 max-w-7xl mx-auto px-6 w-full">
-          <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center pt-36 pb-20">
-            <div>
-              <p className="text-[10px] font-mono text-emerald-400/70 tracking-[0.3em] mb-6 uppercase">
-                Multiplanetary capital · Operator desk
-              </p>
-              <h1
-                className="font-black text-white leading-[0.95] tracking-[-0.03em]"
-                style={{ fontSize: "clamp(3rem, 9vw, 10.5rem)" }}
+          <div className="max-w-xl lg:max-w-2xl pt-36 pb-20">
+            <p className="text-[10px] font-mono text-emerald-400/70 tracking-[0.3em] mb-6 uppercase">
+              Multiplanetary capital · Operator desk
+            </p>
+            <h1 className="font-black text-white leading-[0.95] tracking-[-0.03em] text-[3rem] sm:text-[3.25rem] lg:text-[4.25rem] lg:tracking-[-0.045em] lg:leading-[0.92]">
+              Capital
+              <br />
+              Deployed
+              <br />
+              <span className="text-white/40">Under Mandate</span>
+            </h1>
+            <p className="text-sm md:text-base text-white/50 max-w-md mt-6 leading-relaxed">
+              A single desk. Seven rails. Accrual Core is authoritative. Each authenticated node holds its own ledger, yield, and settlement history.
+            </p>
+            <div className="flex flex-col sm:flex-row items-start gap-3 mt-8">
+              <Link
+                href="/auth/register"
+                className="sim-btn sim-btn-primary px-8 py-4 text-base"
               >
-                Capital
-                <br />
-                Deployed
-                <br />
-                <span className="text-white/40">Under Mandate</span>
-              </h1>
-              <p className="text-sm md:text-base text-white/50 max-w-md mt-6 leading-relaxed">
-                A single desk. Seven rails. Accrual Core is authoritative. Each authenticated node holds its own ledger, yield, and settlement history.
-              </p>
-              <div className="flex flex-col sm:flex-row items-start gap-3 mt-8">
-                <Link
-                  href="/auth/register"
-                  className="inline-flex items-center gap-2 bg-white text-black font-black px-8 py-4 rounded text-base hover:bg-white/90 transition-all"
-                  style={{ boxShadow: "0 0 40px rgba(255,255,255,0.10)" }}
-                >
-                  Open a node <ArrowRight className="w-4 h-4" />
-                </Link>
-                <Link
-                  href="/auth/login"
-                  className="inline-flex items-center gap-2 bg-black/50 border border-white/[0.15] text-white px-8 py-4 rounded text-base hover:bg-black/70 backdrop-blur transition-all"
-                >
-                  Authenticate
-                </Link>
-              </div>
-              <div className="flex flex-wrap items-center gap-5 mt-10 text-[10px] font-mono text-white/30">
-                {stats.map(({ label, value, icon: Icon }) => (
-                  <div key={label} className="flex items-center gap-2">
-                    <Icon className="w-3.5 h-3.5 text-emerald-400/70" />
-                    <span className="text-white/25">{label}</span>
-                    <span
-                      className={`font-bold ${
-                        label === "GATEWAY"
-                          ? gateway === "LIVE"
-                            ? "text-emerald-400"
-                            : "text-amber-400"
-                          : "text-white/60"
-                      }`}
-                    >
-                      {value}
-                    </span>
-                  </div>
-                ))}
-              </div>
+                Open a node <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link
+                href="/auth/login"
+                className="sim-btn sim-btn-ghost px-8 py-4 text-base"
+              >
+                Authenticate
+              </Link>
             </div>
-            <div className="flex flex-col items-center gap-6 lg:items-end">
-              <div className="w-full max-w-[520px] rounded-xl border border-white/[0.08] bg-black/40 backdrop-blur px-5 py-4">
-                <p className="text-[9px] font-mono text-white/30 tracking-[0.28em] uppercase mb-3">Desk controls</p>
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] font-mono text-white/40">
-                  <span className="flex items-center gap-1.5">
-                    <Fingerprint className="w-3 h-3 text-emerald-400/70" /> Isolated node
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <Scale className="w-3 h-3 text-emerald-400/70" /> Accrual Core
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <Shield className="w-3 h-3 text-emerald-400/70" /> 1:1 book
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <Landmark className="w-3 h-3 text-emerald-400/70" /> Seven rails
+            <div className="flex flex-wrap items-center gap-5 mt-10 text-[10px] font-mono text-white/30">
+              {stats.map(({ label, value, icon: Icon }) => (
+                <div key={label} className="flex items-center gap-2">
+                  <Icon className="w-3.5 h-3.5 text-emerald-400/70" />
+                  <span className="text-white/25">{label}</span>
+                  <span
+                    className={`font-bold ${
+                      label === "GATEWAY"
+                        ? gateway === "LIVE"
+                          ? "text-emerald-400"
+                          : "text-amber-400"
+                        : "text-white/60"
+                    }`}
+                  >
+                    {value}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/[0.05] text-[9px] font-mono text-white/25">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  ACCRUAL CORE · AUTHORITATIVE BOOK · EST. 2026
-                </div>
+              ))}
+            </div>
+            <div className="pnl-stage mt-8 w-full px-5 py-4">
+              <p className="text-[9px] font-mono text-white/30 tracking-[0.28em] uppercase mb-3">Desk controls</p>
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] font-mono text-white/40">
+                <span className="flex items-center gap-1.5">
+                  <Fingerprint className="w-3 h-3 text-emerald-400/70" /> Isolated node
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Scale className="w-3 h-3 text-emerald-400/70" /> Accrual Core
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Shield className="w-3 h-3 text-emerald-400/70" /> 1:1 book
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Landmark className="w-3 h-3 text-emerald-400/70" /> Seven rails
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/[0.05] text-[9px] font-mono text-white/25">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                ACCRUAL CORE · AUTHORITATIVE BOOK · EST. 2026
               </div>
             </div>
           </div>
@@ -475,7 +460,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
             <div>
-              <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-4">Operating mandate</p>
+              <p className="sim-label text-emerald-300/80 mb-4">Operating mandate</p>
               <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">How the desk is run.</h2>
             </div>
             <p className="text-sm text-white/35 max-w-md leading-relaxed">
@@ -486,7 +471,7 @@ export default function LandingPage() {
             {MANDATES.map((item) => {
               const Icon = item.icon;
               return (
-                <div key={item.code} className="rounded-2xl border border-white/[0.08] bg-white/[0.015] p-7 hover-lift">
+                <div key={item.code} className="pnl-card pnl-card-pos hover-lift">
                   <div className="flex items-center justify-between mb-5">
                     <span className="text-[10px] font-mono font-black text-emerald-400/60 tracking-[0.3em]">{item.code}</span>
                     <Icon className="w-4 h-4 text-white/30" />
@@ -507,7 +492,7 @@ export default function LandingPage() {
       >
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-4">Clearing map</p>
+            <p className="sim-label text-emerald-300/80 mb-4">Clearing map</p>
             <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">
               Asset to node. <span className="text-white/40">Node to book.</span>
             </h2>
@@ -519,7 +504,7 @@ export default function LandingPage() {
             {STEPS.map((step) => (
               <div
                 key={step.step}
-                className="rounded-2xl border border-white/[0.08] bg-white/[0.015] p-8 relative overflow-hidden hover-lift"
+                className="pnl-stage p-8 relative overflow-hidden hover-lift"
               >
                 <span className="text-[10px] font-mono font-black text-emerald-400/60 tracking-[0.3em]">{step.step}</span>
                 <h3 className="text-xl font-black text-white mt-4 mb-2 tracking-tight">{step.title}</h3>
@@ -533,10 +518,10 @@ export default function LandingPage() {
 
       <section style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }} className="py-20 px-6 bg-[#000000]">
         <div className="max-w-6xl mx-auto">
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.015] p-6 md:p-8">
+          <div className="pnl-stage p-6 md:p-8">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
               <div>
-                <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-3">Desk status</p>
+                <p className="sim-label text-emerald-300/80 mb-3">Desk status</p>
                 <h3 className="text-2xl md:text-3xl font-black text-white tracking-tight mb-2">Live network.</h3>
                 <p className="text-sm text-white/35 max-w-lg">
                   Desk, ledger, oracle, and rail sync — sampled from the book.
@@ -546,7 +531,7 @@ export default function LandingPage() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-8">
               {services.map(({ name, ok }) => (
-                <div key={name} className="rounded-xl border border-white/[0.06] bg-black/40 px-4 py-4">
+                <div key={name} className="pnl-card pnl-card-pos">
                   <div className="flex items-center justify-between">
                     <span className="engine-mono text-[9px] text-white/40 tracking-wider">{name}</span>
                     <span className={`w-1.5 h-1.5 rounded-full ${ok ? "bg-emerald-400" : "bg-red-500"} animate-pulse`} />
@@ -569,34 +554,39 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto relative">
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none opacity-40" />
           <div className="text-center mb-16 relative z-10">
-            <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-4">Seven capital rails</p>
+            <p className="sim-label text-emerald-300/80 mb-4">Seven capital rails</p>
             <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">
               Seven venues. <span className="text-white/40">One book.</span>
             </h2>
           </div>
-          <div className="relative z-10 grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div className="relative z-10 grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {RAILS.map((rail, i) => (
               <div
                 key={rail.id}
                 onMouseEnter={() => setHoverRail(rail.id)}
                 onMouseLeave={() => setHoverRail(null)}
                 style={{
-                  borderColor: hoverRail === rail.id ? rail.accent : "rgba(255,255,255,0.08)",
-                  boxShadow: hoverRail === rail.id ? `0 0 30px ${rail.accent}15` : "none",
+                  ["--sleeve" as string]: rail.accent,
+                  ["--pnl-bar" as string]: rail.accent,
+                  boxShadow: hoverRail === rail.id ? `0 0 30px ${rail.accent}22` : undefined,
                 }}
-                className={`relative rounded-2xl border-2 p-6 transition-all duration-200 ${
-                  hoverRail === rail.id ? "bg-white/[0.04]" : "bg-transparent"
-                } ${i === 6 ? "sm:col-span-2 xl:col-span-2" : ""}`}
+                className={`pnl-sleeve relative transition-shadow duration-200 ${
+                  hoverRail === rail.id ? "ring-1" : ""
+                } ${i === 6 ? "sm:col-span-2 lg:col-span-1" : ""}`}
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ background: rail.accent, boxShadow: `0 0 8px ${rail.accent}80` }}
-                  />
-                  <span className="text-[9px] font-mono font-black text-white/15 tracking-wider">{rail.tag}</span>
+                <div className="relative flex items-start justify-between gap-3 mb-4">
+                  <span
+                    className="text-3xl font-black tabular-nums tracking-tight leading-none"
+                    style={{ color: rail.accent === "#ffffff" ? "#f4f4f5" : rail.accent }}
+                  >
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span className="rounded-full border border-white/25 bg-black/55 px-2.5 py-1 text-[11px] font-mono font-black tracking-[0.18em] text-white">
+                    {rail.tag}
+                  </span>
                 </div>
                 <h3 className="text-base font-black text-white mb-2 tracking-tight">{rail.label}</h3>
-                <p className="text-xs text-white/35 leading-relaxed">{rail.desc}</p>
+                <p className="text-xs text-white/75 leading-relaxed">{rail.desc}</p>
               </div>
             ))}
           </div>
@@ -610,7 +600,7 @@ export default function LandingPage() {
       >
         <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 items-start">
           <div>
-            <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-4">Custody architecture</p>
+            <p className="sim-label text-emerald-300/80 mb-4">Custody architecture</p>
             <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">History stays with the node.</h2>
             <p className="text-white/40 text-sm mt-5 leading-relaxed max-w-md">
               Session binds to one node. Reads and writes are scoped to that node. The panel does not hold history.
@@ -618,7 +608,7 @@ export default function LandingPage() {
           </div>
           <div className="space-y-3">
             {CUSTODY.map((row) => (
-              <div key={row.k} className="rounded-xl border border-white/[0.08] bg-white/[0.015] px-5 py-4 flex gap-6">
+              <div key={row.k} className="pnl-card pnl-card-pos flex gap-6 items-start">
                 <span className="text-[10px] font-mono font-black text-emerald-400/70 tracking-[0.2em] w-24 shrink-0 pt-0.5">
                   {row.k.toUpperCase()}
                 </span>
@@ -636,7 +626,7 @@ export default function LandingPage() {
       >
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-4">Desk access</p>
+            <p className="sim-label text-emerald-300/80 mb-4">Desk access</p>
             <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">
               Three mandates. <span className="text-white/40">One ledger model.</span>
             </h2>
@@ -646,11 +636,7 @@ export default function LandingPage() {
               <div
                 key={tier.name}
                 style={{ boxShadow: tier.featured ? "0 0 40px rgba(255,255,255,0.05)" : "none" }}
-                className={`rounded-2xl border-2 p-8 flex flex-col ${
-                  tier.featured
-                    ? "border-white/30 bg-white/[0.03] md:-mt-4 md:pb-12"
-                    : "border-white/[0.08]"
-                }`}
+                className={`pnl-stage p-8 flex flex-col ${tier.featured ? "sim-glass-edge" : ""}`}
               >
                 <p className="text-[10px] font-mono font-bold text-white/30 tracking-[0.3em] mb-4">{tier.name}</p>
                 <p className="text-3xl font-black text-white mb-1">{tier.price}</p>
@@ -665,11 +651,7 @@ export default function LandingPage() {
                 </ul>
                 <Link
                   href="/auth/register"
-                  className={`mt-8 block text-center py-3 rounded font-bold text-sm transition-all ${
-                    tier.featured
-                      ? "bg-white text-black hover:bg-white/90"
-                      : "bg-white/[0.06] text-white border border-white/[0.10] hover:bg-white/[0.10]"
-                  }`}
+                  className={`sim-btn mt-8 w-full ${tier.featured ? "sim-btn-primary" : "sim-btn-ghost"}`}
                 >
                   {i === 2 ? "Request invitation" : "Open a node"}
                 </Link>
@@ -685,48 +667,47 @@ export default function LandingPage() {
         className="py-28 px-6 bg-[#000000]"
       >
         <div className="max-w-6xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-            <div>
-              <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-4">
-                Super AGI Core · Live
-              </p>
-              <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">
-                Settlement map of the <span className="text-white/40">seven-rail desk.</span>
-              </h2>
-              <p className="text-white/35 text-sm max-w-md mt-4 leading-relaxed">
-                Digital twin of the clearing fabric. Efficiency, liquidity, latency, and reserve integrity are instruments on the panel — the ledger remains on the server, scoped to the authenticated node.
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8">
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-4 py-3">
-                  <div className="text-[9px] font-mono text-white/25 tracking-wider">GATEWAY</div>
-                  <div className={`text-lg font-black font-mono mt-1 ${gateway === "LIVE" ? "text-emerald-400" : "text-amber-400"}`}>
-                    {gateway}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-4 py-3">
-                  <div className="text-[9px] font-mono text-white/25 tracking-wider">AVG SETTLE</div>
-                  <div className="text-lg font-black font-mono text-white mt-1">{latency}</div>
-                </div>
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-4 py-3">
-                  <div className="text-[9px] font-mono text-white/25 tracking-wider">UPTIME</div>
-                  <div className="text-lg font-black font-mono text-white mt-1">{uptime}</div>
-                </div>
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-4 py-3">
-                  <div className="text-[9px] font-mono text-white/25 tracking-wider">RAILS ARMED</div>
-                  <div className="text-lg font-black font-mono text-emerald-400 mt-1">7 / 7</div>
-                </div>
+          <div className="max-w-3xl">
+            <p className="sim-label text-emerald-300/80 mb-4">
+              Super AGI Core · Live
+            </p>
+            <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">
+              Settlement map of the <span className="text-white/40">seven-rail desk.</span>
+            </h2>
+            <p className="text-white/35 text-sm max-w-md mt-4 leading-relaxed">
+              Digital twin of the clearing fabric. Efficiency, liquidity, latency, and reserve integrity are instruments on the panel — the ledger remains on the server, scoped to the authenticated node.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8">
+            <div className="pnl-card pnl-card-pos">
+              <div className="text-[9px] font-mono text-white/25 tracking-wider">GATEWAY</div>
+              <div className={`text-lg font-black font-mono mt-1 ${gateway === "LIVE" ? "text-emerald-400" : "text-amber-400"}`}>
+                {gateway}
               </div>
             </div>
-            <div className="flex justify-center lg:justify-end">
-              <CapitalNetworkTwin className="w-full max-w-none lg:max-w-[560px]" />
+            <div className="pnl-card pnl-card-pos">
+              <div className="text-[9px] font-mono text-white/25 tracking-wider">AVG SETTLE</div>
+              <div className="text-lg font-black font-mono text-white mt-1">{latency}</div>
             </div>
+            <div className="pnl-card pnl-card-pos">
+              <div className="text-[9px] font-mono text-white/25 tracking-wider">UPTIME</div>
+              <div className="text-lg font-black font-mono text-white mt-1">{uptime}</div>
+            </div>
+            <div className="pnl-card pnl-card-pos">
+              <div className="text-[9px] font-mono text-white/25 tracking-wider">RAILS ARMED</div>
+              <div className="text-lg font-black font-mono text-emerald-400 mt-1">7 / 7</div>
+            </div>
+          </div>
+          <div className="engine-bay pnl-stage mt-6 p-3 sm:p-6 md:p-8">
+            <CoreSimulation />
           </div>
         </div>
       </section>
 
       <section id="cta" className="py-28 px-6 bg-[#000000]">
-        <div className="max-w-3xl mx-auto text-center">
-          <p className="text-[10px] font-mono text-white/30 tracking-[0.4em] uppercase mb-6">Qualified access</p>
+        <div className="max-w-3xl mx-auto">
+          <div className="sim-glass sim-glass-edge px-8 py-16 sm:px-14 md:px-16 text-center">
+          <p className="sim-label !text-emerald-300 mb-6">Qualified access</p>
           <h2 className="text-4xl md:text-6xl font-black text-white leading-[1.05] tracking-tight mb-5">
             The desk.
             <br />
@@ -736,17 +717,17 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
               href="/auth/register"
-              className="inline-flex items-center gap-2 bg-white text-black font-black px-9 py-4 rounded text-sm hover:bg-white/90 transition-all"
-              style={{ boxShadow: "0 0 40px rgba(255,255,255,0.08)" }}
+              className="sim-btn sim-btn-primary px-9 py-4 text-sm"
             >
               Open a node <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
               href="/auth/login"
-              className="inline-flex items-center gap-2 bg-white/[0.06] border border-white/[0.10] text-white px-7 py-4 rounded text-sm hover:bg-white/[0.10] transition-all"
+              className="sim-btn sim-btn-ghost px-7 py-4 text-sm"
             >
               Authenticate
             </Link>
+          </div>
           </div>
         </div>
       </section>

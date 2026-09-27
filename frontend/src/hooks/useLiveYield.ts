@@ -5,7 +5,7 @@ import { useStore } from "@/store/useStore";
 import { useSimStore } from "@/store/useSimStore";
 import { useSim } from "@/hooks/useSim";
 import { accountNav } from "@/lib/sim/engine";
-import { liveAccrual, pushNotice, readMandate, touchMandate, type YieldMandate } from "@/lib/yieldDesk";
+import { liveAccrual, nodeActivated, operatedOf, pushNotice, readMandate, touchMandate, weeklyOf, type YieldMandate } from "@/lib/yieldDesk";
 import { FLEET_APR, YEAR_MS, incomePerMinute } from "@/lib/commerceDesk";
 
 export function useLiveYield() {
@@ -21,9 +21,11 @@ export function useLiveYield() {
   useEffect(() => {
     const tick = () => setNow(Date.now());
     tick();
-    const id = window.setInterval(tick, 1000);
+    const moving = nodeActivated(mandate) || (account?.fleet?.cost ?? 0) > 0;
+    if (!moving) return;
+    const id = window.setInterval(tick, 250);
     return () => window.clearInterval(id);
-  }, []);
+  }, [mandate, account?.fleet?.cost]);
 
   useEffect(() => {
     const pull = () => setMandate(userId ? readMandate(userId) : null);
@@ -39,7 +41,7 @@ export function useLiveYield() {
   const posted = metrics?.nav ?? (account ? accountNav(account) : 0);
 
   useEffect(() => {
-    if (!userId || !mandate || mandate.dailyPct <= 0 || !account?.genesisClaimedAt) return;
+    if (!userId || !mandate || !nodeActivated(mandate) || mandate.dailyPct <= 0 || !account?.genesisClaimedAt) return;
     if (mandate.principal <= 0 && posted > 0) {
       touchMandate(userId, { principal: posted });
       return;
@@ -49,7 +51,7 @@ export function useLiveYield() {
     const key = `${userId}:${mandate.lastSettledAt}:${wholeDays}`;
     if (postedKey.current === key) return;
     postedKey.current = key;
-    const profit = mandate.principal * (mandate.dailyPct / 100) * wholeDays;
+    const profit = mandate.principal * (operatedOf(mandate) / 100) * (mandate.dailyPct / 100) * wholeDays;
     const res = creditYield(
       userId,
       profit,
@@ -91,12 +93,13 @@ export function useLiveYield() {
   }, [userId, account?.fleet, account?.genesisClaimedAt, now, settleFleet]);
 
   const rate = mandate?.dailyPct ?? 0;
+  const weekly = mandate ? weeklyOf(mandate) : 0;
   const principal = mandate?.principal || posted;
-  const accruing = mandate && rate > 0 ? liveAccrual(mandate, now).accruing : 0;
+  const accruing = mandate && nodeActivated(mandate) && rate > 0 ? liveAccrual(mandate, now).accruing : 0;
   const fleetCost = account?.fleet?.cost ?? 0;
   const fleetPending = fleetCost > 0 ? fleetCost * FLEET_APR * Math.max(0, now - (account?.fleet?.accruedAt ?? now)) / YEAR_MS : 0;
   const fleetPerMin = incomePerMinute(fleetCost);
-  const live = posted + (mandate && rate > 0 ? liveAccrual({ ...mandate, principal }, now).accruing : 0) + fleetPending;
+  const live = posted + accruing + fleetPending;
 
-  return { live, posted, accruing, rate, principal, mandate, fleetPending, fleetPerMin };
+  return { live, posted, accruing, rate, weekly, active: nodeActivated(mandate), principal, mandate, fleetPending, fleetPerMin };
 }

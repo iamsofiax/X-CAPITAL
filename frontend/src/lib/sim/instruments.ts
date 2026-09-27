@@ -76,7 +76,7 @@ export interface Quote {
   bid: number;
   ask: number;
   change24h: number;
-  source: "LIVE" | "INDICATIVE";
+  source: "LIVE" | "MARKED" | "INDICATIVE";
 }
 
 export function buildQuote(inst: Instrument, mid: number, change24h: number, source: Quote["source"]): Quote {

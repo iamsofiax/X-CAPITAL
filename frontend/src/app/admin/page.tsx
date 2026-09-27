@@ -7,7 +7,7 @@ import { useStore } from "@/store/useStore";
 import { adminAPI } from "@/lib/api";
 import { isAdminUser, type AdminUserRow } from "@/lib/apiUser";
 import { loadDesks } from "@/lib/localDesk";
-import { listMandates, setDailyGrowth } from "@/lib/yieldDesk";
+import { confirmDepositRecord, listDeposits, listMandates, pushNotice, setDailyGrowth, weeklyOf, type PendingDeposit } from "@/lib/yieldDesk";
 import { useSimStore } from "@/store/useSimStore";
 import { accountNav } from "@/lib/sim/engine";
 import { XCapitalLogoMark } from "@/components/brand/XCapitalLogo";
@@ -26,7 +26,9 @@ export default function AdminPage() {
   const [q, setQ] = useState("");
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "" });
   const [formMsg, setFormMsg] = useState("");
-  const [growth, setGrowth] = useState({ userId: "", dailyPct: "0.25" });
+  const [growth, setGrowth] = useState({ userId: "", dailyPct: "0.25", weeklyPct: "1.76", operatedPct: "40" });
+  const [pending, setPending] = useState<PendingDeposit[]>([]);
+  const [usdById, setUsdById] = useState<Record<string, string>>({});
   const [adj, setAdj] = useState({
     userId: "",
     asset: "USDT",
@@ -50,6 +52,13 @@ export default function AdminPage() {
     } finally {
       setBusy(false);
     }
+  }, []);
+
+  useEffect(() => {
+    const pull = () => setPending(listDeposits().filter((d) => d.status === "pending"));
+    pull();
+    window.addEventListener("xc-yield", pull);
+    return () => window.removeEventListener("xc-yield", pull);
   }, []);
 
   useEffect(() => {
@@ -106,8 +115,10 @@ export default function AdminPage() {
     setFormMsg("");
     const node = growthNodes.find((n) => n.id === growth.userId);
     const pct = Number(growth.dailyPct);
-    if (!node || Number.isNaN(pct)) {
-      setFormMsg("Choose a node and a daily percent.");
+    const week = Number(growth.weeklyPct);
+    const operated = Number(growth.operatedPct);
+    if (!node || Number.isNaN(pct) || Number.isNaN(week) || Number.isNaN(operated)) {
+      setFormMsg("Choose a node, the daily and weekly rates, and the operated percent.");
       return;
     }
     const book = useSimStore.getState().accounts[growth.userId];
@@ -117,12 +128,14 @@ export default function AdminPage() {
         userId: growth.userId,
         email: node.label,
         dailyPct: pct,
+        weeklyPct: week,
+        operatedPct: operated,
         principal,
       });
       setFormMsg(
-        principal > 0
-          ? `Daily growth set at ${pct}% on ${principal.toLocaleString(undefined, { maximumFractionDigits: 2 })} USD.`
-          : `Daily growth set at ${pct}%. It starts when that node has a posted book.`,
+        principal > 0 && operated > 0
+          ? `Node activated. ${operated}% operated at ${pct}% a day and ${week}% a week.`
+          : `Path staged. Gains stay off until the book is funded and the operated percent is above zero.`,
       );
     } catch (err) {
       setFormMsg(err instanceof Error ? err.message : "Could not set daily growth.");
@@ -179,14 +192,14 @@ export default function AdminPage() {
 
       <main className="max-w-6xl mx-auto px-5 py-8 space-y-6">
         <div className="grid sm:grid-cols-2 gap-3">
-          <div className="rounded-2xl border border-white/[0.08] p-4 flex items-center gap-3">
+          <div className="pnl-card pnl-card-pos flex items-center gap-3">
             <Shield className="w-4 h-4 text-white/35" />
             <div>
               <p className="text-[10px] font-mono text-white/35">Accounts</p>
               <p className="text-xl font-black">{rows.length}</p>
             </div>
           </div>
-          <div className="rounded-2xl border border-white/[0.08] p-4">
+          <div className="pnl-card pnl-card-pos">
             <p className="text-[10px] font-mono text-white/35">Rule</p>
             <p className="text-sm text-white/60 mt-1">
               Admin never writes a balance column. Credit and debit are journal entries with actor, reason, and idempotency key.
@@ -197,14 +210,14 @@ export default function AdminPage() {
         {error && <p className="text-sm text-red-300">{error}</p>}
         {formMsg && <p className="text-sm text-white/60">{formMsg}</p>}
 
-        <section className="rounded-2xl border border-emerald-400/20 p-5">
-          <p className="font-black mb-1">Daily growth</p>
+        <section className="pnl-stage p-5 md:p-6">
+          <p className="font-black mb-1">Daily and weekly yield</p>
           <p className="text-sm text-white/50 mb-3">
-            Set a daily percent on a node. The book accrues every second and the day’s profit posts to cash and the portfolio at day close.
+            Set the day’s rate, the week’s target, and the percent of this user’s node the desk operates. Gains and execution stay closed until funds are confirmed and that percent is above zero.
           </p>
-          <form onSubmit={applyGrowth} className="grid md:grid-cols-[1fr_140px_auto] gap-3">
+          <form onSubmit={applyGrowth} className="grid md:grid-cols-2 xl:grid-cols-[1fr_110px_110px_110px_auto] gap-3">
             <select
-              className="bg-black border border-white/15 rounded px-3 py-2 text-sm"
+              className="sim-input"
               value={growth.userId}
               onChange={(e) => setGrowth({ ...growth, userId: e.target.value })}
               required
@@ -222,24 +235,90 @@ export default function AdminPage() {
               onChange={(e) => setGrowth({ ...growth, dailyPct: e.target.value })}
               required
             />
-            <button type="submit" className="sim-btn sim-btn-primary">Set daily growth</button>
+            <input
+              className="sim-input"
+              inputMode="decimal"
+              placeholder="Weekly %"
+              value={growth.weeklyPct}
+              onChange={(e) => setGrowth({ ...growth, weeklyPct: e.target.value })}
+              required
+            />
+            <input
+              className="sim-input"
+              inputMode="decimal"
+              placeholder="Node %"
+              value={growth.operatedPct}
+              onChange={(e) => setGrowth({ ...growth, operatedPct: e.target.value })}
+              required
+            />
+            <button type="submit" className="sim-btn sim-btn-primary">Activate node</button>
           </form>
           {listMandates().length > 0 && (
             <ul className="mt-4 space-y-1 text-[12px] text-white/55">
               {listMandates().map((m) => (
                 <li key={m.userId} className="font-mono">
-                  {m.email} · {m.dailyPct}% · base {m.principal.toLocaleString(undefined, { maximumFractionDigits: 2 })} USD
+                  {m.email} · {m.operatedPct ?? 0}% operated · {m.dailyPct}% day · {weeklyOf(m).toFixed(2)}% week · base {m.principal.toLocaleString(undefined, { maximumFractionDigits: 2 })} USD
                 </li>
               ))}
             </ul>
           )}
         </section>
 
-        <section className="rounded-2xl border border-white/[0.08] p-5">
+        <section className="sim-glass p-5">
+          <p className="font-black mb-1">Confirm crypto deposits</p>
+          <p className="text-sm text-white/50 mb-4">
+            Books stay at 0 USD until you confirm the transfer and enter the USD value to credit.
+          </p>
+          {pending.length === 0 ? (
+            <p className="text-sm text-white/40">No deposits waiting.</p>
+          ) : (
+            <ul className="space-y-3">
+              {pending.map((row) => (
+                <li key={row.id} className="rounded-xl border border-white/[0.12] bg-black/40 p-4 flex flex-col md:flex-row md:items-end gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-white">{row.email}</p>
+                    <p className="text-[12px] text-white/50 mt-1">{row.asset} · {new Date(row.at).toLocaleString()}</p>
+                    <p className="text-[11px] font-mono text-white/35 mt-1 break-all">{row.txHash}</p>
+                  </div>
+                  <input
+                    className="sim-input md:max-w-[160px]"
+                    inputMode="decimal"
+                    placeholder="USD value"
+                    value={usdById[row.id] ?? ""}
+                    onChange={(e) => setUsdById((m) => ({ ...m, [row.id]: e.target.value }))}
+                  />
+                  <button
+                    type="button"
+                    className="sim-btn sim-btn-primary"
+                    onClick={() => {
+                      const usd = Number(usdById[row.id]);
+                      if (!(usd > 0)) {
+                        setError("Enter the USD value before confirming.");
+                        return;
+                      }
+                      const res = useSimStore.getState().confirmDeposit(row.userId, usd, row.asset, row.txHash);
+                      if (!res.ok) {
+                        setError(res.error);
+                        return;
+                      }
+                      confirmDepositRecord(row.id, usd);
+                      pushNotice(row.userId, "Funds confirmed", `${row.asset} confirmed. ${usd.toLocaleString()} USD is on the book. Trades and gains start when this node is activated.`);
+                      setError("");
+                    }}
+                  >
+                    Confirm deposit
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="sim-glass p-5">
           <p className="font-black mb-3">Post journal</p>
           <form onSubmit={postJournal} className="grid md:grid-cols-3 gap-3">
             <select
-              className="bg-black border border-white/15 rounded px-3 py-2 text-sm"
+              className="sim-input"
               value={adj.userId}
               onChange={(e) => setAdj({ ...adj, userId: e.target.value })}
               required
@@ -252,7 +331,7 @@ export default function AdminPage() {
               ))}
             </select>
             <select
-              className="bg-black border border-white/15 rounded px-3 py-2 text-sm"
+              className="sim-input"
               value={adj.asset}
               onChange={(e) => setAdj({ ...adj, asset: e.target.value })}
             >
@@ -261,7 +340,7 @@ export default function AdminPage() {
               ))}
             </select>
             <select
-              className="bg-black border border-white/15 rounded px-3 py-2 text-sm"
+              className="sim-input"
               value={adj.direction}
               onChange={(e) => setAdj({ ...adj, direction: e.target.value as "credit" | "debit" })}
             >
@@ -280,7 +359,7 @@ export default function AdminPage() {
           </form>
         </section>
 
-        <section className="rounded-2xl border border-white/[0.08] p-5">
+        <section className="pnl-stage p-5 md:p-6">
           <p className="font-black mb-3">Create operator</p>
           <form onSubmit={create} className="grid md:grid-cols-5 gap-3">
             <input className="sim-input" placeholder="First" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required />
@@ -291,7 +370,7 @@ export default function AdminPage() {
           </form>
         </section>
 
-        <section className="rounded-2xl border border-white/[0.08] overflow-hidden">
+        <section className="pnl-stage overflow-hidden">
           <div className="px-5 py-4 flex items-center justify-between gap-3 border-b border-white/[0.05]">
             <p className="font-black">Directory</p>
             <input className="sim-input max-w-xs" placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />

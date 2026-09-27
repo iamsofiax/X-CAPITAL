@@ -23,6 +23,7 @@ const CRYPTO_IDS: Record<string, string> = {
   USDT: "tether",
   USDC: "usd-coin",
   MATIC: "matic-network",
+  TRX: "tron",
 };
 // Reverse lookup
 const ID_TO_SYMBOL: Record<string, string> = {};
@@ -185,6 +186,59 @@ export const STOCK_SYMBOLS = [
 export const ETF_SYMBOLS = ["ARKK", "QQQ", "SPY", "IBIT", "GLD"];
 
 export const CRYPTO_SYMBOLS = Object.keys(CRYPTO_IDS);
+
+const BINANCE_PAIRS: Record<string, string> = {
+  BTC: "BTCUSDT",
+  ETH: "ETHUSDT",
+  SOL: "SOLUSDT",
+  DOGE: "DOGEUSDT",
+  ADA: "ADAUSDT",
+  AVAX: "AVAXUSDT",
+  LINK: "LINKUSDT",
+  DOT: "DOTUSDT",
+  XRP: "XRPUSDT",
+  BNB: "BNBUSDT",
+  TRX: "TRXUSDT",
+};
+
+/** Last sale on Binance. These prints are the confirmed crypto marks. */
+export async function fetchBinancePrices(): Promise<Record<string, MarketPrice>> {
+  const now = Date.now();
+  try {
+    const symbols = Object.values(BINANCE_PAIRS);
+    const res = await fetch(
+      `https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(symbols))}`,
+      { signal: AbortSignal.timeout(8000) },
+    );
+    if (!res.ok) throw new Error(`Binance ${res.status}`);
+    const data = (await res.json()) as { symbol: string; lastPrice: string; priceChange: string; priceChangePercent: string; highPrice: string; lowPrice: string; quoteVolume: string }[];
+    const byPair = Object.fromEntries(Object.entries(BINANCE_PAIRS).map(([sym, pair]) => [pair, sym]));
+    const result: Record<string, MarketPrice> = {
+      USDT: { price: 1, change24h: 0, changePercent24h: 0, lastUpdated: now },
+      USDC: { price: 1, change24h: 0, changePercent24h: 0, lastUpdated: now },
+    };
+    for (const row of data) {
+      const sym = byPair[row.symbol];
+      const price = Number(row.lastPrice);
+      if (!sym || !(price > 0)) continue;
+      const mp: MarketPrice = {
+        price,
+        change24h: Number(row.priceChange) || 0,
+        changePercent24h: Number(row.priceChangePercent) || 0,
+        high24h: Number(row.highPrice) || undefined,
+        low24h: Number(row.lowPrice) || undefined,
+        volume24h: Number(row.quoteVolume) || undefined,
+        lastUpdated: now,
+      };
+      priceCache[sym] = mp;
+      result[sym] = mp;
+    }
+    return result;
+  } catch (e) {
+    console.warn("[MarketData] Binance fetch failed:", e);
+    return {};
+  }
+}
 
 /** Alpaca IEX snapshots via the Express desk API. Silent if the API is down. */
 export async function fetchBrokerQuotes(

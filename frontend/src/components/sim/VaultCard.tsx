@@ -72,39 +72,46 @@ export function VaultCard({
     <button
       type="button"
       onClick={onSelect}
-      className={cn(
-        "sim-glass text-left p-4 w-full transition-all duration-200 hover:-translate-y-0.5",
-        selected ? "ring-1 ring-emerald-400/50" : "hover:ring-1 hover:ring-white/10",
-      )}
+      className={cn("pnl-sleeve text-left w-full", selected && "ring-1 ring-emerald-400/60")}
+      style={{ ["--sleeve" as string]: spec.accent }}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="sim-label" style={{ color: spec.accent }}>{spec.code}</p>
-          <h3 className="text-[15px] font-bold text-white mt-0.5 truncate">{spec.name}</h3>
+      <div className="relative flex items-center gap-3">
+        <span className="pnl-mark text-white" style={{ background: spec.accent }}>
+          {(spec.code.split("-").pop() ?? spec.code).slice(0, 2)}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="sim-label">{spec.code}</p>
+          <h3 className="text-sm font-bold text-white truncate">{spec.name}</h3>
         </div>
         <RiskMeter level={spec.risk} />
       </div>
 
-      <div className="mt-3 -mx-1">
-        <Sparkline values={s.series} color={spec.accent} height={44} />
+      <p className={cn("relative mt-4 text-[1.7rem] font-black tabular-nums tracking-tight", signClass(s.ret30d))}>
+        {fmtPct(s.ret30d)}
+      </p>
+      <p className="relative text-[11px] text-white/40">30-day return · NAV {s.nav.toFixed(4)}</p>
+
+      <div className="relative mt-3 -mx-1">
+        <Sparkline values={s.series} color={spec.accent} height={36} />
       </div>
 
-      <div className="grid grid-cols-3 gap-2 mt-3">
+      <dl className="relative mt-3 grid grid-cols-2 gap-2 text-[11px]">
         <div>
-          <p className="sim-label text-[8.5px]">NAV</p>
-          <p className="sim-num text-[13px] text-white font-bold">{s.nav.toFixed(4)}</p>
+          <dt className="text-white/35">Vol</dt>
+          <dd className="font-mono text-white/80">{fmtPct(s.vol, 1, false)}</dd>
         </div>
         <div>
-          <p className="sim-label text-[8.5px]">30D</p>
-          <p className={cn("sim-num text-[13px] font-bold", signClass(s.ret30d))}>{fmtPct(s.ret30d)}</p>
+          <dt className="text-white/35">Drawdown</dt>
+          <dd className="font-mono text-red-300">{fmtPct(s.drawdown, 1)}</dd>
         </div>
-        <div>
-          <p className="sim-label text-[8.5px]">Vol</p>
-          <p className="sim-num text-[13px] text-white/80 font-bold">{fmtPct(s.vol, 1, false)}</p>
-        </div>
+      </dl>
+
+      <div className="pnl-split relative mt-3" aria-hidden>
+        <span style={{ width: `${Math.max(8, 100 - spec.risk * 12)}%` }} />
+        <span style={{ width: `${Math.min(40, spec.risk * 8)}%` }} />
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5 mt-3">
+      <div className="relative flex flex-wrap items-center gap-1.5 mt-3">
         <span className="sim-chip text-[9px]">Perf fee {Math.round(spec.perfFee * 100)}% · HWM</span>
         {spec.lockEpochs > 0 ? (
           <span className="sim-chip text-[9px]"><Lock className="w-2.5 h-2.5" />{lockDays}D window</span>

@@ -1,26 +1,24 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Panel, Stat } from "@/components/sim/Panel";
-import { NavChart } from "@/components/sim/NavChart";
-import { ProjectionFan } from "@/components/sim/ProjectionFan";
-import { Achievements } from "@/components/sim/Achievements";
-import { TierLadder } from "@/components/sim/TierBadge";
-import { useProjectionInput, useSim } from "@/hooks/useSim";
+import { Panel } from "@/components/sim/Panel";
+import { useSim } from "@/hooks/useSim";
+import { useStore } from "@/store/useStore";
+import { listReceipts, type TradeReceipt as Slip } from "@/lib/yieldDesk";
+import { TradeReceipt } from "@/components/desk/TradeReceipt";
 import { VAULT_BY_ID, navAt } from "@/lib/sim/vaults";
 import { INSTRUMENT_BY_SYMBOL } from "@/lib/sim/instruments";
 import { CATALOG_BY_SKU, incomePerMinute } from "@/lib/commerceDesk";
 import { LiveBook } from "@/components/desk/LiveBook";
+import { YieldWatch } from "@/components/desk/YieldWatch";
 import { useLiveYield } from "@/hooks/useLiveYield";
-import { fmtPct, fmtUsdc, signClass } from "@/lib/sim/format";
+import { fmtUsdc, signClass } from "@/lib/sim/format";
 import { cn } from "@/lib/utils";
-
-const HORIZONS = [30, 90, 180, 365];
 
 export default function BookPage() {
   return (
-    <DashboardLayout title="Portfolio" subtitle="Holdings, cash, and income on the book" requireGenesis>
+    <DashboardLayout title="Book" subtitle="Profit and loss, allocation, and lead sleeves" requireGenesis>
       <Book />
     </DashboardLayout>
   );
@@ -28,9 +26,21 @@ export default function BookPage() {
 
 function Book() {
   const { account, metrics, epoch } = useSim();
-  const { live, rate, accruing } = useLiveYield();
-  const [horizon, setHorizon] = useState(90);
-  const projection = useProjectionInput(horizon);
+  const { active } = useLiveYield();
+  const userId = useStore((s) => s.user?.id);
+  const [slips, setSlips] = useState<Slip[]>([]);
+  const [openSlip, setOpenSlip] = useState<Slip | null>(null);
+
+  useEffect(() => {
+    const pull = () => setSlips(userId ? listReceipts(userId).slice(0, 8) : []);
+    pull();
+    const id = window.setInterval(pull, 1500);
+    window.addEventListener("xc-yield", pull);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("xc-yield", pull);
+    };
+  }, [userId]);
 
   const sleeves = useMemo(() => {
     if (!account || !metrics) return [];
@@ -71,7 +81,7 @@ function Book() {
 
   if (!account || !metrics) {
     return (
-      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 text-sm text-white/55">
+      <div className="sim-glass p-6 text-sm text-white/55">
         Opening the book
       </div>
     );
@@ -81,6 +91,29 @@ function Book() {
   return (
     <div className="space-y-5">
       <LiveBook />
+      <YieldWatch />
+      <Panel code="Settlements" title="Receipts" edge>
+        {slips.length === 0 ? (
+          <p className="text-sm text-white/45">
+            {active ? "A settlement slip prints at the end of each fill." : "Slips print after the desk activates the node and a fill is made."}
+          </p>
+        ) : (
+          <ul className="grid sm:grid-cols-2 gap-3">
+            {slips.map((s) => (
+              <li key={s.id}>
+                <button type="button" onClick={() => setOpenSlip(s)} className="pnl-sleeve w-full text-left">
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-bold text-white">{s.side} {s.symbol}</span>
+                    <span className="font-mono text-[11px] text-white/45">{s.id}</span>
+                  </span>
+                  <span className="mt-1 block text-[12px] text-white/55">{fmtUsdc(s.notional)} · {new Date(s.at).toLocaleString()}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {openSlip && <TradeReceipt slip={openSlip} onClose={() => setOpenSlip(null)} />}
+      </Panel>
       <Panel code="Holdings" title="Portfolio" edge bodyClassName="p-0">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left">
@@ -127,82 +160,6 @@ function Book() {
           </table>
         </div>
       </Panel>
-      <Panel code="Book" title="Net asset value" edge>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-5 mb-5">
-          <Stat
-            label="NAV"
-            value={fmtUsdc(rate > 0 ? live : metrics.nav, { decimals: rate > 0 ? 4 : 2 })}
-            sub={rate > 0 ? `Today +${fmtUsdc(accruing, { decimals: 4 })}` : "USD"}
-          />
-          <Stat label="Since inception" value={fmtPct(metrics.lifetimeReturn)} tone={metrics.lifetimeReturn >= 0 ? "pos" : "neg"} sub="Node book" />
-          <Stat label="Season Sortino" value={metrics.sortino?.toFixed(2) ?? "—"} sub={metrics.sortino === null ? "Needs 6+ epochs" : `${metrics.seasonEpochs} epochs`} />
-          <Stat label="Max drawdown" value={fmtPct(metrics.maxDrawdown, 1)} tone="neg" sub="Season, epoch-close" />
-          <Stat label="Realized vol" value={fmtPct(metrics.vol, 1, false)} sub="Annualized" />
-        </div>
-        <NavChart history={account.navHistory} />
-      </Panel>
-
-      <div className="grid lg:grid-cols-5 gap-5">
-        <Panel code="Allocation" title="Sleeves" className="lg:col-span-2">
-          <div className="flex h-2.5 rounded-full overflow-hidden bg-white/[0.05] mb-4">
-            {sleeves.map((s) => (
-              <span key={s.id} style={{ width: `${(s.value / total) * 100}%`, background: s.color }} title={s.label} />
-            ))}
-          </div>
-          <ul className="space-y-2">
-            {sleeves.map((s) => {
-              const pnl = s.value - s.cost;
-              return (
-                <li key={s.id} className="flex items-center gap-3 text-[12px]">
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-white font-semibold truncate">{s.label}</span>
-                    <span className="sim-label text-[8px]">{s.kind}</span>
-                  </span>
-                  <span className="sim-num text-right">
-                    <span className="block text-white">{fmtUsdc(s.value, { compact: true })}</span>
-                    {s.kind !== "Cash" && (
-                      <span className={cn("block text-[10px]", signClass(pnl))}>{pnl >= 0 ? "+" : ""}{fmtUsdc(pnl, { compact: true })}</span>
-                    )}
-                  </span>
-                  <span className="sim-num text-white/40 w-12 text-right">{((s.value / total) * 100).toFixed(1)}%</span>
-                </li>
-              );
-            })}
-          </ul>
-        </Panel>
-
-        <Panel
-          code="Monte Carlo"
-          title="Projected book range"
-          className="lg:col-span-3"
-          action={
-            <div className="flex gap-1">
-              {HORIZONS.map((h) => (
-                <button key={h} type="button" onClick={() => setHorizon(h)} className={cn("sim-chip cursor-pointer", horizon === h && "sim-chip-live")}>
-                  {h}D
-                </button>
-              ))}
-            </div>
-          }
-        >
-          {projection && <ProjectionFan input={projection} />}
-        </Panel>
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-5">
-        <Panel code="Career" title="Track record">
-          <TierLadder xp={account.xp} />
-          <dl className="grid grid-cols-3 gap-3 mt-5 sim-num text-[12px]">
-            <div><dt className="sim-label text-[8.5px]">Trades</dt><dd className="text-white font-bold">{account.totals.trades}</dd></div>
-            <div><dt className="sim-label text-[8.5px]">Spread paid</dt><dd className="text-amber-300 font-bold">{fmtUsdc(account.totals.spreadPaid)}</dd></div>
-            <div><dt className="sim-label text-[8.5px]">Fee share earned</dt><dd className="sim-pos font-bold">{fmtUsdc(account.totals.feeShare)}</dd></div>
-          </dl>
-        </Panel>
-        <Panel code="Milestones" title="Achievements">
-          <Achievements earned={account.achievements} />
-        </Panel>
-      </div>
     </div>
   );
 }

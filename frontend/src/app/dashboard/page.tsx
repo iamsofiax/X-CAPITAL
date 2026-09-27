@@ -2,16 +2,21 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Coins } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { LiveBook } from "@/components/desk/LiveBook";
+import { YieldWatch } from "@/components/desk/YieldWatch";
+import { CoinMark } from "@/components/desk/Marks";
+import { RAILS } from "@/lib/rails";
 import { walletAPI } from "@/lib/api";
 
 type Balances = Record<string, { cash: string; reserved: string }>;
 
+const VAULT = ["USDT", "BTC", "ETH", "SOL"] as const;
+
 export default function CommandCenterPage() {
   const [balances, setBalances] = useState<Balances>({});
   const [mode, setMode] = useState("");
-  const [error, setError] = useState("");
 
   useEffect(() => {
     walletAPI
@@ -20,27 +25,60 @@ export default function CommandCenterPage() {
         setBalances(data.data?.balances ?? {});
         setMode(data.data?.mode ?? "");
       })
-      .catch(() => setError(""));
+      .catch(() => setBalances({}));
   }, []);
 
   return (
-    <DashboardLayout title="Book" subtitle="Authoritative cash from the double-entry ledger">
-      <div className="space-y-6">
+    <DashboardLayout title="Command" subtitle="Profit and loss · allocation · lead sleeves">
+      <div className="space-y-5">
         <LiveBook />
-        {error && <p className="text-sm text-red-300">{error}</p>}
-        <p className="text-[11px] font-mono uppercase tracking-widest text-white/35">Vault cash {mode ? `· ${mode}` : ""}</p>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {["USDT", "BTC", "ETH", "SOL"].map((sym) => (
-            <div key={sym} className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
-              <p className="text-[10px] font-mono text-white/35 tracking-widest">{sym}</p>
-              <p className="text-2xl font-black mt-1">{fmt(balances[sym]?.cash)}</p>
-              <p className="text-[11px] text-white/40 mt-1">Reserved {fmt(balances[sym]?.reserved)}</p>
-            </div>
-          ))}
+        <YieldWatch />
+
+        <div>
+          <p className="sim-label mb-3">Rails</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            {RAILS.map((rail) => {
+              const Icon = rail.icon;
+              return (
+                <Link
+                  key={rail.id}
+                  href={rail.href}
+                  className="sim-glass flex items-start gap-3 p-4 min-h-[108px]"
+                >
+                  <span
+                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border"
+                    style={{ color: rail.accent, borderColor: `${rail.accent}55`, background: `${rail.accent}18` }}
+                  >
+                    <Icon className="h-4 w-4" aria-hidden />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="sim-label block text-[9px]">{rail.code}</span>
+                    <span className="mt-1 block text-sm font-bold text-white">{rail.label}</span>
+                    <span className="mt-1 block text-xs leading-snug text-white/45">{rail.blurb}</span>
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <Link href="/wallet" className="sim-btn sim-btn-primary">Open ledger</Link>
-          <Link href="/wallet" className="sim-btn sim-btn-ghost">Deposit addresses</Link>
+
+        <div>
+          <p className="sim-label mb-3 flex items-center gap-2">
+            <Coins className="h-3.5 w-3.5" aria-hidden />
+            Vault cash {mode ? `· ${mode}` : ""}
+          </p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {VAULT.map((sym) => (
+              <div key={sym} className="sim-glass p-4">
+                <div className="flex items-center gap-2">
+                  <CoinMark asset={sym} size={32} />
+                  <p className="sim-label">{sym}</p>
+                </div>
+                <p className="mt-3 text-xl sm:text-2xl font-black tabular-nums">{fmt(balances[sym]?.cash)}</p>
+                <p className="text-[11px] text-white/40 mt-1">Reserved {fmt(balances[sym]?.reserved)}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </DashboardLayout>

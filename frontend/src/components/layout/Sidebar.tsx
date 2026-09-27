@@ -38,8 +38,8 @@ export default function Sidebar() {
       <aside
         className={cn(
           "fixed top-0 bottom-0 left-0 z-50 flex flex-col",
-          "bg-[#030405]/95 backdrop-blur-xl border-r border-white/[0.05]",
-          "w-[264px] transition-transform duration-300",
+          "bg-[#030405]/95 backdrop-blur-md border-r border-white/[0.05]",
+          "w-[264px] transition-transform duration-150",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
           "md:translate-x-0 md:w-[248px]",
         )}
@@ -77,17 +77,23 @@ export default function Sidebar() {
                 key={href}
                 href={href}
                 onClick={close}
-                title={locked ? "Post the opening credit in Treasury to arm this rail" : label}
+                title={locked ? "Open the book in Treasury. Cash stays at zero until a deposit is confirmed." : label}
                 className={cn(
-                  "group relative flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors",
+                  "group relative flex items-center gap-3 px-2.5 py-2 rounded-xl transition-colors duration-75",
                   "justify-start",
                   active ? "bg-white/[0.07] text-white" : "text-white/50 hover:text-white hover:bg-white/[0.04]",
                 )}
+                aria-current={active ? "page" : undefined}
               >
                 {active && (
                   <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-full" style={{ background: accent }} />
                 )}
-                <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={active ? 2.2 : 1.8} style={active ? { color: accent } : undefined} />
+                <span
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03]"
+                  style={active ? { color: accent, borderColor: `${accent}55` } : undefined}
+                >
+                  <Icon className="w-4 h-4" strokeWidth={active ? 2.2 : 1.8} />
+                </span>
                 <span className={cn("flex-1 text-[13.5px] tracking-tight", active ? "font-bold" : "font-semibold")}>
                   {label}
                 </span>
@@ -101,7 +107,7 @@ export default function Sidebar() {
           <div className="flex items-center gap-2 text-[10px] text-white/35">
             <ShieldCheck className={cn("w-3.5 h-3.5", metrics?.reserves.ok === false ? "text-red-400" : "text-emerald-400/70")} />
             <span className="sim-num">
-              {metrics ? (metrics.reserves.ok ? "Reserves verified" : "Reserve mismatch") : "Opening credit pending"}
+              {metrics ? (metrics.reserves.ok ? "Node reserves verified" : "Reserve mismatch") : "Fund node to open the book"}
             </span>
           </div>
         </div>

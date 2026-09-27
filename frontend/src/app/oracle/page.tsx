@@ -34,7 +34,7 @@ function Oracle() {
   const [weights, setWeights] = useState<Record<string, number>>(() =>
     Object.fromEntries(VAULTS.map((v) => [v.id, v.id === "tbill" ? 40 : v.id === "basis" ? 30 : v.id === "tail" ? 10 : v.id === "aidx" ? 20 : 0])),
   );
-  const [capital, setCapital] = useState(100_000);
+  const [capital, setCapital] = useState(0);
   const [horizon, setHorizon] = useState(180);
   const totalW = Object.values(weights).reduce((a, b) => a + b, 0);
 

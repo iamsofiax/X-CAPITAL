@@ -82,7 +82,7 @@ export default function AdminLoginPage() {
         </div>
 
         {/* Form */}
-        <div className="bg-[#0f0f14] border border-white/10 rounded-2xl p-7 shadow-2xl shadow-black/60">
+        <div className="sim-glass p-7">
           <form onSubmit={handleLogin} className="space-y-5">
             {/* Email */}
             <div>
@@ -98,7 +98,7 @@ export default function AdminLoginPage() {
                   placeholder="you@company.com"
                   required
                   autoComplete="email"
-                  className="w-full bg-white/[0.04] border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-white/20 transition-colors"
+                  className="sim-input pl-10"
                 />
               </div>
             </div>
@@ -117,7 +117,7 @@ export default function AdminLoginPage() {
                   placeholder="••••••••"
                   required
                   autoComplete="current-password"
-                  className="w-full bg-white/[0.04] border border-white/10 rounded-xl pl-10 pr-10 py-3 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-white/20 transition-colors"
+                  className="sim-input pl-10 pr-12"
                 />
                 <button
                   type="button"
@@ -145,7 +145,7 @@ export default function AdminLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-white/[0.08] hover:bg-white/[0.12] disabled:opacity-40 text-white rounded-xl text-sm font-semibold transition-colors border border-white/10"
+              className="sim-btn sim-btn-primary w-full"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">

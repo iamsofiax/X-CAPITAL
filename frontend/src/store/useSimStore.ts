@@ -8,8 +8,10 @@ import {
   buyCatalog,
   buyFleet,
   claimGenesis,
+  creditConfirmedDeposit,
   creditYield,
   createAccount,
+  openZeroBook,
   settleFleetIncome,
   depositVault,
   executeTrade,
@@ -33,6 +35,7 @@ interface SimState {
   sync: (userId: string) => SettlementReport | null;
   mark: (userId: string, mids: Record<string, number>) => void;
   claimGenesis: (userId: string) => SimResult;
+  confirmDeposit: (userId: string, usd: number, asset: string, txHash: string) => SimResult;
   creditYield: (userId: string, amount: number, memo: string) => SimResult;
   buyFleet: (userId: string, units: number) => SimResult;
   buyCatalog: (userId: string, sku: string, units: number) => SimResult;
@@ -76,10 +79,11 @@ export const useSimStore = create<SimState>()(
 
         ensure: (userId) => {
           const existing = get().accounts[userId];
-          if (existing) return existing;
-          const acc = createAccount(userId);
-          set((s) => ({ accounts: { ...s.accounts, [userId]: acc } }));
-          return acc;
+          const opened = openZeroBook(existing ?? createAccount(userId));
+          if (!existing || opened !== existing) {
+            set((s) => ({ accounts: { ...s.accounts, [userId]: opened } }));
+          }
+          return opened;
         },
 
         sync: (userId) => {
@@ -100,6 +104,8 @@ export const useSimStore = create<SimState>()(
         },
 
         claimGenesis: (userId) => run(userId, (a) => claimGenesis(a)),
+        confirmDeposit: (userId, usd, asset, txHash) =>
+          run(userId, (a) => creditConfirmedDeposit(a, usd, asset, txHash)),
         creditYield: (userId, amount, memo) => run(userId, (a) => creditYield(a, amount, memo)),
         buyFleet: (userId, units) => run(userId, (a) => buyFleet(a, units)),
         buyCatalog: (userId, sku, units) => run(userId, (a) => buyCatalog(a, sku, units)),

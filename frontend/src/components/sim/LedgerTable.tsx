@@ -10,6 +10,7 @@ const KIND_TONE: Partial<Record<LedgerKind, string>> = {
   RESET: "text-amber-300",
   FEE_SHARE: "text-emerald-300",
   YIELD: "text-emerald-300",
+  DEPOSIT: "text-emerald-300",
   EMISSION: "text-indigo-300",
   COMPOUND: "text-cyan-300",
   LOCK: "text-violet-300",

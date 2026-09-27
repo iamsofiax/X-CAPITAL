@@ -4,7 +4,7 @@ import { useState, useRef, ChangeEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { NodePanel } from "@/components/node-engine";
+import { Panel } from "@/components/sim/Panel";
 import {
   Camera,
   User,
@@ -126,7 +126,7 @@ export default function SettingsPage() {
     <DashboardLayout title="Settings" subtitle="Manage your account">
       <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
         {/* Profile Picture */}
-        <NodePanel title="Profile" scanLine={false}>
+        <Panel code="Node" title="Profile">
           <div className="flex flex-col sm:flex-row items-center gap-5">
             <div className="relative group">
               <div className="w-20 h-20 rounded-full bg-gradient-to-br from-white/20 to-white/5 flex items-center justify-center overflow-hidden ring-2 ring-white/10">
@@ -175,10 +175,10 @@ export default function SettingsPage() {
               </span>
             </div>
           </div>
-        </NodePanel>
+        </Panel>
 
         {/* Personal Info */}
-        <section className="bg-xc-card border border-white/[0.08] rounded-2xl p-4 md:p-6">
+        <section className="sim-glass p-5 md:p-7">
           <h2 className="text-base font-bold text-white mb-5">
             Personal Information
           </h2>
@@ -194,7 +194,7 @@ export default function SettingsPage() {
                     type="text"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-xc-muted/50 focus:outline-none focus:ring-1 focus:ring-xc-purple/50 focus:border-xc-purple/30 transition-all"
+                    className="sim-input pl-10"
                   />
                 </div>
               </div>
@@ -208,7 +208,7 @@ export default function SettingsPage() {
                     type="text"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
-                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-xc-muted/50 focus:outline-none focus:ring-1 focus:ring-xc-purple/50 focus:border-xc-purple/30 transition-all"
+                    className="sim-input pl-10"
                   />
                 </div>
               </div>
@@ -223,7 +223,7 @@ export default function SettingsPage() {
                   type="email"
                   value={user.email}
                   disabled
-                  className="w-full bg-white/[0.02] border border-white/[0.08] rounded-xl pl-10 pr-4 py-2.5 text-sm text-xc-muted cursor-not-allowed"
+                  className="sim-input pl-10 opacity-60"
                 />
               </div>
             </div>
@@ -238,18 +238,13 @@ export default function SettingsPage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="(optional)"
-                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-xc-muted/50 focus:outline-none focus:ring-1 focus:ring-xc-purple/50 focus:border-xc-purple/30 transition-all"
+                  className="sim-input pl-10"
                 />
               </div>
             </div>
             <button
               onClick={handleSaveProfile}
-              className={cn(
-                "w-full sm:w-auto px-6 py-2.5 rounded-full text-sm font-bold transition-all",
-                saved
-                  ? "bg-xc-green/20 text-xc-green"
-                  : "bg-gradient-to-r from-white/20 to-white/5 text-white hover:opacity-90",
-              )}
+              className="sim-btn sim-btn-primary"
             >
               {saved ? (
                 <span className="flex items-center justify-center gap-2">
@@ -263,7 +258,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Notifications */}
-        <section className="bg-xc-card border border-white/[0.08] rounded-2xl p-4 md:p-6">
+        <section className="sim-glass p-5 md:p-7">
           <h2 className="text-base font-bold text-white mb-5">Notifications</h2>
           <div className="space-y-3">
             <ToggleRow
@@ -294,7 +289,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Security */}
-        <section className="bg-xc-card border border-white/[0.08] rounded-2xl p-4 md:p-6">
+        <section className="sim-glass p-5 md:p-7">
           <h2 className="text-base font-bold text-white mb-5">Security</h2>
           <div className="space-y-4">
             <div>
@@ -308,7 +303,7 @@ export default function SettingsPage() {
                   value={currentPw}
                   onChange={(e) => setCurrentPw(e.target.value)}
                   placeholder="Enter current password"
-                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl pl-10 pr-10 py-2.5 text-sm text-white placeholder:text-xc-muted/50 focus:outline-none focus:ring-1 focus:ring-xc-purple/50 focus:border-xc-purple/30 transition-all"
+                  className="sim-input pl-10 pr-12"
                 />
                 <button
                   onClick={() => setShowPassword(!showPassword)}
@@ -333,7 +328,7 @@ export default function SettingsPage() {
                   value={newPw}
                   onChange={(e) => setNewPw(e.target.value)}
                   placeholder="New password (min 6 characters)"
-                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-xc-muted/50 focus:outline-none focus:ring-1 focus:ring-xc-purple/50 focus:border-xc-purple/30 transition-all"
+                  className="sim-input pl-10"
                 />
               </div>
             </div>
@@ -348,7 +343,7 @@ export default function SettingsPage() {
                   value={confirmPw}
                   onChange={(e) => setConfirmPw(e.target.value)}
                   placeholder="Confirm new password"
-                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-xc-muted/50 focus:outline-none focus:ring-1 focus:ring-xc-purple/50 focus:border-xc-purple/30 transition-all"
+                  className="sim-input pl-10"
                 />
               </div>
             </div>
@@ -372,10 +367,7 @@ export default function SettingsPage() {
             <button
               onClick={handleChangePassword}
               disabled={pwLoading}
-              className={cn(
-                "w-full sm:w-auto px-6 py-2.5 rounded-full text-sm font-bold transition-all",
-                "bg-gradient-to-r from-white/20 to-white/5 text-white hover:opacity-90 disabled:opacity-50",
-              )}
+              className="sim-btn sim-btn-primary disabled:opacity-50"
             >
               {pwLoading ? "Updating..." : "Update Password"}
             </button>
@@ -391,7 +383,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Appearance */}
-        <section className="bg-xc-card border border-white/[0.08] rounded-2xl p-4 md:p-6">
+        <section className="sim-glass p-5 md:p-7">
           <h2 className="text-base font-bold text-white mb-5">Appearance</h2>
           <p className="text-xs text-xc-muted mb-4">
             Choose your preferred theme for the entire platform.
@@ -445,7 +437,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Account Info */}
-        <section className="bg-xc-card border border-white/[0.08] rounded-2xl p-4 md:p-6">
+        <section className="sim-glass p-5 md:p-7">
           <h2 className="text-base font-bold text-white mb-5">Account</h2>
           <div className="space-y-3">
             <div className="flex items-center justify-between py-2">
@@ -515,7 +507,7 @@ function ToggleRow({
         onClick={() => onChange(!checked)}
         className={cn(
           "relative w-11 h-6 rounded-full transition-colors",
-          checked ? "bg-xc-purple" : "bg-white/10",
+          checked ? "bg-emerald-500" : "bg-white/10",
         )}
       >
         <div

@@ -20,7 +20,8 @@ import {
   regimeAt,
 } from "./vaults";
 
-export const GENESIS_ALLOCATION = 100_000;
+/** Opening books carry no cash. Capital posts only after an operator confirms a crypto deposit. */
+export const GENESIS_ALLOCATION = 0;
 /** sXC emitted per epoch per 1,000 sUSDC deployed, before the career boost. */
 export const EMISSION_PER_1K = 1;
 const NAV_HISTORY_CAP = 270;
@@ -401,11 +402,56 @@ export function claimGenesis(acc: SimAccount, now = Date.now()): SimAccount {
       amount: GENESIS_ALLOCATION,
       from: "protocol:genesis",
       to: TREASURY,
-      memo: "Opening credit posted to the node ledger",
+      memo: "Book opened at zero. Cash posts only after a confirmed crypto deposit.",
       ts: now,
     }),
   ]);
   return grant(next, "genesis");
+}
+
+const GIFT_USD = 100_000;
+
+/** Opens a zero book, and retires the old automatic $100k credit when no real deposit exists. */
+export function openZeroBook(acc: SimAccount, now = Date.now()): SimAccount {
+  const gifted = acc.ledger.some((e) => e.kind === "GENESIS" && e.amount >= GIFT_USD);
+  const funded = acc.ledger.some((e) => e.kind === "DEPOSIT");
+  if (gifted && !funded) return claimGenesis(createAccount(acc.userId, acc.createdAt), now);
+  if (!acc.genesisClaimedAt) return claimGenesis(acc, now);
+  return acc;
+}
+
+/** Credits USD after an operator confirms a crypto transfer. */
+export function creditConfirmedDeposit(
+  acc: SimAccount,
+  usd: number,
+  asset: string,
+  txHash: string,
+  now = Date.now(),
+): SimAccount {
+  if (!(usd > 0)) throw new SimError("Enter the USD value of the confirmed transfer.");
+  let next = acc.genesisClaimedAt ? acc : claimGenesis(acc, now);
+  const epoch = currentEpoch(now);
+  const cash = next.cash + usd;
+  const season = next.season.startNav > 0 ? next.season : { ...next.season, startNav: cash, startEpoch: epoch };
+  const nav = accountNav({ ...next, cash }, epoch);
+  next = {
+    ...next,
+    cash,
+    season,
+    navHistory: [...next.navHistory, { epoch, nav }].slice(-NAV_HISTORY_CAP),
+  };
+  return withLedger(next, [
+    makeEntry(next, {
+      epoch,
+      kind: "DEPOSIT",
+      asset: "sUSDC",
+      amount: usd,
+      from: `chain:${asset}`,
+      to: TREASURY,
+      memo: `Confirmed ${asset} deposit ${txHash}`,
+      ts: now,
+    }),
+  ]);
 }
 
 export function resetAccount(acc: SimAccount, now = Date.now()): SimAccount {

@@ -94,7 +94,7 @@ export function useSim() {
     const seasonHistory = history.filter((p) => p.epoch >= account.season.startEpoch);
     const seasonReturn =
       account.season.startNav > 0 ? nav / account.season.startNav - 1 : 0;
-    const lifetimeReturn = nav / 100_000 - 1;
+    const lifetimeReturn = account.season.startNav > 0 ? nav / account.season.startNav - 1 : 0;
     return {
       nav,
       cash: account.cash,

@@ -7,18 +7,27 @@ const EARTH =
   "https://unpkg.com/three-globe@2.31.1/example/img/earth-blue-marble.jpg";
 
 const RINGS = [
-  { cls: "orbit-1", size: "34%", sats: 2 },
-  { cls: "orbit-2", size: "46%", sats: 3 },
+  { cls: "orbit-1", size: "28%", sats: 1 },
+  { cls: "orbit-2", size: "44%", sats: 2 },
   { cls: "orbit-3", size: "58%", sats: 2 },
-  { cls: "orbit-4", size: "70%", sats: 4 },
-  { cls: "orbit-5", size: "82%", sats: 3 },
-  { cls: "orbit-6", size: "94%", sats: 5 },
+  { cls: "orbit-4", size: "72%", sats: 3 },
+  { cls: "orbit-5", size: "86%", sats: 3 },
 ] as const;
 
 const GLOBES = [
-  { label: "Americas", code: "AMER", offset: "18%", ring: "orbit-2", size: "52%", spin: "18s" },
-  { label: "EMEA", code: "EMEA", offset: "52%", ring: "orbit-4", size: "72%", spin: "30s" },
-  { label: "APAC", code: "APAC", offset: "78%", ring: "orbit-6", size: "90%", spin: "15s" },
+  { code: "AMER", name: "Americas", offset: "12%", ring: "orbit-2", size: "44%", spin: "22s" },
+  { code: "EMEA", name: "Europe", offset: "48%", ring: "orbit-4", size: "64%", spin: "34s" },
+  { code: "APAC", name: "Asia Pac", offset: "76%", ring: "orbit-5", size: "84%", spin: "18s" },
+] as const;
+
+const BUS = [
+  { n: "01", name: "Public markets" },
+  { n: "02", name: "Private equity" },
+  { n: "03", name: "Tokenized" },
+  { n: "04", name: "Commerce" },
+  { n: "05", name: "Oracle" },
+  { n: "06", name: "Infrastructure" },
+  { n: "07", name: "Orbital" },
 ] as const;
 
 function pad(n: number) {
@@ -46,110 +55,151 @@ export function CoreSimulation() {
   }, []);
 
   return (
-    <div className="core-sim relative w-full">
-      <div className="constellation-mesh-v2 pointer-events-none absolute inset-0 opacity-80" />
+    <div className="core-console">
+      <header className="core-mast">
+        <div>
+          <p className="core-kicker">X-CAPITAL · Accrual Core</p>
+          <p className="core-mast-title">Settlement clock</p>
+        </div>
+        <div className="core-mast-clock">
+          <span>Next pulse</span>
+          <strong>{remain}</strong>
+        </div>
+        <div className="core-mast-meta">
+          <span><i className="core-lamp" /> Nominal</span>
+          <span>Epoch {pad(epoch % 10000)}</span>
+          <span>8h cycle</span>
+        </div>
+      </header>
 
-      <div className="relative grid lg:grid-cols-[200px_1fr_200px] gap-4 items-center">
-        <aside className="hidden lg:flex flex-col gap-3 self-stretch justify-center">
-          <HudCard label="Epoch" value={String(epoch)} sub="8h settlement" />
-          <HudCard label="Next pulse" value={remain} sub="Network clock" />
-          <HudCard label="Desks" value="03" sub="Americas · EMEA · APAC" />
+      <div className="core-deck">
+        <aside className="core-ledger">
+          <p className="core-kicker">Stations</p>
+          {GLOBES.map((g) => (
+            <div key={g.code} className="core-row">
+              <span>{g.code}</span>
+              <span>{g.name}</span>
+              <em>Live</em>
+            </div>
+          ))}
+          <div className="core-row core-row-strong">
+            <span>EPOCH</span>
+            <span>{epoch}</span>
+            <em>Open</em>
+          </div>
         </aside>
 
-        <div className="core-sim-stage mx-auto">
-          {RINGS.map((ring) => (
-            <div
-              key={ring.cls}
-              className={`orbit-ring orbit-ring-enhanced ${ring.cls}`}
-              style={{ width: ring.size, height: ring.size }}
-            >
-              {Array.from({ length: ring.sats }).map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute inset-0"
-                  style={{ transform: `rotate(${(360 / ring.sats) * i}deg)` }}
-                >
-                  <span className={i % 2 === 0 ? "orbit-satellite" : "orbit-satellite dim"} />
-                </div>
-              ))}
-            </div>
-          ))}
-
-          {GLOBES.map((g) => (
-            <div
-              key={g.code}
-              className={`orbit-ring ${g.ring}`}
-              style={{ width: g.size, height: g.size, borderColor: "transparent" }}
-            >
-              <div className="core-globe-holder" style={{ ["--spin" as string]: g.spin }}>
-                <div
-                  className="core-globe xc-globe-spin"
-                  style={{
-                    backgroundImage: `url(${EARTH})`,
-                    ["--globe-x" as string]: g.offset,
-                  }}
-                />
-                <p className="core-globe-label">{g.code}</p>
+        <div className="core-plot" aria-hidden={false}>
+          <Bezel />
+          <div className="core-sim-stage">
+            <div className="core-sweep" />
+            {RINGS.map((ring) => (
+              <div
+                key={ring.cls}
+                className={`orbit-ring orbit-ring-enhanced ${ring.cls}`}
+                style={{ width: ring.size, height: ring.size }}
+              >
+                {Array.from({ length: ring.sats }).map((_, i) => (
+                  <div key={i} className="absolute inset-0" style={{ transform: `rotate(${(360 / ring.sats) * i}deg)` }}>
+                    <span className="orbit-satellite" />
+                  </div>
+                ))}
               </div>
+            ))}
+            {GLOBES.map((g) => (
+              <div
+                key={g.code}
+                className={`orbit-ring ${g.ring}`}
+                style={{ width: g.size, height: g.size, borderColor: "transparent" }}
+              >
+                <div className="core-globe-holder" style={{ ["--spin" as string]: g.spin }}>
+                  <div
+                    className="core-globe xc-globe-spin"
+                    style={{ backgroundImage: `url(${EARTH})`, ["--globe-x" as string]: g.offset }}
+                  />
+                  <p className="core-globe-label">{g.code}</p>
+                </div>
+              </div>
+            ))}
+            <div className="orbit-core" />
+            <div className="core-sim-nucleus">
+              <span className="core-word">CORE</span>
             </div>
-          ))}
-
-          <div className="orbit-signal" />
-          <div className="orbit-signal" style={{ animationDelay: "1.4s" }} />
-          <span className="satellite-beam left-1/2 top-[12%] h-[38%] -translate-x-1/2" />
-          <span className="data-packet" style={{ top: "18%", left: "62%" }} />
-          <span className="data-packet" style={{ top: "70%", left: "28%", animationDelay: "1.1s" }} />
-          <span className="data-packet" style={{ top: "42%", left: "78%", animationDelay: "2s" }} />
-          <div className="orbit-core" />
-          <div className="core-sim-nucleus">
-            <span className="node-telemetry text-emerald-300/90">Core</span>
           </div>
         </div>
 
-        <aside className="hidden lg:flex flex-col gap-3 self-stretch justify-center">
-          <HudCard label="Feeds" value="LIVE" sub="Alpaca IEX · CoinGecko" live />
-          <HudCard label="Book" value="USD" sub="Node ledger" />
-          <div className="node-panel node-scan-line p-4">
-            <p className="node-telemetry mb-2">Signal</p>
-            <div className="signal-bars h-8">
-              <span className="signal-bar" />
-              <span className="signal-bar" />
-              <span className="signal-bar" />
-              <span className="signal-bar" />
-            </div>
-            <p className="engine-readout mt-3">MESH · NOMINAL</p>
+        <aside className="core-ledger">
+          <p className="core-kicker">Book</p>
+          <div className="core-row">
+            <span>CCY</span>
+            <span>USD</span>
+            <em>Node</em>
+          </div>
+          <div className="core-row">
+            <span>FEEDS</span>
+            <span>IEX · CG</span>
+            <em>Live</em>
+          </div>
+          <div className="core-row">
+            <span>MESH</span>
+            <span>Nominal</span>
+            <em>Clear</em>
+          </div>
+          <div className="core-signal" aria-hidden>
+            <span /><span /><span /><span /><span />
           </div>
         </aside>
       </div>
 
-      <div className="lg:hidden mt-6 grid grid-cols-3 gap-2">
-        <HudCard label="Epoch" value={String(epoch)} />
-        <HudCard label="Next" value={remain} />
-        <HudCard label="Feeds" value="LIVE" live />
+      <div className="core-mobile">
+        <div><span>Epoch</span><strong>{epoch}</strong></div>
+        <div><span>Next</span><strong>{remain}</strong></div>
+        <div><span>Feeds</span><strong>Live</strong></div>
       </div>
+
+      <footer className="core-register">
+        <p className="core-kicker">Rail register</p>
+        <ol>
+          {BUS.map((rail) => (
+            <li key={rail.n}>
+              <span className="core-lamp" />
+              <span className="core-reg-n">{rail.n}</span>
+              <span>{rail.name}</span>
+            </li>
+          ))}
+        </ol>
+      </footer>
     </div>
   );
 }
 
-function HudCard({
-  label,
-  value,
-  sub,
-  live,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  live?: boolean;
-}) {
+function Bezel() {
+  const ticks = Array.from({ length: 60 }, (_, i) => i);
   return (
-    <div className="node-panel node-scan-line p-4">
-      <p className="node-telemetry flex items-center gap-2">
-        {live ? <span className="live-dot inline-block w-1.5 h-1.5 rounded-full bg-emerald-400" /> : null}
-        {label}
-      </p>
-      <p className="sim-num text-xl font-black mt-1 tracking-tight">{value}</p>
-      {sub ? <p className="engine-readout mt-1">{sub}</p> : null}
-    </div>
+    <svg className="core-bezel" viewBox="0 0 200 200" aria-hidden>
+      <circle cx="100" cy="100" r="96" fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth="0.6" />
+      <circle cx="100" cy="100" r="88" fill="none" stroke="rgba(110,231,183,0.35)" strokeWidth="0.4" />
+      {ticks.map((i) => {
+        const major = i % 5 === 0;
+        const a = (i / 60) * Math.PI * 2 - Math.PI / 2;
+        const r1 = major ? 90 : 92.5;
+        const r2 = 95.2;
+        return (
+          <line
+            key={i}
+            x1={100 + Math.cos(a) * r1}
+            y1={100 + Math.sin(a) * r1}
+            x2={100 + Math.cos(a) * r2}
+            y2={100 + Math.sin(a) * r2}
+            stroke={major ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.28)"}
+            strokeWidth={major ? 0.8 : 0.4}
+          />
+        );
+      })}
+      <text x="100" y="14" textAnchor="middle" fill="rgba(255,255,255,0.55)" fontSize="5">N</text>
+      <text x="188" y="102" textAnchor="middle" fill="rgba(255,255,255,0.55)" fontSize="5">E</text>
+      <text x="100" y="194" textAnchor="middle" fill="rgba(255,255,255,0.55)" fontSize="5">S</text>
+      <text x="12" y="102" textAnchor="middle" fill="rgba(255,255,255,0.55)" fontSize="5">W</text>
+    </svg>
   );
 }

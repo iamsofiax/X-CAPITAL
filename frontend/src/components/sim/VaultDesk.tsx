@@ -85,7 +85,7 @@ export function VaultDesk({ vaults, intro }: { vaults: VaultSpec[]; intro: React
               ["Calm μ / σ", `${fmtPct(spec.calm.mu, 0)} / ${fmtPct(spec.calm.sigma, 0, false)}`, "text-white/70"],
               ["Stress μ / σ", `${fmtPct(spec.stress.mu, 0)} / ${fmtPct(spec.stress.sigma, 0, false)}`, "text-white/70"],
             ].map(([label, v, cls]) => (
-              <div key={label} className="rounded-xl border border-white/[0.06] bg-white/[0.015] p-3">
+              <div key={label} className="pnl-card pnl-card-pos">
                 <p className="sim-label text-[8.5px] mb-1">{label}</p>
                 <p className={cn("font-bold", cls || "text-white")}>{v}</p>
               </div>

@@ -63,29 +63,29 @@ export function CommerceDesk() {
 
   return (
     <div className="space-y-8">
-      <section className="overflow-hidden rounded-3xl border border-white/[0.08] bg-black">
+      <section className="pnl-stage overflow-hidden">
         <div className="grid lg:grid-cols-[1.3fr_0.9fr]">
           <CatalogShot src="/catalog/catalog-cab.png" alt="Robotaxi fleet unit" className="h-72 w-full object-cover lg:h-full min-h-[320px]" />
           <div className="p-6 md:p-8 flex flex-col justify-center">
-            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-emerald-300/80">Robotaxi fleet</p>
+            <p className="sim-label text-emerald-300/80">Robotaxi fleet</p>
             <h2 className="mt-2 text-3xl font-black tracking-tight">Tesla cabs on the book</h2>
             <p className="mt-3 text-sm text-white/55 leading-relaxed">
               A fleet unit lists at ${fmtUsdc(15000, { decimals: 0 })} and is 30% off on this desk, from ${fmtUsdc(unit, { decimals: 0 })}.
               The price still steps up with the size of the order. Occupancy income credits free cash every minute and shows on the portfolio.
             </p>
             <dl className="mt-5 grid grid-cols-2 gap-3 text-sm">
-              <div className="rounded-2xl border border-white/[0.06] p-3">
-                <dt className="text-[10px] font-mono uppercase tracking-widest text-white/35">This order</dt>
-                <dd className="mt-1 text-xl font-black">${fmtUsdc(ticket, { decimals: 0 })}</dd>
-                <dd className="text-[12px] text-white/40">
+              <div className="pnl-card pnl-card-pos">
+                <dt className="sim-label">This order</dt>
+                <dd className="pnl-figure text-white">${fmtUsdc(ticket, { decimals: 0 })}</dd>
+                <dd className="mt-2 text-[12px] text-white/40">
                   <span className="line-through">${fmtUsdc(ticketList, { decimals: 0 })}</span>
                   {" "}· ${fmtUsdc(unit, { decimals: 0 })} each · {cabs} unit{cabs === 1 ? "" : "s"}
                 </dd>
               </div>
-              <div className="rounded-2xl border border-white/[0.06] p-3">
-                <dt className="text-[10px] font-mono uppercase tracking-widest text-white/35">Each minute</dt>
-                <dd className="mt-1 text-xl font-black text-emerald-300">{fmtUsdc(perMin, { decimals: 4 })}</dd>
-                <dd className="text-[12px] text-white/40">on this order, posted to cash</dd>
+              <div className="pnl-card pnl-card-pos">
+                <dt className="sim-label">Each minute</dt>
+                <dd className="pnl-figure text-emerald-300">{fmtUsdc(perMin, { decimals: 4 })}</dd>
+                <dd className="mt-2 text-[12px] text-white/40">on this order, posted to cash</dd>
               </div>
             </dl>
             <div className="mt-5 flex items-center gap-3">
@@ -108,7 +108,7 @@ export function CommerceDesk() {
       )}
 
       <div>
-        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-white/35">Atelier</p>
+        <p className="sim-label">Atelier</p>
         <h3 className="mt-1 text-2xl font-black tracking-tight">Vehicles, robots, and energy</h3>
         <p className="mt-2 max-w-2xl text-sm text-white/45">Whole units. The purchase posts to the portfolio at the price you pay. Free USD is the limit.</p>
       </div>
@@ -118,7 +118,7 @@ export function CommerceDesk() {
           const n = qty[item.sku] || 1;
           const held = account?.commerce?.find((h) => h.sku === item.sku)?.qty ?? 0;
           return (
-            <article key={item.sku} className="overflow-hidden rounded-3xl border border-white/[0.08] bg-white/[0.02]">
+            <article key={item.sku} className="pnl-sleeve overflow-hidden !p-0" style={{ ["--sleeve" as string]: "#34d399" }}>
               <div className="relative">
                 <CatalogShot src={item.image} alt={item.name} className="h-52 w-full object-cover" />
                 <p className="absolute bottom-3 left-3 rounded-full bg-black/75 px-3 py-1 text-sm font-black text-white">
@@ -127,12 +127,23 @@ export function CommerceDesk() {
                 </p>
               </div>
               <div className="p-4">
-                <p className="text-[10px] font-mono uppercase tracking-widest text-white/35">{item.line}</p>
-                <h4 className="mt-1 text-lg font-black">{item.name}</h4>
-                <p className="mt-1 text-[13px] text-white/45 leading-snug">{item.blurb}</p>
-                <p className="mt-3 text-xl font-black">${fmtUsdc(item.price, { decimals: 0 })}</p>
+                <div className="flex items-center gap-3">
+                  <span className="pnl-mark text-[12px] text-[#03140d]" style={{ background: "#34d399" }}>
+                    {item.name.slice(0, 2).toUpperCase()}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="sim-label">{item.line}</p>
+                    <h4 className="text-lg font-black truncate">{item.name}</h4>
+                  </div>
+                </div>
+                <p className="mt-3 text-[13px] text-white/45 leading-snug">{item.blurb}</p>
+                <p className="mt-3 text-2xl font-black text-emerald-300">${fmtUsdc(item.price, { decimals: 0 })}</p>
                 <p className="text-[12px] text-white/40"><span className="line-through">${fmtUsdc(item.list, { decimals: 0 })}</span> · 30% off</p>
                 {held > 0 && <p className="text-[11px] text-emerald-300/80 mt-1">On the book · {held}</p>}
+                <div className="pnl-split mt-3" aria-hidden>
+                  <span style={{ width: "70%" }} />
+                  <span style={{ width: "30%" }} />
+                </div>
                 <div className="mt-4 flex items-center gap-2">
                   <button type="button" className="sim-btn sim-btn-ghost px-3" onClick={() => setQty((q) => ({ ...q, [item.sku]: Math.max(1, n - 1) }))}>−</button>
                   <span className="sim-num w-6 text-center text-sm">{n}</span>

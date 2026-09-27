@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
+  fetchBinancePrices,
   fetchBrokerQuotes,
   fetchCryptoPrices,
   fetchStockQuotes,
@@ -43,8 +44,8 @@ export function useMarketPrices(
 
     // Fetch crypto (CoinGecko — free, no key)
     if (crypto) {
-      const cryptoPrices = await fetchCryptoPrices();
-      Object.assign(results, cryptoPrices);
+      const [binance, cryptoPrices] = await Promise.all([fetchBinancePrices(), fetchCryptoPrices()]);
+      Object.assign(results, cryptoPrices, binance);
     }
 
     // Equities / ETFs: Alpaca IEX via the desk API, then Finnhub if configured.

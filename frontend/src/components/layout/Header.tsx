@@ -39,7 +39,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-white/[0.05] bg-[#030405]/85 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-white/[0.05] bg-[#030405]/92 backdrop-blur-md">
         <div className="flex items-center justify-between px-4 md:px-6 h-16 gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
