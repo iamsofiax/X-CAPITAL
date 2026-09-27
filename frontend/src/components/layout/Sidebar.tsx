@@ -26,7 +26,7 @@ export default function Sidebar() {
 
   const items = [
     { href: COMMAND_CENTER.href, label: COMMAND_CENTER.label, icon: COMMAND_CENTER.icon, accent: "#e5e7eb", gated: false },
-    ...RAILS.map((r) => ({ href: r.href, label: r.label, icon: r.icon, accent: r.accent, gated: r.id !== "treasury" })),
+    ...RAILS.map((r) => ({ href: r.href, label: r.label, icon: r.icon, accent: r.accent, gated: false })),
   ];
 
   return (

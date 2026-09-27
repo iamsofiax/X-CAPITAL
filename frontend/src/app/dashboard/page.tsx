@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Coins } from "lucide-react";
+import { Coins, Link2, ShieldCheck } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { LiveBook } from "@/components/desk/LiveBook";
 import { YieldWatch } from "@/components/desk/YieldWatch";
@@ -38,6 +38,29 @@ export default function CommandCenterPage() {
         <YieldWatch />
 
         <div>
+          <p className="sim-label mb-3">Test the desk</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+            <Link href="/settings/kyc" className="sim-glass flex items-start gap-3 p-4 min-h-[108px]">
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-300/40 bg-emerald-300/10 text-emerald-300">
+                <ShieldCheck className="h-4 w-4" aria-hidden />
+              </span>
+              <span className="min-w-0">
+                <span className="sim-label block text-[9px]">Identity</span>
+                <span className="mt-1 block text-sm font-bold text-white">Full KYC packet</span>
+                <span className="mt-1 block text-xs leading-snug text-white/45">Send name, address, and document for the operator to confirm.</span>
+              </span>
+            </Link>
+            <Link href="/settings/links" className="sim-glass flex items-start gap-3 p-4 min-h-[108px]">
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-300/40 bg-emerald-300/10 text-emerald-300">
+                <Link2 className="h-4 w-4" aria-hidden />
+              </span>
+              <span className="min-w-0">
+                <span className="sim-label block text-[9px]">Outside accounts</span>
+                <span className="mt-1 block text-sm font-bold text-white">401(k), IRA, brokerage, pension</span>
+                <span className="mt-1 block text-xs leading-snug text-white/45">Each plan has its own steps. Cash posts only after the operator confirms it.</span>
+              </span>
+            </Link>
+          </div>
           <p className="sim-label mb-3">Rails</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             {RAILS.map((rail) => {

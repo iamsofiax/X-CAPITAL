@@ -20,6 +20,8 @@ const ITEMS: Item[] = [
   { id: "cmd", label: COMMAND_CENTER.label, description: "Command center", href: COMMAND_CENTER.href, group: "Rails" },
   ...RAILS.map((r) => ({ id: r.id, label: r.label, description: r.blurb, href: r.href, group: "Rails" as const })),
   { id: "settings", label: "Settings", description: "Profile, password, theme", href: "/settings", group: "Rails" },
+  { id: "kyc", label: "Identity", description: "Full KYC packet for the operator", href: "/settings/kyc", group: "Rails" },
+  { id: "links", label: "Link a plan", description: "401(k), IRA, brokerage, or pension", href: "/settings/links", group: "Rails" },
   ...INSTRUMENTS.map((i) => ({
     id: `i-${i.symbol}`,
     label: i.symbol,

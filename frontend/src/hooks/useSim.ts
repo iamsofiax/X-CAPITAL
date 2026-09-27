@@ -76,9 +76,19 @@ export function useSim() {
 
   useEffect(() => {
     if (!userId) return;
-    const s = store.getState();
-    s.ensure(userId);
-    s.sync(userId);
+    let cancel = false;
+    const run = () => {
+      if (cancel) return;
+      const s = store.getState();
+      s.ensure(userId);
+      s.sync(userId);
+    };
+    if (useSimStore.persist.hasHydrated()) run();
+    const unsub = useSimStore.persist.onFinishHydration(run);
+    return () => {
+      cancel = true;
+      unsub();
+    };
   }, [userId, epoch, store]);
 
   const metrics = useMemo(() => {

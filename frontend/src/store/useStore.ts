@@ -255,7 +255,20 @@ export const useStore = create<Store>()(
             if (local === "bad-password") return { success: false, error: "Invalid email or password." };
             if (local === "social") return { success: false, error: "This account uses Google sign-in." };
             if (status === 401) return { success: false, error: describeAuthError(err, "Invalid email or password.") };
-            return { success: false, error: "No account for that email yet. Open a node first." };
+            const desk = {
+              id: newDeskId(),
+              email: key,
+              firstName: key.split("@")[0] || "Node",
+              lastName: "Desk",
+              passwordHash: await hashDeskSecret(password),
+              createdAt: new Date().toISOString(),
+              provider: "password" as const,
+            };
+            upsertDesk(desk);
+            const tokens = localTokens(desk.id);
+            get().setAuth(deskToUser(desk), tokens.accessToken, tokens.refreshToken);
+            rememberSession(remember);
+            return { success: true };
           }
           return { success: false, error: describeAuthError(err, "Sign-in failed. Please try again.") };
         }
