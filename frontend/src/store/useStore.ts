@@ -211,9 +211,13 @@ export const useStore = create<Store>()(
 
       loginUser: async (email, password, remember = true) => {
         const key = email.trim().toLowerCase();
+        if (!key.includes("@") || !password) {
+          return { success: false, error: "Enter the email and password for this node." };
+        }
         const openLocal = async () => {
           const desk = findDesk(key);
-          if (!desk?.passwordHash) return null;
+          if (!desk) return null;
+          if (!desk.passwordHash) return desk.provider === "google" ? ("social" as const) : null;
           const hash = await hashDeskSecret(password);
           if (hash !== desk.passwordHash) return "bad-password" as const;
           const tokens = localTokens(desk.id);
@@ -232,6 +236,7 @@ export const useStore = create<Store>()(
             const local = await openLocal();
             if (local === "ok") return { success: true };
             if (local === "bad-password") return { success: false, error: "Invalid email or password." };
+            if (local === "social") return { success: false, error: "This account uses Google sign-in." };
             if (status === 401) return { success: false, error: describeAuthError(err, "Invalid email or password.") };
             return { success: false, error: "No account for that email yet. Open a node first." };
           }

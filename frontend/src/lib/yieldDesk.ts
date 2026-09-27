@@ -274,3 +274,88 @@ export function saveReceipt(row: Omit<TradeReceipt, "id" | "at">): TradeReceipt 
   writeJson(RECEIPTS, [next, ...rows].slice(0, 40));
   return next;
 }
+
+const KYC = "xc_kyc_packets";
+const LINKS = "xc_external_links";
+
+export type KycPacket = {
+  id: string;
+  userId: string;
+  email: string;
+  legalFirst: string;
+  legalLast: string;
+  dob: string;
+  nationality: string;
+  address: string;
+  city: string;
+  region: string;
+  postal: string;
+  country: string;
+  phone: string;
+  occupation: string;
+  sourceOfFunds: string;
+  docType: "Passport" | "National ID" | "Driver license";
+  docNumber: string;
+  at: number;
+  status: "pending" | "approved" | "rejected";
+};
+
+export type ExternalLinkRequest = {
+  id: string;
+  userId: string;
+  email: string;
+  kind: "401k" | "IRA" | "Brokerage" | "Pension";
+  custodian: string;
+  planName: string;
+  accountTitle: string;
+  last4: string;
+  requestedUsd: number;
+  at: number;
+  status: "pending" | "linked" | "booked" | "rejected";
+  bookedUsd?: number;
+};
+
+function newId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+export function listKyc(): KycPacket[] {
+  return readJson<KycPacket[]>(KYC, []);
+}
+
+export function latestKyc(userId: string): KycPacket | null {
+  return listKyc().find((row) => row.userId === userId) ?? null;
+}
+
+export function submitKyc(row: Omit<KycPacket, "id" | "at" | "status">): KycPacket {
+  const rows = listKyc().filter((r) => !(r.userId === row.userId && r.status === "pending"));
+  const next: KycPacket = { ...row, id: newId(), at: Date.now(), status: "pending" };
+  writeJson(KYC, [next, ...rows].slice(0, 200));
+  return next;
+}
+
+export function setKycStatus(id: string, status: KycPacket["status"]) {
+  writeJson(KYC, listKyc().map((row) => (row.id === id ? { ...row, status } : row)));
+}
+
+export function listLinks(): ExternalLinkRequest[] {
+  return readJson<ExternalLinkRequest[]>(LINKS, []);
+}
+
+export function linksFor(userId: string): ExternalLinkRequest[] {
+  return listLinks().filter((row) => row.userId === userId);
+}
+
+export function submitLink(row: Omit<ExternalLinkRequest, "id" | "at" | "status" | "bookedUsd">): ExternalLinkRequest {
+  const rows = listLinks();
+  const next: ExternalLinkRequest = { ...row, id: newId(), at: Date.now(), status: "pending" };
+  writeJson(LINKS, [next, ...rows].slice(0, 200));
+  return next;
+}
+
+export function setLinkStatus(id: string, status: ExternalLinkRequest["status"], bookedUsd?: number) {
+  writeJson(
+    LINKS,
+    listLinks().map((row) => (row.id === id ? { ...row, status, bookedUsd: bookedUsd ?? row.bookedUsd } : row)),
+  );
+}

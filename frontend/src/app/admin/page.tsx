@@ -7,7 +7,7 @@ import { useStore } from "@/store/useStore";
 import { adminAPI } from "@/lib/api";
 import { isAdminUser, type AdminUserRow } from "@/lib/apiUser";
 import { loadDesks } from "@/lib/localDesk";
-import { confirmDepositRecord, listDeposits, listMandates, pushNotice, setDailyGrowth, weeklyOf, type PendingDeposit } from "@/lib/yieldDesk";
+import { confirmDepositRecord, listDeposits, listKyc, listLinks, listMandates, pushNotice, setDailyGrowth, setKycStatus, setLinkStatus, weeklyOf, type ExternalLinkRequest, type KycPacket, type PendingDeposit } from "@/lib/yieldDesk";
 import { useSimStore } from "@/store/useSimStore";
 import { accountNav } from "@/lib/sim/engine";
 import { XCapitalLogoMark } from "@/components/brand/XCapitalLogo";
@@ -28,6 +28,9 @@ export default function AdminPage() {
   const [formMsg, setFormMsg] = useState("");
   const [growth, setGrowth] = useState({ userId: "", dailyPct: "0.25", weeklyPct: "1.76", operatedPct: "40" });
   const [pending, setPending] = useState<PendingDeposit[]>([]);
+  const [kycRows, setKycRows] = useState<KycPacket[]>([]);
+  const [linkRows, setLinkRows] = useState<ExternalLinkRequest[]>([]);
+  const [linkUsd, setLinkUsd] = useState<Record<string, string>>({});
   const [usdById, setUsdById] = useState<Record<string, string>>({});
   const [adj, setAdj] = useState({
     userId: "",
@@ -55,7 +58,11 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    const pull = () => setPending(listDeposits().filter((d) => d.status === "pending"));
+    const pull = () => {
+      setPending(listDeposits().filter((d) => d.status === "pending"));
+      setKycRows(listKyc().filter((row) => row.status === "pending"));
+      setLinkRows(listLinks().filter((row) => row.status === "pending"));
+    };
     pull();
     window.addEventListener("xc-yield", pull);
     return () => window.removeEventListener("xc-yield", pull);
@@ -308,6 +315,76 @@ export default function AdminPage() {
                   >
                     Confirm deposit
                   </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="sim-glass p-5">
+          <p className="font-black mb-1">Identity packets</p>
+          <p className="text-sm text-white/50 mb-4">Approve or reject. This does not credit the book.</p>
+          {kycRows.length === 0 ? (
+            <p className="text-sm text-white/40">No identity packets waiting.</p>
+          ) : (
+            <ul className="space-y-3">
+              {kycRows.map((row) => (
+                <li key={row.id} className="rounded-xl border border-white/[0.12] bg-black/40 p-4">
+                  <p className="text-sm font-bold">{row.legalFirst} {row.legalLast} · {row.email}</p>
+                  <p className="text-[12px] text-white/55 mt-1">{row.address}, {row.city}, {row.region} {row.postal}, {row.country}</p>
+                  <p className="text-[12px] text-white/55 mt-1">Born {row.dob} · {row.nationality} · {row.occupation} · {row.phone}</p>
+                  <p className="text-[12px] text-white/55 mt-1">Funds: {row.sourceOfFunds}</p>
+                  <p className="text-[12px] font-mono text-white/70 mt-1">{row.docType} · {row.docNumber}</p>
+                  <div className="mt-3 flex gap-2">
+                    <button type="button" className="sim-btn sim-btn-primary" onClick={() => { setKycStatus(row.id, "approved"); pushNotice(row.userId, "Identity approved", "The operator confirmed the identity packet."); }}>Approve</button>
+                    <button type="button" className="sim-btn sim-btn-ghost" onClick={() => { setKycStatus(row.id, "rejected"); pushNotice(row.userId, "Identity rejected", "The operator rejected the identity packet. Send a corrected one from Settings."); }}>Reject</button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="sim-glass p-5">
+          <p className="font-black mb-1">External account links</p>
+          <p className="text-sm text-white/50 mb-4">Confirm the link with no cash, or book the verified USD onto the node.</p>
+          {linkRows.length === 0 ? (
+            <p className="text-sm text-white/40">No link requests waiting.</p>
+          ) : (
+            <ul className="space-y-3">
+              {linkRows.map((row) => (
+                <li key={row.id} className="rounded-xl border border-white/[0.12] bg-black/40 p-4 flex flex-col gap-3">
+                  <div>
+                    <p className="text-sm font-bold">{row.email}</p>
+                    <p className="text-[12px] text-white/55 mt-1">{row.kind} · {row.custodian} · {row.planName}</p>
+                    <p className="text-[12px] text-white/55">{row.accountTitle} · ···{row.last4} · requested {row.requestedUsd.toLocaleString()} USD</p>
+                  </div>
+                  <div className="flex flex-col md:flex-row gap-2 md:items-center">
+                    <button type="button" className="sim-btn sim-btn-ghost" onClick={() => { setLinkStatus(row.id, "linked"); pushNotice(row.userId, "Plan linked", `${row.kind} at ${row.custodian} is on file. No cash was booked.`); }}>Confirm link</button>
+                    <input className="sim-input md:max-w-[160px]" inputMode="decimal" placeholder="USD to book" value={linkUsd[row.id] ?? String(row.requestedUsd)} onChange={(e) => setLinkUsd((m) => ({ ...m, [row.id]: e.target.value }))} />
+                    <button
+                      type="button"
+                      className="sim-btn sim-btn-primary"
+                      onClick={() => {
+                        const usd = Number(linkUsd[row.id] ?? row.requestedUsd);
+                        if (!(usd > 0)) {
+                          setError("Enter the USD amount to book.");
+                          return;
+                        }
+                        const res = useSimStore.getState().confirmDeposit(row.userId, usd, row.kind, `link-${row.id}`);
+                        if (!res.ok) {
+                          setError(res.error);
+                          return;
+                        }
+                        setLinkStatus(row.id, "booked", usd);
+                        pushNotice(row.userId, "Plan booked", `${usd.toLocaleString()} USD from ${row.custodian} is on the book.`);
+                        setError("");
+                      }}
+                    >
+                      Book cash
+                    </button>
+                    <button type="button" className="sim-btn sim-btn-ghost" onClick={() => { setLinkStatus(row.id, "rejected"); pushNotice(row.userId, "Link rejected", `${row.kind} at ${row.custodian} was not accepted.`); }}>Reject</button>
+                  </div>
                 </li>
               ))}
             </ul>

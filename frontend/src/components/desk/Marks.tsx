@@ -21,9 +21,13 @@ const VENUES: Record<string, { domain: string; color: string; mark: string }> = 
   okx: { domain: "okx.com", color: "#000000", mark: "O" },
   bybit: { domain: "bybit.com", color: "#F7A600", mark: "B" },
   bitstamp: { domain: "bitstamp.net", color: "#1A9E75", mark: "B" },
+  changelly: { domain: "changelly.com", color: "#00D4AA", mark: "C" },
   moonpay: { domain: "moonpay.com", color: "#7715F5", mark: "M" },
   ramp: { domain: "ramp.network", color: "#0B0E11", mark: "R" },
   transak: { domain: "transak.com", color: "#0061FF", mark: "T" },
+  banxa: { domain: "banxa.com", color: "#0B1F3A", mark: "B" },
+  mercuryo: { domain: "mercuryo.io", color: "#1F3BFF", mark: "M" },
+  simplex: { domain: "simplex.com", color: "#2E5BFF", mark: "S" },
   robinhood: { domain: "robinhood.com", color: "#00C805", mark: "R" },
 };
 

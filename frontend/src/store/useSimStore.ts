@@ -15,6 +15,7 @@ import {
   settleFleetIncome,
   depositVault,
   executeTrade,
+  raiseCash,
   lockSxc,
   setTradingHalt,
   markPositions,
@@ -27,6 +28,10 @@ import {
 } from "@/lib/sim/engine";
 
 export type SimResult = { ok: true } | { ok: false; error: string };
+
+export type RaiseResult =
+  | { ok: true; raised: number; sold: string[]; locked: string[] }
+  | { ok: false; error: string };
 
 interface SimState {
   accounts: Record<string, SimAccount>;
@@ -50,6 +55,7 @@ interface SimState {
     side: "BUY" | "SELL",
     input: { notional?: number; qty?: number },
   ) => SimResult;
+  raiseCash: (userId: string, mids: Record<string, number>) => RaiseResult;
   lock: (userId: string, amount: number, days: number) => SimResult;
   unlock: (userId: string, lockId: string) => SimResult;
   checkIn: (userId: string) => number;
@@ -124,6 +130,17 @@ export const useSimStore = create<SimState>()(
           run(userId, (a) => setAutoCompound(a, vaultId, on));
         },
         trade: (userId, quote, side, input) => run(userId, (a) => executeTrade(a, quote, side, input)),
+        raiseCash: (userId, mids) => {
+          try {
+            const settled = settle(get().ensure(userId)).account;
+            const result = raiseCash(settled, mids);
+            set((s) => ({ accounts: { ...s.accounts, [userId]: result.account } }));
+            return { ok: true, raised: result.raised, sold: result.sold, locked: result.locked };
+          } catch (err) {
+            if (err instanceof SimError) return { ok: false, error: err.message };
+            return { ok: false, error: "The book could not be updated. Please retry." };
+          }
+        },
         lock: (userId, amount, days) => run(userId, (a) => lockSxc(a, amount, days)),
         unlock: (userId, lockId) => run(userId, (a) => unlockSxc(a, lockId)),
 

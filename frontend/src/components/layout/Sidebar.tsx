@@ -32,7 +32,7 @@ export default function Sidebar() {
   return (
     <>
       {sidebarOpen && (
-        <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden" onClick={close} />
+        <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm" onClick={close} />
       )}
 
       <aside
@@ -41,7 +41,6 @@ export default function Sidebar() {
           "bg-[#030405]/95 backdrop-blur-md border-r border-white/[0.05]",
           "w-[264px] transition-transform duration-150",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
-          "md:translate-x-0 md:w-[248px]",
         )}
       >
         <div className="flex items-center justify-between px-3 pt-5 pb-4 border-b border-white/[0.05]">
@@ -54,7 +53,7 @@ export default function Sidebar() {
               <span className="sim-label text-[8px] text-emerald-300/70">Operator desk</span>
             </div>
           </Link>
-          <button onClick={close} className="md:hidden w-8 h-8 rounded-lg text-white/30 hover:text-white hover:bg-white/5 flex items-center justify-center" aria-label="Close menu">
+          <button onClick={close} className="w-8 h-8 rounded-lg text-white/30 hover:text-white hover:bg-white/5 flex items-center justify-center" aria-label="Close menu">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -123,6 +122,14 @@ export default function Sidebar() {
             <Link href="/settings" onClick={close} className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.04] text-[13px]">
               <Settings className="w-4 h-4 shrink-0" />
               <span>Settings</span>
+            </Link>
+            <Link href="/settings/kyc" onClick={close} className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.04] text-[13px]">
+              <ShieldCheck className="w-4 h-4 shrink-0" />
+              <span>Identity</span>
+            </Link>
+            <Link href="/settings/links" onClick={close} className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.04] text-[13px]">
+              <ShieldCheck className="w-4 h-4 shrink-0" />
+              <span>Link a plan</span>
             </Link>
             <button
               onClick={() => { logout(); close(); router.push("/auth/login"); }}

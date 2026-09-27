@@ -44,10 +44,10 @@ export default function Header({ title, subtitle }: HeaderProps) {
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="md:hidden w-10 h-10 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5"
+              className="w-10 h-10 rounded-lg flex items-center justify-center text-white/70 hover:text-white hover:bg-white/5 border border-white/10"
               aria-label="Open menu"
             >
-              <Menu className="w-4 h-4" />
+              <Menu className="w-5 h-5" />
             </button>
             <div className="min-w-0">
               <h1 className="text-sm md:text-base font-bold text-white tracking-tight truncate">{title}</h1>

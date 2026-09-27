@@ -63,7 +63,7 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen sim-canvas">
       <Sidebar />
-      <div className="md:ml-[248px]">
+      <div>
         <SimulationBadge variant="banner" />
         <MarketTicker />
         <Header title={title} subtitle={subtitle} />

@@ -1,6 +1,6 @@
 import { currentEpoch, epochAt, epochStart, seasonOf, utcDay } from "./clock";
 import { lockWeight, totalWeight, isUnlockable, LOCK_TERMS } from "./conviction";
-import { INSTRUMENT_BY_SYMBOL, type Quote } from "./instruments";
+import { INSTRUMENT_BY_SYMBOL, buildQuote, type Quote } from "./instruments";
 import { appendLedger, makeEntry, TREASURY } from "./ledger";
 export { verifyReserves } from "./ledger";
 import {
@@ -644,6 +644,99 @@ export function executeTrade(
       ts: now,
     }),
   ]);
+}
+
+export type RaiseCashResult = {
+  account: SimAccount;
+  raised: number;
+  sold: string[];
+  locked: string[];
+};
+
+/** Sells every spot position at the bid and redeems vaults whose window is open. Locked sleeves stay put. */
+export function raiseCash(acc: SimAccount, mids: Record<string, number>, now = Date.now()): RaiseCashResult {
+  requireGenesis(acc);
+  if (acc.tradingHalted) throw new SimError("Trading is frozen on this desk.");
+  let next = acc;
+  const sold: string[] = [];
+  const locked: string[] = [];
+  const startCash = acc.cash;
+
+  for (const [symbol, pos] of Object.entries({ ...acc.positions })) {
+    if (pos.qty <= DUST) continue;
+    const inst = INSTRUMENT_BY_SYMBOL[symbol];
+    const mid = mids[symbol] ?? acc.marks[symbol] ?? pos.avgCost;
+    if (!inst || !(mid > 0)) {
+      locked.push(`${symbol} has no price, so it was left in place.`);
+      continue;
+    }
+    const quote = buildQuote(inst, mid, 0, mids[symbol] ? "LIVE" : "MARKED");
+    next = executeTrade(next, quote, "SELL", { qty: pos.qty }, now);
+    sold.push(symbol);
+  }
+
+  for (const vaultId of Object.keys(next.vaults)) {
+    const value = vaultValue(next, vaultId);
+    if (!(value > 0)) continue;
+    try {
+      next = withdrawVault(next, vaultId, value, now);
+      sold.push(vaultId);
+    } catch (err) {
+      if (err instanceof SimError) locked.push(err.message);
+      else throw err;
+    }
+  }
+
+  next = settleFleetIncome(next, now);
+  if ((next.fleet?.cost ?? 0) > 0 && next.fleet) {
+    const cost = next.fleet.cost;
+    const epoch = currentEpoch(now);
+    next = {
+      ...next,
+      cash: next.cash + cost,
+      fleet: undefined,
+    };
+    next = withLedger(next, [
+      makeEntry(next, {
+        epoch,
+        kind: "VAULT_WITHDRAW",
+        asset: "sUSDC",
+        amount: cost,
+        from: "desk:fleet",
+        to: TREASURY,
+        memo: "Fleet returned to cash at cost",
+        ts: now,
+      }),
+    ]);
+    sold.push("fleet");
+  }
+
+  const goods = next.commerce ?? [];
+  if (goods.length > 0) {
+    const cost = goods.reduce((sum, h) => sum + h.cost, 0);
+    const epoch = currentEpoch(now);
+    next = { ...next, cash: next.cash + cost, commerce: [] };
+    if (cost > 0) {
+      next = withLedger(next, [
+        makeEntry(next, {
+          epoch,
+          kind: "VAULT_WITHDRAW",
+          asset: "sUSDC",
+          amount: cost,
+          from: "desk:atelier",
+          to: TREASURY,
+          memo: "Atelier holdings returned to cash at cost",
+          ts: now,
+        }),
+      ]);
+    }
+    sold.push("atelier");
+  }
+
+  if (sold.length === 0 && locked.length === 0) {
+    throw new SimError("Nothing is held that can be turned into cash.");
+  }
+  return { account: next, raised: Math.max(0, next.cash - startCash), sold, locked };
 }
 
 export function lockSxc(acc: SimAccount, amount: number, days: number, now = Date.now()): SimAccount {

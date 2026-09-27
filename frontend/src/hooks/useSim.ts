@@ -134,6 +134,7 @@ export function useSim() {
       toggleCompound: (vaultId: string, on: boolean) => s.toggleCompound(id, vaultId, on),
       trade: (quote: Quote, side: "BUY" | "SELL", input: { notional?: number; qty?: number }) =>
         s.trade(id, quote, side, input),
+      raiseCash: (mids: Record<string, number>) => s.raiseCash(id, mids),
       lock: (amount: number, days: number) => s.lock(id, amount, days),
       unlock: (lockId: string) => s.unlock(id, lockId),
       checkIn: () => s.checkIn(id),

@@ -112,10 +112,32 @@ export function FundDesk() {
           </div>
 
           <div>
-            <p className="text-[10px] font-mono uppercase tracking-widest text-white/35 mb-1">2 · Buy {rail.name} if you do not hold it</p>
-            <p className="text-[12px] text-white/40 mb-3">Opens the provider in a new tab. When the coin is yours, send it to the vault on the right.</p>
+            <p className="text-[10px] font-mono uppercase tracking-widest text-white/35 mb-1">2 · Buy {rail.name} instantly, then send it here</p>
+            <p className="text-[12px] text-white/40 mb-3">Changelly and the other card desks open in a new tab. This desk never asks for that login. When the coin is yours, send it to the vault and paste the hash.</p>
+            <p className="text-[10px] font-mono uppercase tracking-widest text-emerald-300/80 mb-2">Instant buy</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
-              {ONRAMPS.map((p) => (
+              {ONRAMPS.filter((p) => p.kind === "instant").map((p) => (
+                <a
+                  key={p.id}
+                  href={p.href(asset)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group flex items-center gap-3 rounded-2xl border border-emerald-400/25 bg-black/30 px-3 py-3 hover:border-emerald-300/50 hover:bg-white/[0.03]"
+                >
+                  <VenueMark id={p.id} />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="text-[13px] font-semibold text-white truncate">{p.name}</span>
+                      <ExternalLink className="w-3 h-3 shrink-0 text-white/25 group-hover:text-white/70" />
+                    </span>
+                    <span className="block text-[11px] text-white/40 mt-0.5">{p.note}</span>
+                  </span>
+                </a>
+              ))}
+            </div>
+            <p className="text-[10px] font-mono uppercase tracking-widest text-white/35 mt-4 mb-2">Exchanges</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
+              {ONRAMPS.filter((p) => p.kind === "exchange").map((p) => (
                 <a
                   key={p.id}
                   href={p.href(asset)}

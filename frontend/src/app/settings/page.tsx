@@ -48,7 +48,6 @@ export default function SettingsPage() {
 
   // Security
   const [showPassword, setShowPassword] = useState(false);
-  const [twoFA, setTwoFA] = useState(false);
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -124,7 +123,7 @@ export default function SettingsPage() {
 
   return (
     <DashboardLayout title="Settings" subtitle="Manage your account">
-      <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
+      <div className="max-w-4xl space-y-8">
         {/* Profile Picture */}
         <Panel code="Node" title="Profile">
           <div className="flex flex-col sm:flex-row items-center gap-5">
@@ -371,14 +370,9 @@ export default function SettingsPage() {
             >
               {pwLoading ? "Updating..." : "Update Password"}
             </button>
-            <div className="pt-2">
-              <ToggleRow
-                label="Two-factor authentication"
-                description="Add an extra layer of security"
-                checked={twoFA}
-                onChange={setTwoFA}
-              />
-            </div>
+            <p className="text-sm text-white/55 pt-2 leading-relaxed">
+              Two-factor is issued by the operator after identity is approved. It is not a switch on this desk.
+            </p>
           </div>
         </section>
 
@@ -424,8 +418,8 @@ export default function SettingsPage() {
                 <Sun className="w-5 h-5 text-black" />
               </div>
               <div>
-                <div className="text-sm font-bold text-white">Light Mode</div>
-                <div className="text-xs text-xc-muted">Clean & bright</div>
+                <div className="text-sm font-bold text-white">Daylight</div>
+                <div className="text-xs text-xc-muted">Stone desk, emerald glass</div>
               </div>
               {theme === "light" && (
                 <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-white flex items-center justify-center">
@@ -433,6 +427,23 @@ export default function SettingsPage() {
                 </div>
               )}
             </button>
+          </div>
+        </section>
+
+        <section className="sim-glass p-6 md:p-8">
+          <h2 className="text-lg font-black text-white mb-2">Identity and outside accounts</h2>
+          <p className="text-sm text-white/50 mb-5 max-w-2xl">Both packets go to the operator. Cash and trading rights do not change until they confirm.</p>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Link href="/settings/kyc" className="pnl-sleeve block">
+              <p className="sim-label text-emerald-300">KYC</p>
+              <p className="mt-2 text-lg font-black">Full identity packet</p>
+              <p className="mt-1 text-sm text-white/50">Name, address, source of funds, and document. Status: {user.kycStatus.replace(/_/g, " ")}</p>
+            </Link>
+            <Link href="/settings/links" className="pnl-sleeve block">
+              <p className="sim-label text-emerald-300">Link</p>
+              <p className="mt-2 text-lg font-black">401(k) and plans</p>
+              <p className="mt-1 text-sm text-white/50">Four steps. The operator books cash only for the amount they verify.</p>
+            </Link>
           </div>
         </section>
 

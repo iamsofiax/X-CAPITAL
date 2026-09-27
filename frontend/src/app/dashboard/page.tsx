@@ -6,9 +6,11 @@ import { Coins } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { LiveBook } from "@/components/desk/LiveBook";
 import { YieldWatch } from "@/components/desk/YieldWatch";
+import { useLiveYield } from "@/hooks/useLiveYield";
 import { CoinMark } from "@/components/desk/Marks";
 import { RAILS } from "@/lib/rails";
 import { walletAPI } from "@/lib/api";
+import { fmtUsdc } from "@/lib/sim/format";
 
 type Balances = Record<string, { cash: string; reserved: string }>;
 
@@ -31,6 +33,7 @@ export default function CommandCenterPage() {
   return (
     <DashboardLayout title="Command" subtitle="Profit and loss · allocation · lead sleeves">
       <div className="space-y-5">
+        <CompileStrip />
         <LiveBook />
         <YieldWatch />
 
@@ -82,6 +85,29 @@ export default function CommandCenterPage() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+function CompileStrip() {
+  const { active, rate, weekly, live, posted } = useLiveYield();
+  const compiled = Math.max(0, live - posted);
+  return (
+    <section className="sim-glass sim-glass-edge p-5 md:p-6">
+      <p className="sim-label text-emerald-300">Compile</p>
+      <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-black tracking-tight">
+            {active ? `${fmtUsdc(compiled)} compiling this cycle` : "The book compiles after the node is live"}
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm text-white/55 leading-relaxed">
+            {active
+              ? `The operated book is running at ${rate}% a day, ${weekly.toFixed(2)}% a week. Leave it funded and each cycle stacks on the last.`
+              : "Fund the node, then wait for the operator to activate it. Until then the posted book stays at the confirmed cash."}
+          </p>
+        </div>
+        {active && <p className="text-3xl font-black tabular-nums text-emerald-300">{fmtUsdc(live)}</p>}
+      </div>
+    </section>
   );
 }
 

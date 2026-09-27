@@ -66,6 +66,7 @@ export type Onramp = {
   id: string;
   name: string;
   note: string;
+  kind: "instant" | "exchange";
   href: (asset: FundAsset) => string;
 };
 
@@ -89,75 +90,115 @@ const PAIR: Record<FundAsset, string> = {
 
 export const ONRAMPS: Onramp[] = [
   {
+    id: "changelly",
+    name: "Changelly",
+    note: "Card, instant",
+    kind: "instant",
+    href: (a) => `https://changelly.com/buy/${SLUG[a]}`,
+  },
+  {
+    id: "moonpay",
+    name: "MoonPay",
+    note: "Card, instant",
+    kind: "instant",
+    href: (a) => `https://www.moonpay.com/buy/${SLUG[a]}`,
+  },
+  {
+    id: "transak",
+    name: "Transak",
+    note: "Card, instant",
+    kind: "instant",
+    href: (a) => `https://global.transak.com/?cryptoCurrencyCode=${PAIR[a]}`,
+  },
+  {
+    id: "ramp",
+    name: "Ramp",
+    note: "Card or bank",
+    kind: "instant",
+    href: (a) => `https://app.ramp.network/?defaultAsset=${PAIR[a]}`,
+  },
+  {
+    id: "banxa",
+    name: "Banxa",
+    note: "Card, instant",
+    kind: "instant",
+    href: () => "https://banxa.com/",
+  },
+  {
+    id: "mercuryo",
+    name: "Mercuryo",
+    note: "Card, instant",
+    kind: "instant",
+    href: (a) => `https://exchange.mercuryo.io/?currency=${PAIR[a]}`,
+  },
+  {
+    id: "simplex",
+    name: "Simplex",
+    note: "Card, instant",
+    kind: "instant",
+    href: (a) => `https://buy.simplex.com/`,
+  },
+  {
     id: "coinbase",
     name: "Coinbase",
     note: "Card or bank",
+    kind: "exchange",
     href: (a) => `https://www.coinbase.com/price/${SLUG[a]}`,
   },
   {
     id: "binance",
     name: "Binance",
     note: "Spot",
+    kind: "exchange",
     href: (a) => `https://www.binance.com/en/trade/${PAIR[a]}_USDT`,
   },
   {
     id: "kraken",
     name: "Kraken",
     note: "Spot",
+    kind: "exchange",
     href: (a) => `https://pro.kraken.com/app/trade/${PAIR[a].toLowerCase()}-usd`,
   },
   {
     id: "crypto",
     name: "Crypto.com",
     note: "App or exchange",
+    kind: "exchange",
     href: (a) => `https://crypto.com/price/${SLUG[a]}`,
   },
   {
     id: "gemini",
     name: "Gemini",
     note: "USD pair",
+    kind: "exchange",
     href: (a) => `https://www.gemini.com/prices/${SLUG[a]}`,
   },
   {
     id: "okx",
     name: "OKX",
     note: "Spot",
+    kind: "exchange",
     href: (a) => `https://www.okx.com/trade-spot/${PAIR[a].toLowerCase()}-usdt`,
   },
   {
     id: "bybit",
     name: "Bybit",
     note: "Spot",
+    kind: "exchange",
     href: (a) => `https://www.bybit.com/en/trade/spot/${PAIR[a]}/USDT`,
   },
   {
     id: "bitstamp",
     name: "Bitstamp",
     note: "USD pair",
+    kind: "exchange",
     href: (a) => `https://www.bitstamp.net/markets/${PAIR[a].toLowerCase()}/usd/`,
-  },
-  {
-    id: "moonpay",
-    name: "MoonPay",
-    note: "Card",
-    href: (a) => `https://www.moonpay.com/buy/${SLUG[a]}`,
-  },
-  {
-    id: "ramp",
-    name: "Ramp",
-    note: "Card or bank",
-    href: (a) => `https://app.ramp.network/?defaultAsset=${PAIR[a]}`,
-  },
-  {
-    id: "transak",
-    name: "Transak",
-    note: "Card",
-    href: (a) => `https://global.transak.com/?cryptoCurrencyCode=${PAIR[a]}`,
   },
   {
     id: "robinhood",
     name: "Robinhood",
     note: "Broker",
+    kind: "exchange",
     href: (a) => `https://robinhood.com/crypto/${PAIR[a]}`,
   },
 ];

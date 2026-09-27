@@ -10,6 +10,7 @@ import { useSim } from "@/hooks/useSim";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { nodeTradeFill, withdrawalsOpen } from "@/lib/nodeTrade";
 import { FundDesk } from "@/components/desk/FundDesk";
+import { RaiseCash } from "@/components/desk/RaiseCash";
 import { CoinMark } from "@/components/desk/Marks";
 
 type Balances = Record<string, { cash: string; reserved: string }>;
@@ -120,6 +121,7 @@ function LedgerDesk() {
   return (
     <div className="space-y-6">
       <FundDesk />
+      <RaiseCash />
       {error && <p className="text-sm text-red-300">{error}</p>}
       <p className="text-[11px] font-mono uppercase tracking-widest text-white/35">
         MODE {mode || "—"} · balances from journal lines · deposits credit after confirmation

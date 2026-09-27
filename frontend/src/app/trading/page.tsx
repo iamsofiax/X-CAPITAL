@@ -8,6 +8,7 @@ import { useSim } from "@/hooks/useSim";
 import { useStore } from "@/store/useStore";
 import { nodeActivated, pushNotice, readMandate, saveReceipt, type TradeReceipt as Slip } from "@/lib/yieldDesk";
 import { TradeReceipt } from "@/components/desk/TradeReceipt";
+import { RaiseCash } from "@/components/desk/RaiseCash";
 import { useSimQuotes } from "@/hooks/useSimQuotes";
 import { INSTRUMENTS, INSTRUMENT_BY_SYMBOL, type InstrumentClass } from "@/lib/sim/instruments";
 import { nodeTradeFill } from "@/lib/nodeTrade";
@@ -144,6 +145,7 @@ function Execution() {
           <div className="h-full rounded-full bg-emerald-400" style={{ width: `${Math.min(100, fill * 100)}%` }} />
         </div>
       </section>
+      <RaiseCash />
     <div className="grid xl:grid-cols-[1fr_380px] gap-5">
       <div className="space-y-5 min-w-0">
         <Panel

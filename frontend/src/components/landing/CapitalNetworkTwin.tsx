@@ -245,7 +245,7 @@ function mountTwinScene(host: HTMLDivElement, THREE: ThreeMod, onLost: () => voi
   };
   fit();
   host.appendChild(renderer.domElement);
-  renderer.domElement.addEventListener("webglcontextlost", (e) => {
+  renderer.domElement.addEventListener("webglcontextlost", (e: Event) => {
     e.preventDefault();
     onLost();
   });
