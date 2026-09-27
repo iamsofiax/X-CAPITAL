@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Area, CartesianGrid, ComposedChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useLiveYield } from "@/hooks/useLiveYield";
 import { fmtPct, fmtUsdc } from "@/lib/sim/format";
@@ -12,48 +12,36 @@ const SLEEVES = [
   { id: "XAI", name: "xAI", line: "Private sleeve", weight: 0.16, edge: 0.74, color: "#a78bfa", mark: "x" },
 ] as const;
 
-const SAMPLE = 500_000;
-const OPEN_FRAC = 0.42;
-
 export function PnlBoard() {
-  const { posted, accruing, rate, weekly, active, mandate } = useLiveYield();
-  const [elapsed, setElapsed] = useState(0);
+  const { live, posted, fleetPending, rate, weekly, active, mandate, now } = useLiveYield();
 
-  const preview = !(active && posted > 0);
-  const principal = preview ? SAMPLE : posted;
-  const daily = active && rate > 0 ? rate : 0.85;
-
-  useEffect(() => {
-    const start = Date.now();
-    const id = window.setInterval(() => setElapsed(Date.now() - start), 400);
-    return () => window.clearInterval(id);
-  }, [preview, principal, daily]);
-
-  const dayProfit = principal * (daily / 100);
-  const net = preview ? dayProfit * (OPEN_FRAC + elapsed / 86_400_000) : accruing;
-  const loss = Math.abs(net) * 0.11;
-  const profit = net + loss;
+  const funded = posted > 0 && (active || fleetPending > 0);
+  const principal = posted > 0 ? posted : 0;
+  const daily = funded ? rate : 0;
+  const net = live - posted;
+  const profit = Math.max(net, 0);
+  const loss = Math.max(-net, 0);
   const ret = principal > 0 ? net / principal : 0;
-  const operated = mandate?.operatedPct ?? (preview ? 100 : 0);
+  const operated = mandate?.operatedPct ?? 0;
+  const money = net !== 0 ? 4 : 2;
 
   const points = useMemo(() => buildPath(net), [net]);
   const ranked = useMemo(() => {
     const mix = SLEEVES.reduce((sum, s) => sum + s.weight * s.edge, 0);
     return SLEEVES.map((s) => {
       const sleeveNet = net * ((s.weight * s.edge) / mix);
-      const sleeveLoss = Math.abs(sleeveNet) * 0.11;
       const base = principal * s.weight;
       return {
         ...s,
         net: sleeveNet,
-        profit: sleeveNet + sleeveLoss,
-        loss: sleeveLoss,
+        profit: Math.max(sleeveNet, 0),
+        loss: Math.max(-sleeveNet, 0),
         ret: base > 0 ? sleeveNet / base : 0,
       };
     }).sort((a, b) => b.ret - a.ret);
   }, [net, principal]);
 
-  const profitShare = profit + loss > 0 ? (profit / (profit + loss)) * 100 : 89;
+  const profitShare = profit + loss > 0 ? (profit / (profit + loss)) * 100 : 0;
 
   return (
     <section className="pnl-board space-y-4" aria-label="Profit and loss">
@@ -63,17 +51,17 @@ export function PnlBoard() {
           <h2 className="mt-1 text-xl md:text-2xl font-black tracking-tight text-white">Book result</h2>
         </div>
         <p className="text-[12px] text-white/45 max-w-sm sm:text-right">
-          {preview
-            ? "Illustrated session on a $500,000 sleeve. Your posted book stays at zero until the node is activated."
-            : `${operated}% operated · ${daily.toFixed(2)}% a day · ${weekly.toFixed(2)}% this week.`}
+          {funded
+            ? `${operated}% operated · ${daily.toFixed(2)}% a day · ${weekly.toFixed(2)}% this week. Node ${fmtUsdc(live, { decimals: 4 })}.`
+            : "Starts at zero. The result moves with the node balance only after this account is funded and growth is on."}
         </p>
       </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <Card kicker="Net P&L" value={`${net >= 0 ? "+" : "−"}${fmtUsdc(Math.abs(net), { decimals: 2 })}`} hint="Profit less the give-back" tone={net >= 0 ? "pos" : "neg"} />
-        <Card kicker="Gross profit" value={`+${fmtUsdc(profit, { decimals: 2 })}`} hint="Everything the sleeve earned" tone="pos" />
-        <Card kicker="Loss" value={`−${fmtUsdc(loss, { decimals: 2 })}`} hint="A fraction, then recovered" tone="neg" />
-        <Card kicker="Return" value={fmtPct(ret, 2)} hint="On the capital in the sleeve" tone={ret >= 0 ? "pos" : "neg"} />
+        <Card kicker="Net P&L" value={`${net >= 0 ? "+" : "−"}${fmtUsdc(Math.abs(net), { decimals: money })}`} hint="Open gain on the node balance" tone={net >= 0 ? "pos" : "neg"} />
+        <Card kicker="Gross profit" value={`+${fmtUsdc(profit, { decimals: money })}`} hint="Same clock as the node" tone="pos" />
+        <Card kicker="Loss" value={`−${fmtUsdc(loss, { decimals: money })}`} hint="Posted only when the book gives some back" tone="neg" />
+        <Card kicker="Return" value={fmtPct(ret, 2)} hint={principal > 0 ? "On the funded node balance" : "Zero until the node is funded"} tone={ret >= 0 ? "pos" : "neg"} />
       </div>
 
       <div className="pnl-split" aria-hidden>
@@ -85,7 +73,9 @@ export function PnlBoard() {
         <div className="pnl-stage lg:col-span-3 min-w-0">
           <div className="flex items-center justify-between gap-3 px-4 pt-4 md:px-5">
             <p className="sim-label">Cumulative result</p>
-            <p className="text-[11px] font-mono text-white/40">Session print · one give-back, then recovery</p>
+            <p className="text-[11px] font-mono text-white/40">
+              {now > 0 ? `Live ${new Date(now).toLocaleTimeString()}` : "Live"} · node {fmtUsdc(live, { decimals: money })}
+            </p>
           </div>
           <div className="pnl-stage-grid h-56 sm:h-64 px-1 pb-2">
             <ResponsiveContainer width="100%" height="100%">
@@ -112,8 +102,9 @@ export function PnlBoard() {
                     const row = payload[0].payload as { net: number; loss: number };
                     return (
                       <div className="rounded-xl border border-white/10 bg-[#050608]/95 px-3 py-2 text-[11px] font-mono shadow-xl">
-                        <p className="text-emerald-300">Net +{fmtUsdc(row.net, { decimals: 2 })}</p>
-                        <p className="text-red-300">Loss −{fmtUsdc(row.loss, { decimals: 2 })}</p>
+                        <p className={row.net >= 0 ? "text-emerald-300" : "text-red-300"}>
+                          Net {row.net >= 0 ? "+" : "−"}{fmtUsdc(Math.abs(row.net), { decimals: 4 })}
+                        </p>
                       </div>
                     );
                   }}
@@ -170,16 +161,16 @@ export function PnlBoard() {
               <dl className="relative mt-3 grid grid-cols-2 gap-2 text-[11px]">
                 <div>
                   <dt className="text-white/35">Profit</dt>
-                  <dd className="font-mono text-emerald-200">+{fmtUsdc(s.profit, { compact: true })}</dd>
+                  <dd className="font-mono text-emerald-200">+{fmtUsdc(s.profit, { decimals: money })}</dd>
                 </div>
                 <div>
                   <dt className="text-white/35">Loss</dt>
-                  <dd className="font-mono text-red-300">−{fmtUsdc(s.loss, { compact: true })}</dd>
+                  <dd className="font-mono text-red-300">−{fmtUsdc(s.loss, { decimals: money })}</dd>
                 </div>
               </dl>
               <div className="pnl-split relative mt-3">
-                <span style={{ width: "92%" }} />
-                <span style={{ width: "8%" }} />
+                <span style={{ width: s.net > 0 ? "100%" : "0%" }} />
+                <span style={{ width: s.net < 0 ? "100%" : "0%" }} />
               </div>
             </li>
           ))}
@@ -243,13 +234,10 @@ function Donut({ sleeves }: { sleeves: typeof SLEEVES }) {
 
 function buildPath(net: number) {
   const steps = 48;
-  const rows: { t: number; net: number; loss: number }[] = [];
-  for (let i = 0; i < steps; i++) {
-    const p = (i + 1) / steps;
-    const trend = net * (0.18 + 0.82 * p);
-    const wobble = p > 0.55 && p < 0.7 ? -Math.abs(net) * 0.065 * Math.sin(((p - 0.55) / 0.15) * Math.PI) : 0;
-    const value = Math.max(trend + wobble, 0);
-    rows.push({ t: i, net: value, loss: Math.abs(value) * 0.11 });
+  const rows: { t: number; net: number; loss: number }[] = [{ t: 0, net: 0, loss: 0 }];
+  for (let i = 1; i < steps; i++) {
+    const value = net * (i / (steps - 1));
+    rows.push({ t: i, net: value, loss: Math.max(-value, 0) });
   }
   return rows;
 }

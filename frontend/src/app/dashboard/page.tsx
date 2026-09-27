@@ -120,7 +120,7 @@ function CompileStrip() {
       <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black tracking-tight">
-            {active ? `${fmtUsdc(compiled)} compiling this cycle` : "The book compiles after the node is live"}
+            {active ? `${fmtUsdc(compiled, { decimals: 4 })} compiling this cycle` : `${fmtUsdc(0)} compiling · the book is at zero`}
           </h2>
           <p className="mt-2 max-w-2xl text-sm text-white/55 leading-relaxed">
             {active

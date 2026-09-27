@@ -7,7 +7,7 @@ import { operatedOf } from "@/lib/yieldDesk";
 import { fmtUsdc } from "@/lib/sim/format";
 
 export function LiveBook() {
-  const { live, posted, accruing, rate, weekly, active, mandate, fleetPerMin, fleetPending } = useLiveYield();
+  const { live, posted, accruing, rate, weekly, active, mandate, fleetPerMin, fleetPending, now } = useLiveYield();
   const operated = mandate ? operatedOf(mandate) : 0;
   const quiet = !active && fleetPerMin <= 0;
 
@@ -19,8 +19,8 @@ export function LiveBook() {
             <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04]">
               <Landmark className="h-3.5 w-3.5" aria-hidden />
             </span>
-            {!quiet && <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />}
-            Your node · live
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Your node · live{now > 0 ? ` · ${new Date(now).toLocaleTimeString()}` : ""}
           </p>
           <p className="mt-2 text-4xl md:text-5xl font-black tabular-nums tracking-tight text-white">
             {fmtUsdc(live, { decimals: rate > 0 || fleetPerMin > 0 ? 4 : 2 })}
