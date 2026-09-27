@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
-import { prisma } from '../config/database';
 
 // Product catalog — in production pulled from partner APIs / CMS
 const PRODUCTS = [
@@ -70,24 +69,9 @@ const PRODUCTS = [
   },
 ];
 
-async function catalog() {
-  const stored = await prisma.commerceProduct.findMany();
-  const byId = new Map(PRODUCTS.map((p) => [p.id, p as Record<string, unknown>]));
-  for (const row of stored) {
-    const payload = row.payload as Record<string, unknown> | null;
-    if (!payload || typeof payload !== 'object') continue;
-    if (payload.deleted) {
-      byId.delete(row.id);
-      continue;
-    }
-    byId.set(row.id, { ...payload, id: row.id });
-  }
-  return Array.from(byId.values()) as Array<Record<string, unknown> & { id: string }>;
-}
-
 export const getProducts = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    res.json({ success: true, data: await catalog() });
+    res.json({ success: true, data: PRODUCTS });
   } catch (error) {
     next(error);
   }
@@ -95,7 +79,7 @@ export const getProducts = async (_req: Request, res: Response, next: NextFuncti
 
 export const getProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const product = (await catalog()).find((p) => p.id === req.params.id);
+    const product = PRODUCTS.find((p) => p.id === req.params.id);
     if (!product) {
       res.status(404).json({ success: false, message: 'Product not found' });
       return;
@@ -106,44 +90,3 @@ export const getProduct = async (req: Request, res: Response, next: NextFunction
   }
 };
 
-export const initiateCheckout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      res.status(400).json({ success: false, errors: errors.array() });
-      return;
-    }
-
-    const { productId, paymentMethod, investmentBundle, investmentPercent } = req.body;
-
-    const product = (await catalog()).find((p) => p.id === productId) as typeof PRODUCTS[0] | undefined;
-    if (!product) {
-      res.status(404).json({ success: false, message: 'Product not found' });
-      return;
-    }
-
-    const investAmount = investmentBundle
-      ? (product.price * (investmentPercent || product.investmentSuggestion.percentage)) / 100
-      : 0;
-
-    // Return checkout session — integrate with Stripe / partner checkout in production
-    res.json({
-      success: true,
-      data: {
-        checkoutSession: {
-          id: `cs_${Date.now()}`,
-          product,
-          paymentMethod,
-          totalAmount: product.price,
-          investmentAmount: investAmount,
-          affiliateUrl: product.affiliateUrl,
-          message: investmentBundle
-            ? `Purchase redirects to ${product.brand}. $${investAmount.toFixed(2)} will be invested in $${product.stockSymbol}`
-            : `Purchase redirects to ${product.brand}`,
-        },
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};

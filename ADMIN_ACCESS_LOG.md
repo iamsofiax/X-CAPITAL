@@ -1,7 +1,15 @@
+# X-CAPITAL admin notes (historical)
+
+This file describes an older admin console that approved real-money deposits
+and adjusted balances. Those flows are retired. X-CAPITAL is a simulation:
+admins can list, create, and disable accounts. They cannot mint sUSDC.
+
+---
+
 # 🔐 X-CAPITAL ADMIN ACCESS LOG REPORT
 **Generated**: May 5, 2026  
 **System**: Admin Panel Audit Trail  
-**Status**: ✅ Active and Monitoring
+**Status**: retired with the real-money queue
 
 ---
 
@@ -70,7 +78,7 @@ interface AuditEntry {
 ### God Admin Account
 ```
 Email:    admin@xcapital.io
-Password: Admin2026!
+Password: <redacted - rotate; set via SEED_ADMIN_PASSWORD>
 Role:     GOD_ADMIN
 Access:   Full platform control
 Status:   ✅ Active
@@ -246,7 +254,7 @@ In the audit log display:
 
 ### In Admin Panel
 1. Login to: `https://xcapital.investments/admin/login`
-2. Credentials: `admin@xcapital.io` / `Admin2026!`
+2. Credentials: `admin@xcapital.io` / `<redacted - rotate; set via SEED_ADMIN_PASSWORD>`
 3. Go to **"Audit Log"** tab
 4. See all actions with:
    - Actor (admin email)
@@ -407,7 +415,7 @@ POST /api/v1/audit/log
 ## 🔐 ADMIN SECURITY BEST PRACTICES
 
 ✅ **DO:**
-- Use strong password (already set: Admin2026!)
+- Use strong password (already set: <redacted - rotate; set via SEED_ADMIN_PASSWORD>)
 - Check audit log regularly
 - Logout when finished
 - Keep admin account secure
@@ -429,7 +437,7 @@ When deployed to production:
 ```
 Admin Panel:     https://xcapital.investments/admin
 Login Email:     admin@xcapital.io
-Login Password:  Admin2026!
+Login Password:  <redacted - rotate; set via SEED_ADMIN_PASSWORD>
 Audit Tab:       View all admin access logs with timestamps
 ```
 

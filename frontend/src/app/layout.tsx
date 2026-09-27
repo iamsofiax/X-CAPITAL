@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import TawkChat from "@/components/support/TawkChat";
 import SessionSync from "@/components/SessionSync";
-import SplashBoot from "@/components/SplashBoot";
-import LiveCompoundingProvider from "@/components/system/LiveCompoundingProvider";
 import XCapitalSplashLogo from "@/components/brand/XCapitalSplashLogo";
 import "./globals.css";
 
@@ -154,8 +152,8 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-xc-black text-xc-text antialiased min-h-screen">
-        {/* ═══ FUTURISTIC SPLASH SCREEN — INSTITUTIONAL BOOT SEQUENCE ═══ */}
-        <div id="xc-splash">
+        {/* ═══ FUTURISTIC SPLASH SCREEN ═══ */}
+        <div id="xc-splash" className="xc-splash">
           <div className="xc-splash-content">
             {/* Animated grid lines */}
             <div className="xc-splash-grid" />
@@ -177,7 +175,6 @@ export default function RootLayout({
             <div className="xc-splash-logo">
               <XCapitalSplashLogo />
             </div>
-            {/* Wordmark */}
             <div className="xc-splash-title">X·CAPITAL</div>
             <div className="xc-splash-subtitle">Capital Deployment Infrastructure</div>
             {/* Loading bar */}
@@ -188,7 +185,6 @@ export default function RootLayout({
               INITIALIZING SYSTEMS
               <span className="xc-splash-dots" />
             </div>
-            {/* System checks — Goldman-grade boot telemetry */}
             <div className="xc-splash-checks">
               <div className="xc-splash-check" style={{ animationDelay: "0.2s" }}>
                 <span>REST API</span>
@@ -209,12 +205,7 @@ export default function RootLayout({
             </div>
           </div>
         </div>
-        {/* Inline script to gate the splash — no React dependency.
-            Shows the boot overlay once per session; on repeat loads
-            (hard refresh, back-forward) it is hidden instantly so the
-            site never replays the boot sequence. The node is only
-            *removed* by SplashBoot AFTER React hydrates — never here —
-            so we can't race hydration. */}
+        {/* Inline script to dismiss splash after load — no React dependency */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -222,38 +213,17 @@ export default function RootLayout({
                 var KEY = 'xc_splash_seen';
                 var splash = document.getElementById('xc-splash');
                 if (!splash) return;
+                splash.style.pointerEvents = 'none';
                 try {
-                  if (sessionStorage.getItem(KEY)) {
-                    // Repeat visit — hide before first paint, remove after load.
-                    splash.style.display = 'none';
-                    var silent = function() {
-                      if (splash.parentNode) splash.parentNode.removeChild(splash);
-                    };
-                    if (document.readyState === 'complete') { silent(); }
-                    else {
-                      window.addEventListener('load', silent, { once: true });
-                    }
-                    return;
-                  }
+                  if (sessionStorage.getItem(KEY)) splash.style.visibility = 'hidden';
+                  else sessionStorage.setItem(KEY, '1');
                 } catch (e) {}
-                function dismiss() {
-                  try { sessionStorage.setItem(KEY, '1'); } catch (e) {}
-                  splash.classList.add('xc-splash-exit');
-                  setTimeout(function() {
-                    if (splash.parentNode) splash.parentNode.removeChild(splash);
-                  }, 600);
-                }
-                // Dismiss when page is interactive OR after 2.8s max
-                if (document.readyState === 'complete') { setTimeout(dismiss, 400); }
-                else { window.addEventListener('load', function() { setTimeout(dismiss, 400); }, { once: true }); }
-                setTimeout(dismiss, 2800);
               })();
             `,
           }}
         />
         <SessionSync />
-        <SplashBoot />
-        <LiveCompoundingProvider>{children}</LiveCompoundingProvider>
+        {children}
         <TawkChat />
       </body>
     </html>

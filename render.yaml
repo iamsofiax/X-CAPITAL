@@ -28,8 +28,8 @@ services:
     name: xcapital-api
     runtime: node
     rootDir: backend
-    plan: starter
-    buildCommand: npm ci --include=dev && npx prisma generate && npm run build
+    plan: free
+    buildCommand: npm install && npx prisma generate && npm run build
     startCommand: npm run start:render
     healthCheckPath: /health
     envVars:
@@ -37,25 +37,22 @@ services:
         value: production
       - key: NODE_VERSION
         value: "20"
-      # Paste the Neon pooled URL in the Render dashboard (overrides this).
-      # History, wallets, and logins live in Neon so they survive Render sleeps
-      # and never mix across users. fromDatabase is only a bootstrap fallback.
       - key: DATABASE_URL
         fromDatabase:
           name: xcapital-db
           property: connectionString
-      - key: DATABASE_URL_UNPOOLED
-        sync: false
       - key: JWT_SECRET
         generateValue: true
-      - key: GOOGLE_CLIENT_ID
-        sync: false
-      - key: APPLE_CLIENT_ID
-        sync: false
       - key: FRONTEND_URL
         value: https://xcapital.investments
+      - key: ADMIN_EMAILS
+        value: admin@xcapital.io
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: APPLE_SERVICE_ID
+        sync: false
       - key: CORS_ORIGINS
-        value: https://xcapital-web.onrender.com,https://xcapital.investments,https://www.xcapital.investments
+        value: https://xcapital-web.onrender.com
       - key: AI_ORACLE_URL
         fromService:
           type: web
@@ -69,10 +66,6 @@ services:
         value: https://paper-api.alpaca.markets
       - key: ALPACA_DATA_URL
         value: https://data.alpaca.markets
-      - key: KEEP_ALIVE_URL
-        value: https://xcapital-api.onrender.com
-      - key: PGSSLMODE
-        value: no-verify
 
   - type: web
     name: xcapital-web
@@ -84,10 +77,12 @@ services:
       - key: NODE_VERSION
         value: "20"
       - key: NEXT_PUBLIC_API_URL
-        value: https://xcapital-api.onrender.com/api/v1
+        value: https://api.xcapital.investments/api/v1
       - key: NEXT_PUBLIC_WS_URL
-        value: wss://xcapital-api.onrender.com
+        value: wss://api.xcapital.investments
       - key: NEXT_PUBLIC_GOOGLE_CLIENT_ID
         sync: false
-      - key: NEXT_PUBLIC_APPLE_CLIENT_ID
+      - key: NEXT_PUBLIC_APPLE_SERVICE_ID
         sync: false
+      - key: NEXT_PUBLIC_APPLE_REDIRECT_URI
+        value: https://xcapital.investments/auth/login

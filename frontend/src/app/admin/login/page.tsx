@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store/useStore";
 import { XCapitalLogoMark } from "@/components/brand/XCapitalLogo";
+import { SimulationBadge } from "@/components/sim/SimulationBadge";
+import { isAdminUser } from "@/lib/apiUser";
 import { Eye, EyeOff, Lock, Mail, AlertCircle } from "lucide-react";
 
 export default function AdminLoginPage() {
@@ -16,7 +18,7 @@ export default function AdminLoginPage() {
   const [error, setError] = useState("");
 
   // If already logged in as admin, redirect
-  const isAdmin = user && (user.role === "GOD_ADMIN" || user.role === "ADMIN");
+  const isAdmin = isAdminUser(user);
   if (isAdmin) {
     router.push("/admin");
     return null;
@@ -30,33 +32,32 @@ export default function AdminLoginPage() {
     try {
       const result = await loginUser(email, password);
       if (!result.success) {
-        setError(result.error || "Credentials not recognized.");
+        setError(result.error || "Invalid credentials.");
         return;
       }
 
       // Check if the logged-in user is actually an admin
       const store = useStore.getState();
       const loggedInUser = store.user;
-      if (
-        !loggedInUser ||
-        (loggedInUser.role !== "GOD_ADMIN" && loggedInUser.role !== "ADMIN")
-      ) {
+      if (!isAdminUser(loggedInUser)) {
         // Not an admin — log them out and show error
         store.logout();
-        setError("Operator clearance required.");
+        setError("Access restricted to administrators only.");
         return;
       }
 
       router.push("/admin");
     } catch {
-        setError("Desk unavailable. Try again.");
+      setError("An unexpected error occurred.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#08080c] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#08080c] flex flex-col">
+      <SimulationBadge variant="banner" />
+      <div className="flex-1 flex items-center justify-center p-4">
       {/* Subtle grid background */}
       <div
         className="fixed inset-0 pointer-events-none"
@@ -72,11 +73,11 @@ export default function AdminLoginPage() {
           <h1 className="text-xl font-black text-white tracking-tight">
             X-CAPITAL{" "}
             <span className="text-white/40 font-normal text-sm ml-1">
-              OPERATOR
+              ADMIN
             </span>
           </h1>
           <p className="text-gray-500 text-xs mt-1">
-            Operator desk
+            Authorized personnel only
           </p>
         </div>
 
@@ -86,7 +87,7 @@ export default function AdminLoginPage() {
             {/* Email */}
             <div>
               <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                Operator email
+                Admin Email
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
@@ -94,7 +95,7 @@ export default function AdminLoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@xcapital.io"
+                  placeholder="you@company.com"
                   required
                   autoComplete="email"
                   className="w-full bg-white/[0.04] border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-white/20 transition-colors"
@@ -175,8 +176,9 @@ export default function AdminLoginPage() {
 
         {/* Footer */}
         <p className="text-center text-[10px] text-gray-600 mt-6">
-          Restricted access · X-Capital Platform Administration
+          Restricted access · operators only
         </p>
+      </div>
       </div>
     </div>
   );

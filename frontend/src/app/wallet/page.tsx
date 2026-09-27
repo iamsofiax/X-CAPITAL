@@ -1,2057 +1,255 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Modal, ModalFooter } from "@/components/ui/Modal";
-import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
-import SubmitButton from "@/components/system/SubmitButton";
-import TransactionReceipt from "@/components/system/TransactionReceipt";
 import { walletAPI } from "@/lib/api";
-import { emitCapitalSignal } from "@/lib/capitalSignal";
-import { NodeStat } from "@/components/node-engine";
-import { MissionPanel, YieldGrowthVisualizer } from "@/components/x-engine";
-import { CompoundingHeroGlobe3D } from "@/components/x-engine";
-import { ENGINE_COPY } from "@/lib/xEngine";
-import { useXEngine } from "@/hooks/useXEngine";
-import { NODE_LABELS } from "@/lib/nodeCopy";
-import { formatCurrency, cn } from "@/lib/utils";
-import { useAccountStore, selectSeries } from "@/store/useAccountStore";
-import {
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  BarChart3,
-  Clock,
-  AlertCircle,
-  Copy,
-  Check,
-  ExternalLink,
-  CreditCard,
-  Wallet,
-  ShieldCheck,
-  Zap,
-  TrendingUp,
-  Activity,
-  ChevronRight,
-  ArrowLeft,
-  Lock,
-  Eye,
-  EyeOff,
-} from "lucide-react";
-import type { WalletTransaction } from "@/types";
-import { useStore, type PendingTransaction } from "@/store/useStore";
-import { useStableBalance } from "@/hooks/useStableBalance";
-import { useMarketPrices } from "@/hooks/useMarketPrices";
-import Retirement401kConnect from "@/components/retirement/Retirement401kConnect";
-import { resolveDepositAddress } from "@/lib/depositAddresses";
-import {
-  CompoundVelocityBadge,
-  YieldVaultModal,
-} from "@/components/retention";
-import { useStreakStore } from "@/store/useStreakStore";
+import { pushNotice } from "@/lib/yieldDesk";
+import { useStore } from "@/store/useStore";
+import { FundDesk } from "@/components/desk/FundDesk";
 
-type ModalType = "deposit" | "withdraw" | null;
-// Deposit pipeline is crypto-only (USDT/BTC/ETH/USDC/SOL/BNB/XRP).
-// Debit/card and bank-wire flows were fully deprecated for a streamlined
-// digital depository per the platform roadmap.
-type DepositTab = "crypto" | "card";
-type DepositStep = 1 | 2 | 3 | 4;
-type WithdrawStep = 1 | 2 | 3;
+type Balances = Record<string, { cash: string; reserved: string }>;
 
-// ─── Supported cryptocurrencies (bank wire fully deprecated) ────────────────
-const CRYPTOS = [
-  {
-    symbol: "BTC",
-    name: "Bitcoin",
-    network: "Bitcoin Network",
-    grad: "from-orange-500 to-amber-400",
-    text: "text-orange-400",
-    ring: "ring-orange-500/40",
-    rate: 68420,
-    min: "0.001 BTC",
-    confs: 3,
-    time: "~30 min",
-    address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
-    tag: "",
-  },
-  {
-    symbol: "ETH",
-    name: "Ethereum",
-    network: "Ethereum (ERC-20)",
-    grad: "from-white/20 to-white/10",
-    text: "text-white/70",
-    ring: "ring-white/20",
-    rate: 3840,
-    min: "0.01 ETH",
-    confs: 12,
-    time: "~5 min",
-    address: "0x742d35Cc6634C0532925a3b844Bc9e7cd9E7B3C0",
-    tag: "",
-  },
-  {
-    symbol: "USDT",
-    name: "Tether",
-    network: "TRON (TRC-20)",
-    grad: "from-emerald-500 to-green-400",
-    text: "text-emerald-400",
-    ring: "ring-emerald-500/40",
-    rate: 1.0,
-    min: "10 USDT",
-    confs: 20,
-    time: "~3 min",
-    address: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE",
-    tag: "",
-  },
-  {
-    symbol: "USDC",
-    name: "USD Coin",
-    network: "Ethereum (ERC-20)",
-    grad: "from-blue-400 to-white/5",
-    text: "text-white/50",
-    ring: "ring-white/15/40",
-    rate: 1.0,
-    min: "10 USDC",
-    confs: 12,
-    time: "~3 min",
-    address: "0x8f3Cf7ad23Cd3CaDbD9735AFtb21eF9e0c8d27Ef",
-    tag: "",
-  },
-  {
-    symbol: "SOL",
-    name: "Solana",
-    network: "Solana Network",
-    grad: "from-white/20 to-white/10",
-    text: "text-white/60",
-    ring: "ring-white/15",
-    rate: 182,
-    min: "0.1 SOL",
-    confs: 1,
-    time: "<1 min",
-    address: "7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLtV",
-    tag: "",
-  },
-  {
-    symbol: "BNB",
-    name: "BNB",
-    network: "BNB Chain (BEP-20)",
-    grad: "from-yellow-500 to-amber-400",
-    text: "text-yellow-400",
-    ring: "ring-yellow-500/40",
-    rate: 428,
-    min: "0.05 BNB",
-    confs: 15,
-    time: "~2 min",
-    address: "0x8f3Cf7ad23Cd3CaDbD9735AFtb21eF9e0c2d47Ab",
-    tag: "",
-  },
-  {
-    symbol: "XRP",
-    name: "XRP",
-    network: "XRP Ledger",
-    grad: "from-slate-400 to-slate-300",
-    text: "text-slate-300",
-    ring: "ring-slate-400/40",
-    rate: 0.62,
-    min: "20 XRP",
-    confs: 1,
-    time: "<30 sec",
-    address: "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    tag: "2847361",
-  },
-];
+type DepositRow = {
+  txHash: string;
+  asset: string;
+  amount: string;
+  confirmations: number;
+  requiredConf: number;
+  status: string;
+};
 
-const EXCHANGES = [
-  {
-    name: "Coinbase",
-    tagline: "Best for beginners · US-regulated · FDIC insured fiat",
-    badge: "RECOMMENDED",
-    badgeClass: "text-emerald-400 bg-emerald-950/60 border-emerald-700/40",
-    fee: "0.5 – 4.5%",
-    link: "https://coinbase.com",
-    coins: ["BTC", "ETH", "USDT", "USDC", "SOL", "XRP"],
-  },
-  {
-    name: "Binance",
-    tagline: "World's largest exchange · Industry-lowest maker fees",
-    badge: "MOST VOLUME",
-    badgeClass: "text-white/50 bg-white/[0.03] border-white/[0.10]",
-    fee: "0.10%",
-    link: "https://binance.com",
-    coins: ["BTC", "ETH", "USDT", "USDC", "SOL", "BNB", "XRP"],
-  },
-  {
-    name: "Kraken",
-    tagline: "Institutional-grade security · SOC 2 Type II certified",
-    badge: "INSTITUTIONAL",
-    badgeClass: "text-white/60 bg-white/[0.02] border-white/[0.10]",
-    fee: "0.16 – 0.26%",
-    link: "https://kraken.com",
-    coins: ["BTC", "ETH", "USDT", "SOL", "XRP"],
-  },
-  {
-    name: "OKX",
-    tagline: "Advanced trading · High limits · 100+ countries",
-    badge: "HIGH LIMITS",
-    badgeClass: "text-blue-400 bg-blue-950/60 border-blue-700/40",
-    fee: "0.08%",
-    link: "https://okx.com",
-    coins: ["BTC", "ETH", "USDT", "USDC", "SOL", "BNB", "XRP"],
-  },
-  {
-    name: "Gemini",
-    tagline: "NY-licensed · SOC 1/2 · Zero fees on Active Trader",
-    badge: "MOST SECURE",
-    badgeClass: "text-white/50 bg-white/[0.02] border-white/[0.08]",
-    fee: "0.03%",
-    link: "https://gemini.com",
-    coins: ["BTC", "ETH", "USDT", "USDC", "SOL", "XRP"],
-  },
-];
+type WithdrawalRow = {
+  id: string;
+  asset: string;
+  amount: string;
+  toAddress: string;
+  status: string;
+  txHash?: string | null;
+};
 
-const uid = () => Math.random().toString(36).slice(2, 10);
+type JournalEntry = {
+  id: string;
+  type: string;
+  reason: string;
+  actorId: string;
+  idempotencyKey: string;
+  externalRef?: string | null;
+  createdAt: string;
+};
+
+const ASSETS = ["BTC", "ETH", "USDT", "BNB", "DOGE", "TRX"] as const;
 
 export default function WalletPage() {
-  const {
-    wallet,
-    setWallet,
-    user,
-    addPendingTransaction,
-    addAdminAlert,
-    pendingTransactions,
-    depositAddresses,
-  } = useStore();
-  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState<ModalType>(null);
-  const [depositTab, setDepositTab] = useState<DepositTab>("crypto");
-  const [depositStep, setDepositStep] = useState<DepositStep>(1);
-  const [withdrawStep, setWithdrawStep] = useState<WithdrawStep>(1);
-  const [selectedCrypto, setSelectedCrypto] = useState(CRYPTOS[0]);
-  const [copied, setCopied] = useState(false);
+  return (
+    <DashboardLayout title="Ledger" subtitle="Cash accounts · on-chain deposits · withdrawals">
+      <LedgerDesk />
+    </DashboardLayout>
+  );
+}
+
+function LedgerDesk() {
+  const [balances, setBalances] = useState<Balances>({});
+  const [deposits, setDeposits] = useState<DepositRow[]>([]);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRow[]>([]);
+  const [journal, setJournal] = useState<JournalEntry[]>([]);
+  const [mode, setMode] = useState("");
+  const [error, setError] = useState("");
+  const [asset, setAsset] = useState<(typeof ASSETS)[number]>("USDT");
+  const [toAddress, setToAddress] = useState("");
   const [amount, setAmount] = useState("");
-  const [processing, setProcessing] = useState(false);
-  const [previewAlertSent, setPreviewAlertSent] = useState(false);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
-  const [vaultGateOpen, setVaultGateOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const userId = useStore((s) => s.user?.id);
 
-  // Card fields
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvc, setCardCvc] = useState("");
-  const [cardName, setCardName] = useState("");
-  const [showCvc, setShowCvc] = useState(false);
-
-  // Withdraw fields — crypto-only pipeline (bank wire deprecated)
-  const [withdrawCrypto, setWithdrawCrypto] = useState(CRYPTOS[0]);
-  const [withdrawAddress, setWithdrawAddress] = useState("");
-
-  const withdrawRef = useMemo(() => "XCW-" + uid().toUpperCase(), []);
-  const hideVaultGate = () => setVaultGateOpen(false);
-
-  // Register a confirmed top-up with both the compound-velocity streak engine
-  // and the daily-rewards streak-shield — making the deposit action literally
-  // power the retention loop.
-  const registerTopUp = useStreakStore((s) => s.registerTopUp);
-  const registerWithdrawal = useStreakStore((s) => s.registerWithdrawal);
-
-  // One-tap quick deposit: prefills the amount + opens the crypto modal, so
-  // frequent 24h/48h/weekly top-ups take one click, not five.
-  const handleQuickDeposit = (quickAmount: number) => {
-    setAmount(String(quickAmount));
-    setModal("deposit");
-    setDepositTab("crypto");
-    setDepositStep(1);
-    setPreviewAlertSent(false);
-    setMessage(null);
-    setCopied(false);
-  };
-
-  // Live crypto prices from CoinGecko
-  const { prices: livePrices } = useMarketPrices({
-    stocks: false,
-    etfs: false,
-    refreshInterval: 120_000,
-  });
-
-  // Overlay live rates AND admin deposit-address overrides onto the CRYPTOS
-  // array — the QR code and copy-to-clipboard address below are generated from
-  // these values, so any admin change is instantly live for every user.
-  const liveCryptos = useMemo(
-    () =>
-      CRYPTOS.map((c) => {
-        const live = livePrices[c.symbol];
-        const resolved = resolveDepositAddress(c.symbol, depositAddresses);
-        return {
-          ...c,
-          rate: live ? live.price : c.rate,
-          address: resolved.address || c.address,
-          tag: resolved.tag || c.tag || "",
-        };
-      }),
-    [livePrices, depositAddresses],
-  );
-
-  useEffect(() => {
-    const updated = liveCryptos.find((c) => c.symbol === selectedCrypto.symbol);
-    if (
-      updated &&
-      (updated.rate !== selectedCrypto.rate ||
-        updated.address !== selectedCrypto.address ||
-        updated.tag !== selectedCrypto.tag)
-    )
-      setSelectedCrypto(updated);
-  }, [liveCryptos, selectedCrypto]);
-
-  useEffect(() => {
-    const updated = liveCryptos.find((c) => c.symbol === withdrawCrypto.symbol);
-    if (
-      updated &&
-      (updated.rate !== withdrawCrypto.rate ||
-        updated.address !== withdrawCrypto.address ||
-        updated.tag !== withdrawCrypto.tag)
-    )
-      setWithdrawCrypto(updated);
-  }, [liveCryptos, withdrawCrypto]);
-
-  // My pending txns
-  const myPending = useMemo(
-    () =>
-      pendingTransactions.filter(
-        (t) => t.userId === user?.id && t.status === "PENDING",
-      ),
-    [pendingTransactions, user],
-  );
-
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const [walletRes, txRes] = await Promise.allSettled([
-          walletAPI.getWallet(),
-          walletAPI.getTransactions({ limit: 20 }),
-        ]);
-        if (walletRes.status === "fulfilled")
-          setWallet(walletRes.value.data.data);
-        else if (!wallet) {
-          setWallet({
-            id: "local",
-            fiatBalance: user?.balance ?? 0,
-            cryptoBalance: 0,
-            lockedBalance: 0,
-          });
-        }
-        if (txRes.status === "fulfilled") {
-          const txs = txRes.value.data.data.transactions ?? [];
-          setTransactions(txs);
-        } else {
-          setTransactions([]);
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [setWallet]);
-
-  const openModal = (type: ModalType, tab: DepositTab = "crypto") => {
-    setModal(type);
-    setDepositTab(tab);
-    setDepositStep(1);
-    setWithdrawStep(1);
-    setAmount("");
-    setMessage(null);
-    setCopied(false);
-    setCardNumber("");
-    setCardExpiry("");
-    setCardCvc("");
-    setCardName("");
-    setWithdrawAddress("");
-    setPreviewAlertSent(false);
-  };
-
-  const onAmountBlur = () => {
-    if (previewAlertSent || modal !== "deposit") return;
-    const parsed = parseFloat(amount);
-    if (!parsed || parsed <= 0 || !user) return;
-    addAdminAlert({
-      type: "DEPOSIT",
-      userId: user.id,
-      userEmail: user.email,
-      userName: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
-      amount: parsed,
-      method: depositTab,
-      priority: "HIGH",
-      metadata: {
-        stage: "DETECTED",
-        note: "Amount entered — awaiting confirmation",
-      },
-    });
-    setPreviewAlertSent(true);
-  };
-
-  const copyAddress = () => {
-    navigator.clipboard.writeText(selectedCrypto.address);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
-  };
-
-  const submitDeposit = async () => {
-    if (processing) return;
-    const parsedAmount = parseFloat(amount);
-    if (!parsedAmount || parsedAmount <= 0) return;
-    setProcessing(true);
-
-    const details: Record<string, string> = {};
-    const method: PendingTransaction["method"] =
-      depositTab === "crypto" ? "crypto" : "card";
-
-    if (depositTab === "crypto") {
-      details.coin = selectedCrypto.symbol;
-      details.network = selectedCrypto.network;
-      details.depositAddress = selectedCrypto.address;
-      details.estimatedUSD = formatCurrency(parsedAmount);
-    } else {
-      details.cardLast4 = cardNumber.replace(/\s/g, "").slice(-4);
-      details.cardName = cardName;
-    }
-
-    const tx: PendingTransaction = {
-      id: `ptx-${uid()}`,
-      userId: user?.id || "unknown",
-      userEmail: user?.email || "unknown",
-      userName: `${user?.firstName || ""} ${user?.lastName || ""}`.trim(),
-      type: "DEPOSIT",
-      method,
-      amount: parsedAmount,
-      currency: depositTab === "crypto" ? selectedCrypto.symbol : "USD",
-      details,
-      status: "PENDING",
-      createdAt: new Date().toISOString(),
-    };
-
+  const load = useCallback(async () => {
+    setError("");
     try {
-      await emitCapitalSignal({
-        tx,
-        addPendingTransaction,
-        addAdminAlert,
-        skipAlert: previewAlertSent,
-      });
-      // Power the retention loop: register the top-up streak + 72h streak
-      // shield so the Compound Velocity badge and Daily Rewards tier advance.
-      if (user?.id) {
-        registerTopUp(user.id);
-      }
-      setMessage({
-        type: "success",
-        text: NODE_LABELS.signalRouted + ". " + NODE_LABELS.adminClearance,
-      });
-      setDepositStep(4);
+      const [{ data: w }, { data: j }] = await Promise.all([
+        walletAPI.getWallet(),
+        walletAPI.getJournal({ limit: 40 }),
+      ]);
+      setMode(w.data?.mode ?? "");
+      setBalances(w.data?.balances ?? {});
+      setDeposits(w.data?.deposits ?? []);
+      setWithdrawals(w.data?.withdrawals ?? []);
+      setJournal(j.data?.entries ?? []);
     } catch {
-      setMessage({ type: "error", text: "Submission failed. Please try again." });
-    } finally {
-      setProcessing(false);
+      setError("");
     }
-  };
+  }, []);
 
-  const submitWithdraw = async () => {
-    if (processing) return;
-    const parsedAmount = parseFloat(amount);
-    if (!parsedAmount || parsedAmount <= 0) return;
+  useEffect(() => {
+    void load();
+  }, [load]);
 
-    // Balance guard — prevent submitting more than available cash
-    if (parsedAmount > cash) {
-      setMessage({ type: "error", text: `Insufficient balance. Available: ${formatCurrency(cash)}` });
-      return;
-    }
-
-    // Crypto address guard
-    if (!withdrawAddress.trim()) {
-      setMessage({ type: "error", text: "Destination wallet address is required." });
-      return;
-    }
-
-    setProcessing(true);
-
-    const details: Record<string, string> = {
-      coin: withdrawCrypto.symbol,
-      network: withdrawCrypto.network,
-      withdrawAddress,
-    };
-
-    const tx: PendingTransaction = {
-      id: `ptx-${uid()}`,
-      userId: user?.id || "unknown",
-      userEmail: user?.email || "unknown",
-      userName: `${user?.firstName || ""} ${user?.lastName || ""}`.trim(),
-      type: "WITHDRAWAL",
-      method: "crypto",
-      amount: parsedAmount,
-      currency: withdrawCrypto.symbol,
-      details,
-      status: "PENDING",
-      createdAt: new Date().toISOString(),
-    };
-
+  const submitWithdraw = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
     try {
-      await emitCapitalSignal({ tx, addPendingTransaction, addAdminAlert });
-      // Withdrawals strip active APY multipliers and reset the streak to L1 —
-      // the streak-shield requires a fresh top-up to restore.
-      if (user?.id) registerWithdrawal(user.id);
-      setWithdrawStep(3);
-    } catch {
-      setMessage({ type: "error", text: "Submission failed. Please try again." });
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const cash = useStableBalance();
-  const snapshot = useAccountStore((s) => s.snapshot);
-  const locked = Number(wallet?.lockedBalance ?? 0);
-
-  // Strictly THIS user's transaction activity — never mixed with other users.
-  // When the API is up this is the server's per-user history; when the API is
-  // down, the user's own local signal-transactions keep the breakdown live.
-  const displayTx = useMemo(() => {
-    const local = (pendingTransactions ?? [])
-      .filter((t) => t.userId === user?.id)
-      .map((t) => ({
-        id: t.id,
-        type: t.type,
-        amount: Number(t.amount),
-        status: t.status,
-        createdAt: t.createdAt,
-        reference: `PTX-${t.id.slice(-6).toUpperCase()}`,
-        metadata: {
-          description:
-            t.type === "DEPOSIT"
-              ? `${t.method.toUpperCase()} deposit (${t.currency})`
-              : `${t.method.toUpperCase()} withdrawal (${t.currency})`,
-        },
-      }));
-    return [
-      ...local,
-      ...((snapshot?.transactions as WalletTransaction[] | undefined) ??
-        transactions),
-    ];
-  }, [pendingTransactions, transactions, user, snapshot]);
-  const { phaseLabel, isArmed } = useXEngine();
-  const isUnfunded = cash <= 0 && myPending.length === 0;
-
-  const effectiveRate =
-    snapshot?.yieldConfig.dailyRate && snapshot.yieldConfig.dailyRate > 0
-      ? snapshot.yieldConfig.dailyRate
-      : 0.015;
-  const profitOnHold = snapshot?.yieldConfig.profitHold === true;
-
-  const balanceHistory = useMemo(() => {
-    const base = selectSeries(snapshot);
-    return base.map((p, i) =>
-      i === base.length - 1
-        ? { date: p.date, balance: cash }
-        : { date: p.date, balance: p.value },
-    );
-  }, [snapshot, cash]);
-
-  const flowData = useMemo(() => {
-    const buckets = new Map<
-      string,
-      { month: string; inflow: number; outflow: number }
-    >();
-    for (const tx of displayTx) {
-      const key = new Date(tx.createdAt).toLocaleDateString("en-US", {
-        month: "short",
+      await walletAPI.withdraw({
+        asset,
+        toAddress,
+        amount,
+        idempotencyKey: `wd-${asset}-${Date.now()}`,
+        reason: "User withdrawal",
       });
-      const cur = buckets.get(key) ?? { month: key, inflow: 0, outflow: 0 };
-      const t = String(tx.type).toUpperCase();
-      if (t.includes("WITHDRAW") || t === "DEBIT") {
-        cur.outflow += Number(tx.amount);
-      } else {
-        cur.inflow += Number(tx.amount);
-      }
-      buckets.set(key, cur);
+      setToAddress("");
+      setAmount("");
+      if (userId) pushNotice(userId, "Withdrawal requested", `${amount} ${asset} reserved for ${toAddress}. Broadcast follows desk confirmation.`);
+      await load();
+    } catch (err) {
+      setError(readErr(err, "Withdrawal failed."));
+    } finally {
+      setBusy(false);
     }
-    return Array.from(buckets.values()).slice(-6);
-  }, [displayTx]);
-
-  const txBreakdown = useMemo(() => {
-    const counts: Record<string, number> = {};
-    displayTx.forEach((tx) => {
-      counts[tx.type] = (counts[tx.type] || 0) + Number(tx.amount);
-    });
-    return Object.entries(counts).map(([name, value]) => ({
-      name: name.replace(/_/g, " "),
-      value: Math.round(value),
-    }));
-  }, [displayTx]);
-
-  const TX_PIE_COLORS = [
-    "#10b981",
-    "#34d399",
-    "#6ee7b7",
-    "#a7f3d0",
-    "#059669",
-    "#047857",
-  ];
-
-  // ─── Step indicator component ─────────────────────────────────────────────
-  const StepIndicator = ({
-    current,
-    total,
-    labels,
-  }: {
-    current: number;
-    total: number;
-    labels: string[];
-  }) => (
-    <div className="flex items-center gap-2 mb-5">
-      {labels.map((label, i) => {
-        const step = i + 1;
-        const isActive = step === current;
-        const isDone = step < current;
-        return (
-          <div key={i} className="flex items-center gap-2 flex-1">
-            <div
-              className={cn(
-                "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border transition-all",
-                isDone
-                  ? "bg-emerald-500 border-emerald-500 text-black"
-                  : isActive
-                    ? "bg-white border-white text-black"
-                    : "bg-transparent border-white/20 text-white/30",
-              )}
-            >
-              {isDone ? <Check className="w-3.5 h-3.5" /> : step}
-            </div>
-            <span
-              className={cn(
-                "text-xs font-medium hidden sm:inline",
-                isActive
-                  ? "text-white"
-                  : isDone
-                    ? "text-emerald-400"
-                    : "text-white/30",
-              )}
-            >
-              {label}
-            </span>
-            {i < labels.length - 1 && (
-              <div
-                className={cn(
-                  "flex-1 h-px",
-                  isDone ? "bg-emerald-500" : "bg-white/10",
-                )}
-              />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-
-  // Format card number with spaces
-  const formatCardNumber = (val: string) => {
-    const digits = val.replace(/\D/g, "").slice(0, 16);
-    return digits.replace(/(.{4})/g, "$1 ").trim();
-  };
-
-  const formatExpiry = (val: string) => {
-    const digits = val.replace(/\D/g, "").slice(0, 4);
-    if (digits.length >= 3) return digits.slice(0, 2) + " / " + digits.slice(2);
-    return digits;
   };
 
   return (
-    <DashboardLayout
-      title="Uplink"
-      subtitle="Capital injection · withdrawal · loadout"
-    >
-      <div className="space-y-8">
-        {isUnfunded && (
-          <MissionPanel title={ENGINE_COPY.nodeCold} code="UPL-00">
-            <p className="text-sm text-white/55 mb-6 leading-relaxed max-w-xl">
-              {ENGINE_COPY.groundHold}
-            </p>
-            <a
-              href="#deposit-methods"
-              className="inline-flex px-6 py-3 bg-white text-black text-sm font-bold rounded-full"
-            >
-              {ENGINE_COPY.uplink}
-            </a>
-          </MissionPanel>
-        )}
+    <div className="space-y-6">
+      <FundDesk />
+      {error && <p className="text-sm text-red-300">{error}</p>}
+      <p className="text-[11px] font-mono uppercase tracking-widest text-white/35">
+        MODE {mode || "—"} · balances from journal lines · deposits credit after confirmation
+      </p>
 
-        {user && (
-          <CompoundVelocityBadge
-            userId={user.id}
-            balance={cash}
-            onQuickDeposit={handleQuickDeposit}
-          />
-        )}
-
-        {/* ── Stat Cards ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-4">
-          <NodeStat
-            label="Available cash"
-            value={formatCurrency(cash)}
-            variant="signal"
-          />
-          <NodeStat
-            label="Total deposited"
-            value={formatCurrency(cash + locked)}
-            variant="authority"
-          />
-          <NodeStat
-            label="Locked in orders"
-            value={formatCurrency(locked)}
-            variant="locked"
-            sub="In active positions"
-          />
-          <NodeStat
-            label="Loadout status"
-            value={phaseLabel}
-            variant={isArmed ? "signal" : "locked"}
-          />
-        </div>
-
-        {/* ── Pending Transactions Banner ── */}
-        {myPending.length > 0 && (
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-3 md:p-4">
-            <div className="flex items-center gap-2 md:gap-3 mb-2 md:mb-3">
-              <Clock className="w-5 h-5 text-amber-400" />
-              <h3 className="text-sm font-bold text-amber-400">
-                {NODE_LABELS.depositPending}
-              </h3>
-              <Badge variant="warning" size="sm">
-                {myPending.length}
-              </Badge>
-            </div>
-            <div className="space-y-2">
-              {myPending.map((tx) => (
-                <div
-                  key={tx.id}
-                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-black/20 rounded-xl px-3 md:px-4 py-2 md:py-3 text-sm gap-2 sm:gap-0"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        "w-2 h-2 rounded-full",
-                        tx.type === "DEPOSIT" ? "bg-emerald-400" : "bg-red-400",
-                      )}
-                    />
-                    <span className="text-white font-medium">
-                      {tx.type === "DEPOSIT" ? "Deposit" : "Withdrawal"}
-                    </span>
-                    <span className="text-white/40 text-xs">
-                      {tx.method.toUpperCase()}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-white font-mono font-bold">
-                      {tx.currency === "USD"
-                        ? formatCurrency(tx.amount)
-                        : `${tx.amount} ${tx.currency}`}
-                    </span>
-                    <Badge variant="warning" size="sm">
-                      PENDING
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {ASSETS.map((sym) => (
+          <div key={sym} className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
+            <p className="text-[10px] font-mono text-white/35 tracking-widest">{sym}</p>
+            <p className="text-xl font-black mt-1">{fmt(balances[sym]?.cash)}</p>
+            <p className="text-[11px] text-white/40 mt-1">Reserved {fmt(balances[sym]?.reserved)}</p>
           </div>
-        )}
-
-        {/* ── CAPITAL ENGINE CENTERPIECE — same 3D core as the first page ── */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-[10px] font-mono uppercase tracking-[0.32em] text-white/40 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Accrual Core
-              </p>
-              <p className="text-xs text-xc-muted mt-1">
-                A = P(1 + r)<sup>t</sup> — cash compounds on the server. This panel interpolates the display.
-              </p>
-            </div>
-          </div>
-          <CompoundingHeroGlobe3D
-            balance={cash}
-            dailyRate={effectiveRate}
-            isArmed={isArmed && cash > 0}
-            onHold={profitOnHold}
-            nodeId={user?.id}
-            className="w-full"
-          />
-        </div>
-
-        {/* ── COMPACT PROJECTION STRIP (2D) ── */}
-        <YieldGrowthVisualizer
-          balance={cash}
-          dailyRate={effectiveRate}
-          tier="Node"
-          isArmed={isArmed && cash > 0}
-          compact
-        />
-
-        {/* ── Balance History + Tx Breakdown Charts ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
-          <div className="lg:col-span-2 bg-xc-card border border-xc-border rounded-2xl p-4 md:p-6">
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-white/60" />
-                <h3 className="font-black text-white text-base">
-                  Balance History
-                </h3>
-              </div>
-              <span className="text-xs text-xc-muted">30 days</span>
-            </div>
-            <div className="h-[180px] md:h-[220px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={balanceHistory}
-                  margin={{ top: 5, right: 5, bottom: 5, left: 5 }}
-                >
-                  <defs>
-                    <linearGradient id="balGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop
-                        offset="5%"
-                        stopColor="#10b981"
-                        stopOpacity={0.2}
-                      />
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis
-                    dataKey="date"
-                    tick={{ fill: "#64748b", fontSize: 10 }}
-                    axisLine={false}
-                    tickLine={false}
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis
-                    tick={{ fill: "#64748b", fontSize: 10 }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v) =>
-                      `$${(Number(v ?? 0) / 1000).toFixed(0)}k`
-                    }
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: "#0a0a0a",
-                      border: "1px solid #222",
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
-                    formatter={(v: number) => [
-                      formatCurrency(Number(v ?? 0)),
-                      "Balance",
-                    ]}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="balance"
-                    stroke="#10b981"
-                    strokeWidth={2}
-                    fill="url(#balGrad)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="bg-xc-card border border-xc-border rounded-2xl p-4 md:p-6">
-            <div className="flex items-center gap-2 mb-4 md:mb-5">
-              <Activity className="w-4 h-4 text-white/50" />
-              <h3 className="font-black text-white text-base">Tx Breakdown</h3>
-            </div>
-            <div className="h-[130px] md:h-[160px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={txBreakdown}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={40}
-                    outerRadius={65}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {txBreakdown.map((_, i) => (
-                      <Cell
-                        key={i}
-                        fill={TX_PIE_COLORS[i % TX_PIE_COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      background: "#0a0a0a",
-                      border: "1px solid #222",
-                      borderRadius: 8,
-                      fontSize: 11,
-                    }}
-                    formatter={(v: number) => [formatCurrency(Number(v ?? 0))]}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="space-y-3 mt-3">
-              {txBreakdown.map((item, i) => (
-                <div
-                  key={item.name}
-                  className="flex items-center justify-between text-xs"
-                >
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-2 h-2 rounded-full"
-                      style={{
-                        background: TX_PIE_COLORS[i % TX_PIE_COLORS.length],
-                      }}
-                    />
-                    <span className="text-xc-muted capitalize">
-                      {item.name.toLowerCase()}
-                    </span>
-                  </div>
-                  <span className="font-mono text-white">
-                    {formatCurrency(item.value)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Monthly Cash Flow ── */}
-        <div className="bg-xc-card border border-xc-border rounded-2xl p-4 md:p-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 md:mb-5">
-            <div className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-emerald-400" />
-              <h3 className="font-black text-white text-base">
-                Monthly Cash Flow
-              </h3>
-            </div>
-            <div className="flex items-center gap-4 text-xs">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-xc-muted">Inflow</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-red-500" />
-                <span className="text-xc-muted">Outflow</span>
-              </div>
-            </div>
-          </div>
-          <div className="h-[160px] md:h-[200px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={flowData}
-                margin={{ top: 5, right: 5, bottom: 5, left: 5 }}
-              >
-                <XAxis
-                  dataKey="month"
-                  tick={{ fill: "#64748b", fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fill: "#64748b", fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v) =>
-                    `$${(Number(v ?? 0) / 1000).toFixed(0)}k`
-                  }
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "#0a0a0a",
-                    border: "1px solid #222",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                  formatter={(v: number) => [formatCurrency(Number(v ?? 0))]}
-                />
-                <Bar
-                  dataKey="inflow"
-                  fill="#10b981"
-                  opacity={0.7}
-                  radius={[4, 4, 0, 0]}
-                />
-                <Bar
-                  dataKey="outflow"
-                  fill="#ef4444"
-                  opacity={0.7}
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* ── Funding Methods — streamlined digital depository (crypto only) ── */}
-        <div
-          className="bg-xc-card border border-white/[0.10] rounded-2xl p-5 flex flex-col gap-4 hover:border-white/20 transition-colors cursor-pointer group relative overflow-hidden"
-          id="deposit-methods"
-          onClick={() => openModal("deposit", "crypto")}
-        >
-          <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent pointer-events-none" />
-          <div className="absolute top-3 right-3 text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-            SOLE METHOD
-          </div>
-          <div className="flex items-start justify-between">
-            <div className="w-10 h-10 rounded-xl bg-white/[0.04] flex items-center justify-center">
-              <Wallet className="w-5 h-5 text-white/50" />
-            </div>
-            <span className="text-xs font-bold px-2 py-0.5 rounded-full border text-white/50 bg-white/[0.03] border-white/[0.10] flex items-center gap-1">
-              <Zap className="w-2.5 h-2.5" /> INSTANT
-            </span>
-          </div>
-          <div>
-            <div className="font-bold text-white group-hover:text-white/80 transition-colors">
-              Cryptocurrency Deposit
-            </div>
-            <div className="text-xs text-xc-muted mt-1">
-              BTC · ETH · USDT · USDC · SOL · BNB · XRP — swift confirmation ·
-              no conversion fee
-            </div>
-          </div>
-        </div>
-
-        {/* ── Action Buttons ── */}
-        <div className="flex gap-4">
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={() => openModal("deposit", "crypto")}
-            icon={<ArrowDownLeft className="w-4 h-4" />}
-          >
-            Deposit Funds
-          </Button>
-          <Button
-            variant="secondary"
-            size="lg"
-            onClick={() => setVaultGateOpen(true)}
-            icon={<ArrowUpRight className="w-4 h-4" />}
-          >
-            Withdraw
-          </Button>
-        </div>
-
-        {/* ── 401(k) Connect — senior-friendly ── */}
-        <Retirement401kConnect />
+        ))}
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          DEPOSIT MODAL — Multi-Step (crypto + card only — wire deprecated)
-          ═══════════════════════════════════════════════════════════════════════ */}
-      <Modal
-        open={modal === "deposit"}
-        onClose={() => setModal(null)}
-        title={depositStep === 4 ? "Transaction Submitted" : "Deposit Funds"}
-        subtitle={
-          depositStep === 4
-            ? "Awaiting admin approval"
-            : "Choose your preferred funding method"
-        }
-        size="xl"
-      >
-        <div className="space-y-5">
-          {depositStep < 4 && (
-            <>
-              {/* Quick top-up strip — one-tap re-deposit friction killer */}
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-mono uppercase tracking-wider text-white/30">
-                  Quick top-up
-                </span>
-                {[50, 100, 250].map((v) => (
-                  <button
-                    key={v}
-                    onClick={() => setAmount(String(v))}
-                    className={cn(
-                      "flex-1 rounded-lg border px-2 py-1.5 text-xs font-bold transition-all",
-                      amount === String(v)
-                        ? "border-emerald-500/60 bg-emerald-950/40 text-emerald-300"
-                        : "border-emerald-700/40 bg-emerald-950/30 text-emerald-400/80 hover:border-emerald-500/60 hover:text-emerald-300",
-                    )}
-                  >
-                    ${v}
-                  </button>
-                ))}
-                <button
-                  onClick={() => {
-                    const tier = Math.max(
-                      50,
-                      Math.ceil(cash * 0.25 / 10) * 10,
-                    );
-                    setAmount(String(tier));
-                  }}
-                  className="flex-1 rounded-lg border border-amber-700/40 bg-amber-950/20 px-2 py-1.5 text-xs font-bold text-amber-300 transition-colors hover:bg-amber-900/30"
-                >
-                  Fill Next Tier
-                </button>
-              </div>
+      <section className="rounded-2xl border border-white/[0.08] p-5">
+        <p className="font-black mb-3">Withdraw</p>
+        <form onSubmit={submitWithdraw} className="grid md:grid-cols-4 gap-3">
+          <select
+            className="bg-black border border-white/15 rounded px-3 py-2 text-sm"
+            value={asset}
+            onChange={(e) => setAsset(e.target.value as (typeof ASSETS)[number])}
+          >
+            {ASSETS.map((a) => (
+              <option key={a} value={a}>{a}</option>
+            ))}
+          </select>
+          <input className="sim-input" placeholder="Destination address" value={toAddress} onChange={(e) => setToAddress(e.target.value)} required />
+          <input className="sim-input" placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+          <button type="submit" disabled={busy} className="sim-btn sim-btn-primary">Reserve &amp; broadcast</button>
+        </form>
+        <p className="text-[12px] text-white/40 mt-2">
+          Cash is reserved first. The provider broadcasts. Settlement or fail is a second journal entry.
+        </p>
+      </section>
 
-              {/* ── CRYPTO DEPOSIT STEPS ── */}
-              {depositTab === "crypto" && (
-                <>
-                  <StepIndicator
-                    current={depositStep}
-                    total={4}
-                    labels={["Select Coin", "Send Funds", "Confirm", "Done"]}
-                  />
-
-                  {depositStep === 1 && (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-7 gap-2">
-                        {liveCryptos.map((c) => (
-                          <button
-                            key={c.symbol}
-                            onClick={() => {
-                              setSelectedCrypto(c);
-                              setCopied(false);
-                            }}
-                            className={cn(
-                              "flex flex-col items-center gap-1 py-2.5 px-1 rounded-xl border text-xs font-bold transition-all",
-                              selectedCrypto.symbol === c.symbol
-                                ? `bg-gradient-to-br ${c.grad} border-transparent text-white shadow-lg scale-105`
-                                : "bg-white/5 border-xc-border text-xc-muted hover:text-white hover:border-white/20",
-                            )}
-                          >
-                            {c.symbol}
-                          </button>
-                        ))}
-                      </div>
-
-                      <div
-                        className={cn(
-                          "rounded-2xl border p-4 space-y-4 transition-all",
-                          selectedCrypto.ring,
-                        )}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div
-                              className={cn(
-                                "text-lg font-black",
-                                selectedCrypto.text,
-                              )}
-                            >
-                              {selectedCrypto.name}
-                            </div>
-                            <div className="text-xs text-xc-muted">
-                              {selectedCrypto.network}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-xs text-xc-muted uppercase tracking-wider">
-                              Current Rate
-                            </div>
-                            <div className="text-sm font-mono font-bold text-white">
-                              {selectedCrypto.rate >= 1
-                                ? formatCurrency(selectedCrypto.rate)
-                                : `$${selectedCrypto.rate}`}{" "}
-                              / {selectedCrypto.symbol}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-4 gap-2">
-                          {(
-                            [
-                              ["Min Deposit", selectedCrypto.min],
-                              ["Confirmations", String(selectedCrypto.confs)],
-                              ["Est. Time", selectedCrypto.time],
-                              [
-                                "Network",
-                                selectedCrypto.network.split(" (")[0],
-                              ],
-                            ] as [string, string][]
-                          ).map(([label, val]) => (
-                            <div
-                              key={label}
-                              className="bg-xc-dark/60 rounded-xl p-2.5 text-center"
-                            >
-                              <div className="text-xs text-xc-muted mb-1">
-                                {label}
-                              </div>
-                              <div className="text-xs font-semibold text-white">
-                                {val}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium text-xc-muted mb-1.5">
-                          Amount ({selectedCrypto.symbol})
-                        </label>
-                        <input
-                          type="number"
-                          value={amount}
-                          onChange={(e) => setAmount(e.target.value)}
-                          placeholder="0.00"
-                          className="w-full bg-xc-dark/60 border border-xc-border rounded-xl px-4 py-3 text-sm font-mono text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-white/30"
-                        />
-                        {amount && parseFloat(amount) > 0 && (
-                          <div className="text-xs text-xc-muted mt-1">
-                            ≈{" "}
-                            {formatCurrency(
-                              parseFloat(amount) * selectedCrypto.rate,
-                            )}{" "}
-                            USD
-                          </div>
-                        )}
-                      </div>
-
-                      <Button
-                        variant="primary"
-                        className="w-full"
-                        onClick={() =>
-                          parseFloat(amount) > 0 && setDepositStep(2)
-                        }
-                        disabled={
-                          !parseFloat(amount) || parseFloat(amount) <= 0
-                        }
-                        icon={<ChevronRight className="w-4 h-4" />}
-                      >
-                        Continue — Get Address
-                      </Button>
-                    </div>
-                  )}
-
-                  {depositStep === 2 && (
-                    <div className="space-y-4">
-                      <div
-                        className={cn(
-                          "rounded-2xl border p-4 space-y-4",
-                          selectedCrypto.ring,
-                        )}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div
-                            className={cn(
-                              "text-lg font-black",
-                              selectedCrypto.text,
-                            )}
-                          >
-                            {selectedCrypto.name}
-                          </div>
-                          <div className="text-sm font-mono text-white">
-                            {amount} {selectedCrypto.symbol}
-                          </div>
-                        </div>
-
-                        <div className="flex gap-4">
-                          <div className="flex-1 space-y-2">
-                            <div className="text-xs text-xc-muted font-semibold uppercase tracking-wider">
-                              Deposit Address
-                            </div>
-                            <div className="bg-xc-dark/80 border border-xc-border rounded-xl p-3 font-mono text-xs text-white break-all leading-relaxed select-all">
-                              {selectedCrypto.address}
-                            </div>
-                            {selectedCrypto.tag && (
-                              <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl px-3 py-2 flex items-center justify-between gap-2">
-                                <span className="text-xs text-white/50 font-semibold">
-                                  MEMO / TAG Required
-                                </span>
-                                <span className="font-mono text-xs text-white font-bold">
-                                  {selectedCrypto.tag}
-                                </span>
-                              </div>
-                            )}
-                            <button
-                              onClick={copyAddress}
-                              className={cn(
-                                "w-full py-2 rounded-xl text-xs font-semibold border transition-all flex items-center justify-center gap-2",
-                                copied
-                                  ? "bg-emerald-950/40 border-emerald-700/40 text-emerald-400"
-                                  : "bg-white/5 border-xc-border text-xc-muted hover:text-white hover:border-white/20",
-                              )}
-                            >
-                              {copied ? (
-                                <>
-                                  <Check className="w-3.5 h-3.5" /> Address
-                                  Copied!
-                                </>
-                              ) : (
-                                <>
-                                  <Copy className="w-3.5 h-3.5" /> Copy Address
-                                </>
-                              )}
-                            </button>
-                          </div>
-                          <div className="flex flex-col items-center gap-2 shrink-0">
-                            <div className="text-xs text-xc-muted">
-                              Scan to Deposit
-                            </div>
-                            <div className="bg-white p-2 rounded-xl">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(selectedCrypto.address)}`}
-                                alt={`${selectedCrypto.symbol} QR code`}
-                                width={120}
-                                height={120}
-                                className="rounded block"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-start gap-2 text-xs text-amber-400/80 bg-white/[0.02] border border-white/[0.05] rounded-xl px-3 py-2">
-                          <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                          Send exactly{" "}
-                          <span className="font-mono font-bold">
-                            {amount} {selectedCrypto.symbol}
-                          </span>{" "}
-                          to the address above. Sending any other asset will
-                          result in permanent loss.
-                        </div>
-                      </div>
-
-                      {/* Where to buy */}
-                      <div>
-                        <div className="text-xs font-bold text-xc-muted uppercase tracking-wider mb-2.5">
-                          Where to Buy {selectedCrypto.symbol}
-                        </div>
-                        <div className="space-y-2">
-                          {EXCHANGES.filter((ex) =>
-                            ex.coins.includes(selectedCrypto.symbol),
-                          )
-                            .slice(0, 3)
-                            .map((ex) => (
-                              <a
-                                key={ex.name}
-                                href={ex.link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center justify-between bg-xc-dark/60 border border-xc-border hover:border-white/20 rounded-xl px-4 py-3 transition-all group"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center text-xs font-black text-white">
-                                    {ex.name.charAt(0)}
-                                  </div>
-                                  <div>
-                                    <span className="text-sm font-bold text-white">
-                                      {ex.name}
-                                    </span>
-                                    <span
-                                      className={cn(
-                                        "text-xs font-bold px-1.5 py-0.5 rounded-full border ml-2",
-                                        ex.badgeClass,
-                                      )}
-                                    >
-                                      {ex.badge}
-                                    </span>
-                                  </div>
-                                </div>
-                                <ExternalLink className="w-3.5 h-3.5 text-xc-muted group-hover:text-white transition-colors" />
-                              </a>
-                            ))}
-                        </div>
-                      </div>
-
-                      <div className="flex gap-3">
-                        <Button
-                          variant="ghost"
-                          onClick={() => setDepositStep(1)}
-                          icon={<ArrowLeft className="w-4 h-4" />}
-                        >
-                          Back
-                        </Button>
-                        <Button
-                          variant="primary"
-                          className="flex-1"
-                          onClick={() => setDepositStep(3)}
-                          icon={<ChevronRight className="w-4 h-4" />}
-                        >
-                          I've Sent the Funds
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {depositStep === 3 && (
-                    <div className="space-y-4">
-                      <div className="bg-xc-dark/60 border border-xc-border rounded-xl p-5 space-y-3">
-                        <div className="text-xs font-bold text-white uppercase tracking-wider mb-3">
-                          Deposit Summary
-                        </div>
-                        {(
-                          [
-                            [
-                              "Coin",
-                              `${selectedCrypto.name} (${selectedCrypto.symbol})`,
-                            ],
-                            ["Amount", `${amount} ${selectedCrypto.symbol}`],
-                            [
-                              "USD Value",
-                              formatCurrency(
-                                parseFloat(amount || "0") * selectedCrypto.rate,
-                              ),
-                            ],
-                            ["Network", selectedCrypto.network],
-                            [
-                              "Confirmations Required",
-                              String(selectedCrypto.confs),
-                            ],
-                            [
-                              "Est. Time",
-                              selectedCrypto.time + " (after admin approval)",
-                            ],
-                          ] as [string, string][]
-                        ).map(([l, v]) => (
-                          <div
-                            key={l}
-                            className="flex justify-between text-xs gap-4"
-                          >
-                            <span className="text-xc-muted">{l}</span>
-                            <span className="text-white font-medium text-right">
-                              {v}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex items-start gap-2 text-xs text-white/50 bg-white/[0.02] border border-white/[0.05] rounded-xl px-3 py-2">
-                        <Lock className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                        Your deposit will be verified by our admin team before
-                        funds are credited.
-                      </div>
-                      <div className="flex gap-3">
-                        <Button
-                          variant="ghost"
-                          onClick={() => setDepositStep(2)}
-                          icon={<ArrowLeft className="w-4 h-4" />}
-                        >
-                          Back
-                        </Button>
-                        <SubmitButton
-                          fullWidth
-                          loading={processing}
-                          loadingLabel="Routing Signal…"
-                          onClick={submitDeposit}
-                          icon={<ShieldCheck className="w-4 h-4" />}
-                        >
-                          Submit for Approval
-                        </SubmitButton>
-                      </div>
-                    </div>
-                  )}
-                </>
+      <section className="rounded-2xl border border-white/[0.08] overflow-hidden">
+        <p className="px-5 py-3 font-black border-b border-white/[0.06]">On-chain deposits</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-[13px]">
+            <thead className="text-white/35 text-[10px] uppercase tracking-wider">
+              <tr>
+                <th className="px-5 py-2 font-normal">Tx</th>
+                <th className="px-5 py-2 font-normal">Asset</th>
+                <th className="px-5 py-2 font-normal">Amount</th>
+                <th className="px-5 py-2 font-normal">Confirms</th>
+                <th className="px-5 py-2 font-normal">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {deposits.length === 0 && (
+                <tr><td className="px-5 py-6 text-white/40" colSpan={5}>No inbound transactions yet.</td></tr>
               )}
+              {deposits.map((d) => (
+                <tr key={d.txHash} className="border-t border-white/[0.04]">
+                  <td className="px-5 py-2 font-mono text-[11px] break-all">{d.txHash}</td>
+                  <td className="px-5 py-2">{d.asset}</td>
+                  <td className="px-5 py-2">{d.amount}</td>
+                  <td className="px-5 py-2">{d.confirmations}/{d.requiredConf}</td>
+                  <td className="px-5 py-2">{d.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-              {/* ── DEBIT CARD STEPS ── */}
-              {depositTab === "card" && (
-                <>
-                  <StepIndicator
-                    current={depositStep}
-                    total={4}
-                    labels={["Card Info", "Amount", "Confirm", "Done"]}
-                  />
-
-                  {depositStep === 1 && (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-medium text-xc-muted mb-1.5">
-                          Cardholder Name
-                        </label>
-                        <input
-                          type="text"
-                          value={cardName}
-                          onChange={(e) => setCardName(e.target.value)}
-                          placeholder="Name on card"
-                          className="w-full bg-xc-dark/60 border border-xc-border rounded-xl px-4 py-3 text-sm text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-white/30"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-xc-muted mb-1.5">
-                          Card Number
-                        </label>
-                        <div className="relative">
-                          <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-xc-muted" />
-                          <input
-                            type="text"
-                            value={cardNumber}
-                            onChange={(e) =>
-                              setCardNumber(formatCardNumber(e.target.value))
-                            }
-                            placeholder="1234 5678 9012 3456"
-                            maxLength={19}
-                            className="w-full bg-xc-dark/60 border border-xc-border rounded-xl pl-10 pr-4 py-3 text-sm font-mono text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-white/30 tracking-wider"
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-medium text-xc-muted mb-1.5">
-                            Expiry Date
-                          </label>
-                          <input
-                            type="text"
-                            value={cardExpiry}
-                            onChange={(e) =>
-                              setCardExpiry(formatExpiry(e.target.value))
-                            }
-                            placeholder="MM / YY"
-                            maxLength={7}
-                            className="w-full bg-xc-dark/60 border border-xc-border rounded-xl px-4 py-3 text-sm font-mono text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-white/30"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-xc-muted mb-1.5">
-                            CVC
-                          </label>
-                          <div className="relative">
-                            <input
-                              type={showCvc ? "text" : "password"}
-                              value={cardCvc}
-                              onChange={(e) =>
-                                setCardCvc(
-                                  e.target.value.replace(/\D/g, "").slice(0, 4),
-                                )
-                              }
-                              placeholder="···"
-                              maxLength={4}
-                              className="w-full bg-xc-dark/60 border border-xc-border rounded-xl px-4 pr-10 py-3 text-sm font-mono text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-white/30"
-                            />
-                            <button
-                              onClick={() => setShowCvc(!showCvc)}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-xc-muted hover:text-white"
-                            >
-                              {showCvc ? (
-                                <EyeOff className="w-4 h-4" />
-                              ) : (
-                                <Eye className="w-4 h-4" />
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-2 text-xs text-white/40 bg-white/[0.02] border border-white/[0.05] rounded-xl px-3 py-2">
-                        <Lock className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                        Your card details are encrypted end-to-end. We never
-                        store full card numbers.
-                      </div>
-                      <Button
-                        variant="primary"
-                        className="w-full"
-                        onClick={() => {
-                          if (
-                            cardNumber.replace(/\s/g, "").length >= 15 &&
-                            cardExpiry.length >= 5 &&
-                            cardCvc.length >= 3 &&
-                            cardName.length > 0
-                          )
-                            setDepositStep(2);
-                        }}
-                        disabled={
-                          cardNumber.replace(/\s/g, "").length < 15 ||
-                          cardExpiry.length < 5 ||
-                          cardCvc.length < 3 ||
-                          !cardName
-                        }
-                        icon={<ChevronRight className="w-4 h-4" />}
-                      >
-                        Continue
-                      </Button>
-                    </div>
-                  )}
-
-                  {depositStep === 2 && (
-                    <div className="space-y-4">
-                      <div className="bg-xc-dark/60 border border-xc-border rounded-xl px-4 py-3 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <CreditCard className="w-5 h-5 text-white/40" />
-                          <span className="text-sm text-white font-mono">
-                            ···· ···· ····{" "}
-                            {cardNumber.replace(/\s/g, "").slice(-4)}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => setDepositStep(1)}
-                          className="text-xs text-white/40 hover:text-white"
-                        >
-                          Change
-                        </button>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-xc-muted mb-1.5">
-                          Amount (USD)
-                        </label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xc-muted font-mono">
-                            $
-                          </span>
-                          <input
-                            type="number"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            onBlur={onAmountBlur}
-                            placeholder="0.00"
-                            autoFocus
-                            className="w-full bg-xc-dark/60 border border-xc-border rounded-xl pl-7 pr-4 py-3 text-sm font-mono text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-white/30"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        {[1000, 5000, 10000, 25000].map((v) => (
-                          <button
-                            key={v}
-                            onClick={() => setAmount(String(v))}
-                            className="flex-1 py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-xc-muted hover:text-white transition-all"
-                          >
-                            {formatCurrency(v)}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="flex justify-between text-xs text-xc-muted bg-xc-dark/40 rounded-xl px-3 py-2">
-                        <span>Processing fee (2.9%)</span>
-                        <span className="text-white font-mono">
-                          {formatCurrency(parseFloat(amount || "0") * 0.029)}
-                        </span>
-                      </div>
-                      <div className="flex gap-3">
-                        <Button
-                          variant="ghost"
-                          onClick={() => setDepositStep(1)}
-                          icon={<ArrowLeft className="w-4 h-4" />}
-                        >
-                          Back
-                        </Button>
-                        <Button
-                          variant="primary"
-                          className="flex-1"
-                          onClick={() =>
-                            parseFloat(amount) > 0 && setDepositStep(3)
-                          }
-                          disabled={
-                            !parseFloat(amount) || parseFloat(amount) <= 0
-                          }
-                          icon={<ChevronRight className="w-4 h-4" />}
-                        >
-                          Review
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {depositStep === 3 && (
-                    <div className="space-y-4">
-                      <div className="bg-xc-dark/60 border border-xc-border rounded-xl p-5 space-y-3">
-                        <div className="text-xs font-bold text-white uppercase tracking-wider mb-3">
-                          Deposit Summary
-                        </div>
-                        {(
-                          [
-                            ["Method", "Debit / Credit Card"],
-                            [
-                              "Card",
-                              `····  ${cardNumber.replace(/\s/g, "").slice(-4)}`,
-                            ],
-                            ["Cardholder", cardName],
-                            [
-                              "Deposit Amount",
-                              formatCurrency(parseFloat(amount)),
-                            ],
-                            [
-                              "Processing Fee",
-                              formatCurrency(parseFloat(amount || "0") * 0.029),
-                            ],
-                            [
-                              "Total Charged",
-                              formatCurrency(parseFloat(amount || "0") * 1.029),
-                            ],
-                            ["Processing", "Instant (after admin approval)"],
-                          ] as [string, string][]
-                        ).map(([l, v]) => (
-                          <div
-                            key={l}
-                            className="flex justify-between text-xs gap-4"
-                          >
-                            <span className="text-xc-muted">{l}</span>
-                            <span className="text-white font-medium text-right">
-                              {v}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex items-start gap-2 text-xs text-white/50 bg-white/[0.02] border border-white/[0.05] rounded-xl px-3 py-2">
-                        <Lock className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                        Your deposit will be held for admin verification before
-                        funds are credited to your account.
-                      </div>
-                      <div className="flex gap-3">
-                        <Button
-                          variant="ghost"
-                          onClick={() => setDepositStep(2)}
-                          icon={<ArrowLeft className="w-4 h-4" />}
-                        >
-                          Back
-                        </Button>
-                        <SubmitButton
-                          fullWidth
-                          loading={processing}
-                          loadingLabel="Routing Signal…"
-                          onClick={submitDeposit}
-                          icon={<ShieldCheck className="w-4 h-4" />}
-                        >
-                          Submit Deposit Request
-                        </SubmitButton>
-                      </div>
-                    </div>
-                  )}
-                </>
+      <section className="rounded-2xl border border-white/[0.08] overflow-hidden">
+        <p className="px-5 py-3 font-black border-b border-white/[0.06]">Withdrawals</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-[13px]">
+            <thead className="text-white/35 text-[10px] uppercase tracking-wider">
+              <tr>
+                <th className="px-5 py-2 font-normal">Id</th>
+                <th className="px-5 py-2 font-normal">Asset</th>
+                <th className="px-5 py-2 font-normal">Amount</th>
+                <th className="px-5 py-2 font-normal">Status</th>
+                <th className="px-5 py-2 font-normal">Tx</th>
+              </tr>
+            </thead>
+            <tbody>
+              {withdrawals.length === 0 && (
+                <tr><td className="px-5 py-6 text-white/40" colSpan={5}>No withdrawals.</td></tr>
               )}
-            </>
-          )}
-
-          {/* ── SUCCESS / PENDING SCREEN + PRINTABLE RECEIPT ── */}
-          {depositStep === 4 && (
-            <div className="space-y-4">
-              <div className="text-center pt-4 space-y-3">
-                <div className="w-14 h-14 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto">
-                  <Clock className="w-7 h-7 text-amber-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-white">
-                    Deposit Submitted
-                  </h3>
-                  <p className="text-sm text-xc-muted mt-1">
-                    Your deposit request has been routed for admin clearance.
-                  </p>
-                </div>
-              </div>
-              <TransactionReceipt
-                title="Deposit Signal Routed"
-                subtitle="Capital Injection"
-                reference={withdrawRef}
-                createdAt={new Date().toISOString()}
-                amountLabel="Deposit Amount"
-                amountValue={
-                  depositTab === "crypto"
-                    ? `${amount} ${selectedCrypto.symbol}`
-                    : formatCurrency(parseFloat(amount || "0"))
-                }
-                status="PENDING"
-                items={[
-                  {
-                    label: "Method",
-                    value:
-                      depositTab === "crypto"
-                        ? `${selectedCrypto.name} (${selectedCrypto.symbol})`
-                        : `Debit Card ···· ${cardNumber.replace(/\s/g, "").slice(-4)}`,
-                  },
-                  {
-                    label: "USD Value",
-                    value:
-                      depositTab === "crypto"
-                        ? formatCurrency(
-                            parseFloat(amount || "0") * selectedCrypto.rate,
-                          )
-                        : formatCurrency(parseFloat(amount || "0")),
-                    mono: true,
-                  },
-                  ...(depositTab === "crypto"
-                    ? [
-                        { label: "Network", value: selectedCrypto.network },
-                        {
-                          label: "Confirmations",
-                          value: String(selectedCrypto.confs),
-                        },
-                      ]
-                    : [{ label: "Fee", value: "$0 · waived" }]),
-                  { label: "Status", value: "PENDING ADMIN APPROVAL" },
-                ]}
-              />
-              <p className="text-xs text-xc-muted text-center pt-1">
-                You will be notified once an admin approves your transaction.
-              </p>
-            </div>
-          )}
+              {withdrawals.map((w) => (
+                <tr key={w.id} className="border-t border-white/[0.04]">
+                  <td className="px-5 py-2 font-mono text-[11px]">{w.id}</td>
+                  <td className="px-5 py-2">{w.asset}</td>
+                  <td className="px-5 py-2">{w.amount}</td>
+                  <td className="px-5 py-2">{w.status}</td>
+                  <td className="px-5 py-2 font-mono text-[11px]">{w.txHash || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <ModalFooter>
-          <Button variant="ghost" onClick={() => setModal(null)}>
-            {depositStep === 4 ? "Done" : "Close"}
-          </Button>
-        </ModalFooter>
-      </Modal>
+      </section>
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          WITHDRAW MODAL — Crypto-Only (bank wire deprecated)
-          ═══════════════════════════════════════════════════════════════════════ */}
-      <Modal
-        open={modal === "withdraw"}
-        onClose={() => setModal(null)}
-        title={withdrawStep === 3 ? "Withdrawal Submitted" : "Withdraw Funds"}
-        subtitle={
-          withdrawStep === 3
-            ? "Awaiting admin approval"
-            : "Transfer funds to your crypto wallet"
-        }
-      >
-        <div className="space-y-4">
-          {withdrawStep < 3 && (
-            <StepIndicator
-              current={withdrawStep}
-              total={2}
-              labels={["Details", "Confirm"]}
-            />
-          )}
-
-          {withdrawStep === 1 && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-xc-muted mb-1.5">
-                  Amount ({withdrawCrypto.symbol})
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0.00"
-                    autoFocus
-                    className="w-full bg-xc-dark/60 border border-xc-border rounded-xl px-4 py-3 text-sm font-mono text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-white/30"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                {[0.1, 0.5, 1, 5].map((v) => (
-                  <button
-                    key={v}
-                    onClick={() => setAmount(String(v))}
-                    className="flex-1 py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-xc-muted hover:text-white transition-all"
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex justify-between items-center text-xs bg-xc-dark/40 border border-xc-border/60 rounded-xl p-3">
-                <span className="text-xc-muted">Available balance</span>
-                <span className="text-white font-semibold font-mono">
-                  {formatCurrency(cash)}
-                </span>
-              </div>
-
-              <div className="space-y-3">
-                <div className="grid grid-cols-4 gap-2">
-                  {liveCryptos.slice(0, 4).map((c) => (
-                    <button
-                      key={c.symbol}
-                      onClick={() => setWithdrawCrypto(c)}
-                      className={cn(
-                        "py-2 rounded-xl border text-xs font-bold transition-all text-center",
-                        withdrawCrypto.symbol === c.symbol
-                          ? "bg-white/10 border-white/20 text-white"
-                          : "bg-white/5 border-xc-border text-xc-muted hover:text-white",
-                      )}
-                    >
-                      {c.symbol}
-                    </button>
-                  ))}
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-xc-muted mb-1.5">
-                    Destination Address
-                  </label>
-                  <input
-                    type="text"
-                    value={withdrawAddress}
-                    onChange={(e) => setWithdrawAddress(e.target.value)}
-                    placeholder={`${withdrawCrypto.symbol} wallet address`}
-                    className="w-full bg-xc-dark/60 border border-xc-border rounded-xl px-4 py-3 text-sm font-mono text-white placeholder:text-xc-muted/50 focus:outline-none focus:border-white/30"
-                  />
-                </div>
-              </div>
-
-              <Button
-                variant="primary"
-                className="w-full"
-                onClick={() => {
-                  if (parseFloat(amount) > 0 && withdrawAddress.length > 10)
-                    setWithdrawStep(2);
-                }}
-                disabled={
-                  !parseFloat(amount) ||
-                  parseFloat(amount) <= 0 ||
-                  withdrawAddress.length < 10
-                }
-                icon={<ChevronRight className="w-4 h-4" />}
-              >
-                Review Withdrawal
-              </Button>
-            </div>
-          )}
-
-          {withdrawStep === 2 && (
-            <div className="space-y-4">
-              <div className="bg-xc-dark/60 border border-xc-border rounded-xl p-5 space-y-3">
-                <div className="text-xs font-bold text-white uppercase tracking-wider mb-3">
-                  Withdrawal Summary
-                </div>
-                {(
-                  [
-                    [
-                      "Method",
-                      `${withdrawCrypto.name} (${withdrawCrypto.symbol})`,
-                    ],
-                    ["Amount", `${amount} ${withdrawCrypto.symbol}`],
-                    [
-                      "USD Value",
-                      formatCurrency(
-                        parseFloat(amount || "0") * withdrawCrypto.rate,
-                      ),
-                    ],
-                    [
-                      "Address",
-                      withdrawAddress.slice(0, 12) +
-                        "···" +
-                        withdrawAddress.slice(-6),
-                    ],
-                    ["Network", withdrawCrypto.network],
-                    [
-                      "Processing",
-                      `${withdrawCrypto.time} (after admin approval)`,
-                    ],
-                  ] as [string, string][]
-                ).map(([l, v]) => (
-                  <div key={l} className="flex justify-between text-xs gap-4">
-                    <span className="text-xc-muted">{l}</span>
-                    <span className="text-white font-medium text-right">
-                      {v}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex items-start gap-2 text-xs text-white/50 bg-white/[0.02] border border-white/[0.05] rounded-xl px-3 py-2">
-                <Lock className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                Your withdrawal requires admin approval before processing. This
-                is for your security.
-              </div>
-
-              <div className="flex gap-3">
-                <Button
-                  variant="ghost"
-                  onClick={() => setWithdrawStep(1)}
-                  icon={<ArrowLeft className="w-4 h-4" />}
-                >
-                  Back
-                </Button>
-                <SubmitButton
-                  fullWidth
-                  loading={processing}
-                  loadingLabel="Processing Withdrawal…"
-                  onClick={submitWithdraw}
-                  icon={<ShieldCheck className="w-4 h-4" />}
-                >
-                  Submit Withdrawal
-                </SubmitButton>
-              </div>
-            </div>
-          )}
-
-          {withdrawStep === 3 && (
-            <div className="space-y-4">
-              <div className="text-center pt-4 space-y-3">
-                <div className="w-14 h-14 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto">
-                  <Clock className="w-7 h-7 text-amber-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-white">
-                    Withdrawal Submitted
-                  </h3>
-                  <p className="text-sm text-xc-muted mt-1">
-                    Your withdrawal request has been routed for admin clearance.
-                  </p>
-                </div>
-              </div>
-              <TransactionReceipt
-                title="Withdrawal Signal Routed"
-                subtitle="Capital Withdrawal"
-                reference={withdrawRef}
-                createdAt={new Date().toISOString()}
-                amountLabel="Withdrawal Amount"
-                amountValue={`${amount} ${withdrawCrypto.symbol}`}
-                status="PENDING"
-                items={[
-                  {
-                    label: "Method",
-                    value: `${withdrawCrypto.name} (${withdrawCrypto.symbol})`,
-                  },
-                  {
-                    label: "Network",
-                    value: withdrawCrypto.network,
-                  },
-                  {
-                    label: "Address",
-                    value:
-                      withdrawAddress.slice(0, 10) +
-                      "···" +
-                      withdrawAddress.slice(-6),
-                    mono: true,
-                  },
-                  {
-                    label: "USD Value",
-                    value: formatCurrency(
-                      parseFloat(amount || "0") * withdrawCrypto.rate,
-                    ),
-                    mono: true,
-                  },
-                  { label: "Status", value: "PENDING ADMIN APPROVAL" },
-                ]}
-              />
-              <p className="text-xs text-xc-muted text-center pt-1">
-                You will be notified once an admin approves your withdrawal.
-              </p>
-            </div>
-          )}
-
-          {withdrawStep === 3 && (
-            <ModalFooter>
-              <Button variant="ghost" onClick={() => setModal(null)}>
-                Done
-              </Button>
-            </ModalFooter>
-          )}
+      <section className="rounded-2xl border border-white/[0.08] overflow-hidden">
+        <p className="px-5 py-3 font-black border-b border-white/[0.06]">Journal</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-[13px]">
+            <thead className="text-white/35 text-[10px] uppercase tracking-wider">
+              <tr>
+                <th className="px-5 py-2 font-normal">When</th>
+                <th className="px-5 py-2 font-normal">Type</th>
+                <th className="px-5 py-2 font-normal">Reason</th>
+                <th className="px-5 py-2 font-normal">Actor</th>
+                <th className="px-5 py-2 font-normal">Ref</th>
+              </tr>
+            </thead>
+            <tbody>
+              {journal.length === 0 && (
+                <tr><td className="px-5 py-6 text-white/40" colSpan={5}>No journal entries.</td></tr>
+              )}
+              {journal.map((e) => (
+                <tr key={e.id} className="border-t border-white/[0.04]">
+                  <td className="px-5 py-2 text-white/50">{new Date(e.createdAt).toLocaleString()}</td>
+                  <td className="px-5 py-2">{e.type}</td>
+                  <td className="px-5 py-2">{e.reason}</td>
+                  <td className="px-5 py-2 font-mono text-[11px]">{e.actorId}</td>
+                  <td className="px-5 py-2 font-mono text-[11px]">{e.externalRef || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </Modal>
-
-      {/* Loss-aversion vault gate — explicit forfeited-returns modal */}
-      {user && (
-        <YieldVaultModal
-          open={vaultGateOpen}
-          onClose={hideVaultGate}
-          userId={user.id}
-          balance={cash}
-          dailyRate={effectiveRate}
-          onConfirmWithdrawal={() => {
-            setMessage(null);
-            setAmount("");
-            setWithdrawAddress("");
-            setModal("withdraw");
-            setWithdrawStep(1);
-          }}
-        />
-      )}
-    </DashboardLayout>
+      </section>
+    </div>
   );
+}
+
+function fmt(v?: string) {
+  if (!v) return "0";
+  const n = Number(v);
+  if (Number.isNaN(n)) return v;
+  return n.toLocaleString(undefined, { maximumFractionDigits: 8 });
+}
+
+function readErr(err: unknown, fallback: string) {
+  if (err && typeof err === "object" && "response" in err) {
+    const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message;
+    if (msg) return msg;
+  }
+  return fallback;
 }

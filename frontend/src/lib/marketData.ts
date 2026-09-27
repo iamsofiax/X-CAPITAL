@@ -185,3 +185,34 @@ export const STOCK_SYMBOLS = [
 export const ETF_SYMBOLS = ["ARKK", "QQQ", "SPY", "IBIT", "GLD"];
 
 export const CRYPTO_SYMBOLS = Object.keys(CRYPTO_IDS);
+
+/** Alpaca IEX snapshots via the Express desk API. Silent if the API is down. */
+export async function fetchBrokerQuotes(
+  symbols: string[],
+): Promise<Record<string, MarketPrice>> {
+  if (symbols.length === 0) return {};
+  try {
+    const { tradingAPI } = await import("./api");
+    const { data } = await tradingAPI.getQuotes(symbols);
+    const quotes = (data?.data?.quotes ?? {}) as Record<
+      string,
+      { last?: number; change?: number; changePercent?: number; timestamp?: string }
+    >;
+    const now = Date.now();
+    const result: Record<string, MarketPrice> = {};
+    for (const [sym, q] of Object.entries(quotes)) {
+      if (!q.last || q.last <= 0) continue;
+      const mp: MarketPrice = {
+        price: q.last,
+        change24h: q.change ?? 0,
+        changePercent24h: q.changePercent ?? 0,
+        lastUpdated: q.timestamp ? Date.parse(q.timestamp) || now : now,
+      };
+      priceCache[sym] = mp;
+      result[sym] = mp;
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}

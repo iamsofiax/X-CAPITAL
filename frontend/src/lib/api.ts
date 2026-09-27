@@ -1,33 +1,11 @@
 import axios from 'axios';
 
-// Production API lives on Render. `.env.local` is gitignored, so the static
-// GitHub Pages build must default to the live endpoint — never localhost.
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'https://xcapital-api.onrender.com/api/v1';
-
-export const API_ORIGIN = API_URL.replace(/\/api\/v1\/?$/, '');
-
-export type DeskHealth = { reachable: boolean; ledger: boolean };
-
-/** Cheap liveness: process up, and whether the book answered. */
-export const probeDesk = async (timeoutMs = 12_000): Promise<DeskHealth> => {
-  try {
-    const { status, data } = await axios.get(`${API_ORIGIN}/health`, {
-      timeout: timeoutMs,
-    });
-    return {
-      reachable: status === 200,
-      ledger: Boolean(data?.database) || data?.status === "healthy",
-    };
-  } catch {
-    return { reachable: false, ledger: false };
-  }
-};
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
 export const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 30000,
+  timeout: 15000,
 });
 
 // Attach auth token from localStorage on every request
@@ -50,7 +28,10 @@ api.interceptors.response.use(
 
     if (!original) return Promise.reject(error);
 
-    if (error?.response?.status === 401 && !original._retry) {
+    const isAuthCall = typeof original.url === 'string' && /\/auth\/(login|register|oauth|refresh)/.test(original.url);
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('xc_access_token') : null;
+    if (stored?.startsWith('xc-local.')) return Promise.reject(error);
+    if (error?.response?.status === 401 && !original._retry && !isAuthCall) {
       original._retry = true;
       try {
         if (typeof window === 'undefined') return Promise.reject(error);
@@ -82,132 +63,24 @@ api.interceptors.response.use(
   }
 );
 
-// ─── API Modules ──────────────────────────────────────────────────────────────
+// --- API Modules ---
 
-export interface SystemHealth {
-  status: 'healthy' | 'degraded' | 'offline';
-  service: string;
-  version: string;
-  environment: string;
-  uptimeSeconds: number;
-  timestamp: string;
-  latencyMs?: number;
-  services: Array<{
-    name: string;
-    status: 'operational' | 'degraded' | 'offline';
-    latencyMs?: number;
-    detail?: string;
-  }>;
-  summary: {
-    operational: number;
-    degraded: number;
-    offline: number;
-    total: number;
-  };
-}
-
-export const systemAPI = {
-  getHealth: () => api.get('/health'),
-};
-
-/**
- * Ping origin `/health` (liveness). This is the cheap wake-up for Render
- * cold starts and is what the badge uses — not the heavier `/api/v1/health`
- * probe that also talks to the oracle.
- */
-export const wakeApi = async (timeoutMs = 45_000): Promise<boolean> => {
-  try {
-    const { status, data } = await axios.get(`${API_ORIGIN}/health`, {
-      timeout: timeoutMs,
-    });
-    return status === 200 && (data?.status === 'healthy' || data?.status === 'starting' || data?.status === 'degraded');
-  } catch {
-    return false;
-  }
-};
-
-/**
- * Health probe with a much longer timeout + 503 retry.
- *
- * Render free-tier backends cold-start in 30–60s and answer 503 while they
- * boot. The shared axios timeout would fail the first probe and the badge
- * would show "API OFFLINE" even though the API is just waking up. This
- * dedicated probe waits up to 60s and retries 503s so real cold-starts read
- * as "CHECKING…" until the API answers.
- *
- * Liveness (`/health`) is the source of truth for ONLINE/OFFLINE. Detailed
- * `/api/v1/health` is best-effort and must not flip the badge to OFFLINE
- * if the process is up but the oracle is slow.
- */
-export const healthProbe = async (
-  attempts = 5,
-  timeoutMs = 60_000,
-): Promise<SystemHealth | null> => {
-  for (let i = 0; i < attempts; i++) {
-    try {
-      const live = await axios.get(`${API_ORIGIN}/health`, { timeout: timeoutMs });
-      if (live.status !== 200) {
-        throw new Error('liveness not 200');
-      }
-      let detailed: SystemHealth | null = null;
-      try {
-        const { data } = await api.get('/health', { timeout: 8_000 });
-        detailed = data?.data ?? null;
-      } catch {
-        detailed = null;
-      }
-      if (detailed) return detailed;
-      const dbUp = Boolean(live.data?.database);
-      return {
-        status: dbUp ? 'healthy' : 'degraded',
-        service: live.data?.service || 'X-CAPITAL API',
-        version: live.data?.version || '1.0.0',
-        environment: live.data?.environment || 'production',
-        uptimeSeconds: 0,
-        timestamp: live.data?.timestamp || new Date().toISOString(),
-        services: [
-          {
-            name: 'database',
-            status: dbUp ? 'operational' : 'offline',
-          },
-        ],
-        summary: {
-          operational: dbUp ? 1 : 0,
-          degraded: 0,
-          offline: dbUp ? 0 : 1,
-          total: 1,
-        },
-      };
-    } catch (error) {
-      const status = (error as { response?: { status?: number } } | undefined)
-        ?.response?.status;
-      // 503 = Render cold-start; retry with backoff instead of declaring offline.
-      if ((status === 503 || !status) && i < attempts - 1) {
-        await new Promise((r) => setTimeout(r, 4000 * (i + 1)));
-        continue;
-      }
-      return null;
-    }
-  }
-  return null;
-};
+const authTimeout = { timeout: 4000 };
 
 export const authAPI = {
   register: (data: { email: string; password: string; firstName: string; lastName: string }) =>
-    api.post('/auth/register', data, { timeout: 45_000 }),
+    api.post('/auth/register', data, authTimeout),
   login: (email: string, password: string) =>
-    api.post('/auth/login', { email, password }, { timeout: 45_000 }),
-  oauthConfig: () => api.get('/auth/oauth-config', { timeout: 12_000 }),
-  google: (credential: string) =>
-    api.post('/auth/google', { credential }, { timeout: 45_000 }),
-  apple: (
-    identityToken: string,
-    names?: { firstName?: string; lastName?: string },
-  ) => api.post('/auth/apple', { identityToken, ...names }, { timeout: 45_000 }),
+    api.post('/auth/login', { email, password }, authTimeout),
+  oauth: (
+    provider: 'google' | 'apple',
+    body: { idToken: string; firstName?: string; lastName?: string },
+  ) => api.post(`/auth/oauth/${provider}`, body, authTimeout),
+  changePassword: (currentPassword: string | undefined, newPassword: string) =>
+    api.post('/auth/password', { currentPassword, newPassword }),
   logout: (refreshToken: string) =>
     api.post('/auth/logout', { refreshToken }),
   getMe: () => api.get('/auth/me'),
-  initiateKYC: () => api.post('/auth/kyc/initiate'),
 };
 
 export const tradingAPI = {
@@ -216,64 +89,69 @@ export const tradingAPI = {
   getAsset: (symbol: string) => api.get(`/trading/assets/${symbol}`),
   getAssetChart: (symbol: string, period: string) =>
     api.get(`/trading/assets/${symbol}/chart`, { params: { period } }),
-  buy: (assetId: string, amount: number) =>
-    api.post('/trading/buy', { assetId, amount }),
-  sell: (assetId: string, quantity: number) =>
-    api.post('/trading/sell', { assetId, quantity }),
-  getOrders: () => api.get('/trading/orders'),
-  cancelOrder: (id: string) => api.delete(`/trading/orders/${id}`),
-};
-
-export const portfolioAPI = {
-  getPortfolio: () => api.get('/portfolio'),
-  getHoldings: () => api.get('/portfolio/holdings'),
-  getPerformance: (period?: string) =>
-    api.get('/portfolio/performance', { params: { period } }),
-  getAllocation: () => api.get('/portfolio/allocation'),
-};
-
-export const fundsAPI = {
-  getFunds: () => api.get('/funds'),
-  getFund: (id: string) => api.get(`/funds/${id}`),
-  getMyInvestments: () => api.get('/funds/my/investments'),
-  invest: (fundId: string, amount: number) =>
-    api.post(`/funds/${fundId}/invest`, { amount }),
-  redeem: (investmentId: string) =>
-    api.post(`/funds/${investmentId}/redeem`),
-};
-
-export const walletAPI = {
-  getWallet: () => api.get('/wallet'),
-  getTransactions: (params?: { limit?: number; offset?: number; type?: string }) =>
-    api.get('/wallet/transactions', { params }),
-  deposit: (amount: number, paymentMethodId?: string) =>
-    api.post('/wallet/deposit', { amount, paymentMethodId }),
-  withdraw: (amount: number, bankAccountId: string) =>
-    api.post('/wallet/withdraw', { amount, bankAccountId }),
-};
-
-export const commerceAPI = {
-  getProducts: () => api.get('/commerce/products'),
-  getProduct: (id: string) => api.get(`/commerce/products/${id}`),
-  checkout: (productId: string, options: { paymentMethod: string; investmentBundle?: boolean; investmentPercent?: number }) =>
-    api.post('/commerce/checkout', { productId, ...options }),
+  getQuotes: (symbols: string[]) =>
+    api.get('/trading/quotes', { params: { symbols: symbols.join(',') } }),
 };
 
 export const oracleAPI = {
   getForecast: (symbol: string, horizon?: string) =>
     api.get(`/oracle/forecast/${symbol}`, { params: { horizon } }),
-  getOptimalAllocation: () => api.get('/oracle/allocation'),
   getSentiment: (symbol: string) => api.get(`/oracle/sentiment/${symbol}`),
-  getPortfolioRisk: () => api.get('/oracle/risk'),
 };
 
-export const accountAPI = {
-  getSnapshot: () => api.get('/account/snapshot'),
+export interface SimSnapshotPayload {
+  season: number;
+  nav: number;
+  seasonReturn: number;
+  sortino: number | null;
+  maxDrawdown: number;
+  careerTier: string;
+  xp: number;
+  resets: number;
+  epochs: number;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  userId: string;
+  name: string;
+  avatarUrl: string | null;
+  nav: number;
+  seasonReturn: number;
+  sortino: number | null;
+  maxDrawdown: number;
+  careerTier: string;
+  resets: number;
+  updatedAt: string;
+}
+
+export const simAPI = {
+  submitSnapshot: (payload: SimSnapshotPayload) => api.post('/sim/snapshot', payload),
+  getLeaderboard: (season?: number) =>
+    api.get<{ success: boolean; data: { season: number; entries: LeaderboardEntry[] } }>(
+      '/sim/leaderboard',
+      { params: season === undefined ? {} : { season } },
+    ),
+};
+
+export const walletAPI = {
+  getWallet: () => api.get('/wallet'),
+  getJournal: (params?: { limit?: number; offset?: number }) =>
+    api.get('/wallet/transactions', { params }),
+  depositAddress: (asset: string) => api.post('/wallet/deposit-address', { asset }),
+  claimDeposit: (asset: string, txHash: string) =>
+    api.post('/wallet/deposit-claim', { asset, txHash }),
+  withdraw: (data: {
+    asset: string;
+    toAddress: string;
+    amount: string;
+    idempotencyKey: string;
+    reason?: string;
+  }) => api.post('/wallet/withdraw', data),
 };
 
 export const adminAPI = {
-  listUsers: (params?: { cursor?: string; limit?: number; q?: string }) =>
-    api.get('/admin/users', { params }),
+  listUsers: () => api.get('/admin/users'),
   createUser: (data: {
     email: string;
     password: string;
@@ -282,62 +160,16 @@ export const adminAPI = {
     tier?: string;
     phone?: string;
   }) => api.post('/admin/users', data),
-  adjustBalance: (
+  setUserActive: (userId: string, active: boolean) =>
+    api.post(`/admin/users/${userId}/active`, { active }),
+  postJournal: (
     userId: string,
-    body: {
-      amount: number;
+    data: {
+      asset: string;
+      amount: string;
       direction: 'credit' | 'debit';
-      note?: string;
-      txType?: string;
+      reason: string;
+      idempotencyKey: string;
     },
-  ) => api.post(`/admin/users/${userId}/balance`, body),
-  setKycStatus: (userId: string, status: 'PENDING' | 'APPROVED' | 'REJECTED') =>
-    api.patch(`/admin/users/${userId}/kyc`, { status }),
-  updateControls: (userId: string, body: {
-    isFrozen?: boolean;
-    isBlocked?: boolean;
-    tradingEnabled?: boolean;
-    unlockedRails?: string[];
-  }) => api.patch(`/admin/users/${userId}/controls`, body),
-  getAlerts: (status?: string) =>
-    api.get('/admin/alerts', { params: status ? { status } : {} }),
-  listAudit: (params?: { cursor?: string; limit?: number }) =>
-    api.get('/admin/audit', { params }),
-  upsertCommerceProduct: (product: Record<string, unknown>) =>
-    api.put('/admin/commerce/products', product),
-  approveAlert: (id: string) => api.post(`/admin/alerts/${id}/approve`),
-  rejectAlert: (id: string, reason?: string) =>
-    api.post(`/admin/alerts/${id}/reject`, { reason }),
-  rejectByTransactionId: (transactionId: string, reason?: string) =>
-    api.post('/admin/alerts/reject-by-tx', { transactionId, reason }),
-  getYieldConfig: (userId: string) =>
-    api.get(`/admin/users/${userId}/yield-config`),
-  putYieldConfig: (
-    userId: string,
-    body: {
-      profitRate?: number;
-      dailyRate?: number;
-      profitMode?: 'linear' | 'compound';
-      profitMultiplier?: number;
-      profitHold?: boolean;
-      nodeGoal?: number | null;
-      nextNodeRate?: number | null;
-    },
-  ) => api.put(`/admin/users/${userId}/yield-config`, body),
-  setYieldHold: (userId: string, profitHold: boolean) =>
-    api.post(`/admin/users/${userId}/hold`, { profitHold }),
-  createSpike: (
-    userId: string,
-    body: {
-      percentage: number;
-      durationHours: number;
-      direction?: 'up' | 'down';
-      label?: string;
-      profitRate?: number;
-    },
-  ) => api.post(`/admin/users/${userId}/spikes`, body),
-  resolveSpike: (userId: string, spikeId?: string) =>
-    spikeId
-      ? api.post(`/admin/users/${userId}/spikes/${spikeId}/resolve`)
-      : api.post(`/admin/users/${userId}/spikes/resolve`),
+  ) => api.post(`/admin/users/${userId}/journal`, data),
 };

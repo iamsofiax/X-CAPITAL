@@ -260,12 +260,16 @@ async function main() {
   }
 
   // ─── Platform admin (multi-device login + admin panel) ───────────────────
-  const adminEmail = "admin@xcapital.io";
-  const adminPasswordHash = await bcrypt.hash("Admin2026!", 12);
+  const adminEmail = (process.env.SEED_ADMIN_EMAIL ?? "admin@xcapital.io").toLowerCase();
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
   const existingAdmin = await prisma.user.findUnique({
     where: { email: adminEmail },
   });
-  if (!existingAdmin) {
+  if (!existingAdmin && !adminPassword) {
+    console.log("   - Skipping admin seed: set SEED_ADMIN_PASSWORD to create one");
+  }
+  if (!existingAdmin && adminPassword) {
+    const adminPasswordHash = await bcrypt.hash(adminPassword, 12);
     const adminUser = await prisma.user.create({
       data: {
         email: adminEmail,
@@ -286,7 +290,7 @@ async function main() {
         totalPnL: 0,
       },
     });
-    console.log("   - Platform admin: admin@xcapital.io");
+    console.log(`   - Platform admin: ${adminEmail}`);
   }
 
   console.log("✅ Database seeded successfully!");

@@ -1,30 +1,38 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
 import * as walletController from '../controllers/walletController';
-import { authenticate, requireKYC } from '../middleware/auth';
+import { authenticate } from '../middleware/auth';
 
 const router = Router();
+
+router.post('/custody/webhook', walletController.custodyWebhook);
 
 router.use(authenticate);
 
 router.get('/', walletController.getWallet);
 router.get('/transactions', walletController.getTransactions);
-
 router.post(
-  '/deposit',
-  requireKYC,
-  [body('amount').isFloat({ min: 10 }).withMessage('Minimum deposit is $10')],
-  walletController.depositFunds
+  '/deposit-address',
+  [body('asset').isString().isIn(['BTC', 'ETH', 'USDT', 'BNB', 'DOGE', 'TRX'])],
+  walletController.createDepositAddress,
 );
-
+router.post(
+  '/deposit-claim',
+  [
+    body('asset').isString().isIn(['BTC', 'ETH', 'USDT', 'BNB', 'DOGE', 'TRX']),
+    body('txHash').isString().isLength({ min: 20 }),
+  ],
+  walletController.claimUserDeposit,
+);
 router.post(
   '/withdraw',
-  requireKYC,
   [
-    body('amount').isFloat({ min: 10 }).withMessage('Minimum withdrawal is $10'),
-    body('bankAccountId').notEmpty(),
+    body('asset').isString().isIn(['BTC', 'ETH', 'USDT', 'BNB', 'DOGE', 'TRX']),
+    body('toAddress').isString().notEmpty(),
+    body('amount').isString().notEmpty(),
+    body('idempotencyKey').isString().isLength({ min: 8 }),
   ],
-  walletController.withdrawFunds
+  walletController.requestUserWithdrawal,
 );
 
 export default router;

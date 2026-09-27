@@ -3,33 +3,73 @@ import { validationResult } from "express-validator";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
+import type { User } from "@prisma/client";
 import { prisma } from "../config/database";
 import { env } from "../config/env";
 import { AuthRequest } from "../middleware/auth";
+import { isAdminEmail } from "../middleware/adminAuth";
 import { createError } from "../middleware/errorHandler";
 import { kycService } from "../services/kycService";
-import { accrueUser } from "../services/accrualService";
 import {
-  upsertSocialUser,
-  verifyAppleIdentityToken,
-  verifyGoogleCredential,
+  verifyGoogleIdToken,
+  type VerifiedIdentity,
 } from "../services/oauthService";
+import { ensureUserAccounts, userBalances } from "../services/ledgerService";
 
-const generateTokens = (userId: string, email: string) => {
+const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+const publicUser = (user: User) => ({
+  id: user.id,
+  email: user.email,
+  firstName: user.firstName,
+  lastName: user.lastName,
+  tier: user.tier,
+  kycStatus: user.kycStatus,
+  accreditationStatus: user.accreditationStatus,
+  authProvider: user.authProvider,
+  avatarUrl: user.avatarUrl,
+  role: isAdminEmail(user.email) ? "ADMIN" : "USER",
+});
+
+async function issueSession(user: User) {
   const accessToken = jwt.sign(
-    { userId, email },
+    { userId: user.id, email: user.email },
     env.JWT_SECRET,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { expiresIn: env.JWT_EXPIRES_IN as any },
   );
   const refreshToken = uuidv4();
-  return { accessToken, refreshToken };
-};
+  await prisma.$transaction([
+    prisma.refreshToken.create({
+      data: {
+        userId: user.id,
+        token: refreshToken,
+        expiresAt: new Date(Date.now() + REFRESH_TTL_MS),
+      },
+    }),
+    prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    }),
+  ]);
+  return { accessToken, refreshToken, user: publicUser(user) };
+}
 
-// Demo user — trial access (no DB required)
-const DEMO_EMAIL = "demo@xcapital.io";
-const DEMO_HASH =
-  "$2a$12$eoJiAf7pHIobInM2n/xLI.gi2Zn5r59xSOSOpBidvYxJu4Oht3AhK"; // Demo1234!
+async function createUserWithAccounts(
+  data: Parameters<typeof prisma.user.create>[0]["data"],
+): Promise<User> {
+  return prisma.$transaction(async (tx) => {
+    const newUser = await tx.user.create({ data });
+    await tx.wallet.create({ data: { userId: newUser.id } });
+    await tx.portfolio.create({
+      data: { userId: newUser.id, totalValue: 0, totalCost: 0, totalPnL: 0 },
+    });
+    return newUser;
+  }).then(async (user) => {
+    await ensureUserAccounts(user.id);
+    return user;
+  });
+}
 
 export const register = async (
   req: Request,
@@ -47,50 +87,29 @@ export const register = async (
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
-      res
-        .status(409)
-        .json({ success: false, message: "Email already registered" });
+      res.status(409).json({
+        success: false,
+        message: existing.passwordHash
+          ? "Email already registered"
+          : "This email is linked to Google sign-in. Use that button instead.",
+      });
       return;
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
-
-    const user = await prisma.$transaction(async (tx) => {
-      const newUser = await tx.user.create({
-        data: { email, passwordHash, firstName, lastName, phone },
-      });
-      await tx.wallet.create({
-        data: { userId: newUser.id, lastAccruedAt: new Date() },
-      });
-      await tx.portfolio.create({
-        data: { userId: newUser.id, totalValue: 0, totalCost: 0, totalPnL: 0 },
-      });
-      await tx.userYieldConfig.create({ data: { userId: newUser.id } });
-      return newUser;
+    const user = await createUserWithAccounts({
+      email,
+      passwordHash,
+      firstName,
+      lastName,
+      phone,
     });
 
-    const { accessToken, refreshToken } = generateTokens(user.id, user.email);
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-
-    await prisma.refreshToken.create({
-      data: { userId: user.id, token: refreshToken, expiresAt },
-    });
-
+    const session = await issueSession(user);
     res.status(201).json({
       success: true,
       message: "Account created successfully",
-      data: {
-        accessToken,
-        refreshToken,
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          tier: user.tier,
-          kycStatus: user.kycStatus,
-        },
-      },
+      data: session,
     });
   } catch (error) {
     next(error);
@@ -110,201 +129,123 @@ export const login = async (
     }
 
     const { email, password } = req.body;
+    const user = await prisma.user.findUnique({ where: { email } });
 
-    // ── Demo shortcut (no DB needed) ──────────────────────────────────────
-    if (email === DEMO_EMAIL) {
-      const validDemo = await bcrypt.compare(password, DEMO_HASH);
-      if (!validDemo) {
-        res
-          .status(401)
-          .json({ success: false, message: "Invalid credentials" });
-        return;
-      }
-      const { accessToken, refreshToken: demoRt } = generateTokens(
-        "demo-user-id",
-        DEMO_EMAIL,
-      );
-      res.json({
-        success: true,
-        data: {
-          accessToken,
-          refreshToken: demoRt,
-          user: {
-            id: "demo-user-id",
-            email: DEMO_EMAIL,
-            firstName: "Demo",
-            lastName: "User",
-            tier: "GOLD",
-            kycStatus: "VERIFIED",
-            accreditationStatus: "ACCREDITED",
-          },
-        },
-      });
+    if (!user) {
+      res
+        .status(401)
+        .json({ success: false, message: "Invalid email or password" });
       return;
     }
-    // ──────────────────────────────────────────────────────────────────────
-
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !user.isActive) {
-      res.status(401).json({ success: false, message: "Invalid credentials" });
+    if (!user.isActive) {
+      res.status(403).json({ success: false, message: "Account disabled" });
+      return;
+    }
+    if (!user.passwordHash) {
+      res.status(401).json({
+        success: false,
+        code: "SOCIAL_ACCOUNT",
+        message: "This account uses Google sign-in",
+      });
       return;
     }
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
-      res.status(401).json({ success: false, message: "Invalid credentials" });
+      res
+        .status(401)
+        .json({ success: false, message: "Invalid email or password" });
       return;
     }
 
-    const { accessToken, refreshToken } = generateTokens(user.id, user.email);
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    res.json({ success: true, data: await issueSession(user) });
+  } catch (error) {
+    next(error);
+  }
+};
 
-    await prisma.refreshToken.create({
-      data: { userId: user.id, token: refreshToken, expiresAt },
-    });
+async function upsertSocialUser(
+  identity: VerifiedIdentity,
+  profile?: { firstName?: string; lastName?: string },
+): Promise<User> {
+  const subField = identity.provider === "google" ? "googleSub" : "appleSub";
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    });
+  const bySub = await prisma.user.findUnique({
+    where:
+      identity.provider === "google"
+        ? { googleSub: identity.sub }
+        : { appleSub: identity.sub },
+  });
+  if (bySub) return bySub;
 
-    res.json({
-      success: true,
+  const byEmail = await prisma.user.findUnique({
+    where: { email: identity.email },
+  });
+  if (byEmail) {
+    // Linking to an existing password account is only safe when the provider vouches for the email.
+    if (!identity.emailVerified) {
+      throw createError("Email not verified by provider", 401);
+    }
+    return prisma.user.update({
+      where: { id: byEmail.id },
       data: {
-        accessToken,
-        refreshToken,
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          tier: user.tier,
-          kycStatus: user.kycStatus,
-          accreditationStatus: user.accreditationStatus,
-        },
+        [subField]: identity.sub,
+        avatarUrl: byEmail.avatarUrl ?? identity.avatarUrl,
       },
     });
-  } catch (error) {
-    next(error);
   }
-};
 
-function publicUser(user: {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  tier: string;
-  kycStatus: string;
-  accreditationStatus?: string;
-}) {
-  return {
-    id: user.id,
-    email: user.email,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    tier: user.tier,
-    kycStatus: user.kycStatus,
-    accreditationStatus: user.accreditationStatus,
+  const localPart = identity.email.split("@")[0] ?? "Investor";
+  return createUserWithAccounts({
+    email: identity.email,
+    authProvider: identity.provider,
+    [subField]: identity.sub,
+    avatarUrl: identity.avatarUrl,
+    firstName:
+      profile?.firstName?.trim() || identity.firstName || localPart || "Investor",
+    lastName: profile?.lastName?.trim() || identity.lastName || "",
+  });
+}
+
+const socialLogin =
+  (provider: "google" | "apple") =>
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { idToken, firstName, lastName } = req.body as {
+        idToken?: string;
+        firstName?: string;
+        lastName?: string;
+      };
+      if (!idToken) {
+        res.status(400).json({ success: false, message: "idToken required" });
+        return;
+      }
+
+      if (provider !== "google") {
+        res.status(410).json({ success: false, message: "Apple sign-in is disabled" });
+        return;
+      }
+      const identity = await verifyGoogleIdToken(idToken);
+
+      const user = await upsertSocialUser(identity, { firstName, lastName });
+      if (!user.isActive) {
+        res.status(403).json({ success: false, message: "Account disabled" });
+        return;
+      }
+
+      res.json({ success: true, data: await issueSession(user) });
+    } catch (error) {
+      next(error);
+    }
   };
-}
 
-async function issueSession(
+export const googleLogin = socialLogin("google");
+
+export const appleLogin = async (
+  _req: Request,
   res: Response,
-  user: {
-    id: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    tier: string;
-    kycStatus: string;
-    accreditationStatus?: string;
-  },
-  status = 200,
-) {
-  const { accessToken, refreshToken } = generateTokens(user.id, user.email);
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-  await prisma.refreshToken.create({
-    data: { userId: user.id, token: refreshToken, expiresAt },
-  });
-  res.status(status).json({
-    success: true,
-    data: {
-      accessToken,
-      refreshToken,
-      user: publicUser(user),
-    },
-  });
-}
-
-/** Public OAuth client IDs — GIS/Apple JS need these in the browser. */
-export const getOAuthConfig = (_req: Request, res: Response): void => {
-  res.status(200).json({
-    success: true,
-    data: {
-      googleClientId: env.GOOGLE_CLIENT_ID || "",
-      appleClientId: env.APPLE_CLIENT_ID || "",
-    },
-  });
-};
-
-export const loginGoogle = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
 ): Promise<void> => {
-  try {
-    const credential = String(req.body?.credential ?? "").trim();
-    if (!credential) {
-      res.status(400).json({ success: false, message: "credential required" });
-      return;
-    }
-    const profile = await verifyGoogleCredential(credential);
-    const user = await upsertSocialUser("google", profile);
-    await issueSession(res, user);
-  } catch (error) {
-    const status = (error as { status?: number }).status;
-    if (status) {
-      res.status(status).json({
-        success: false,
-        message: error instanceof Error ? error.message : "Google sign-in failed",
-      });
-      return;
-    }
-    next(error);
-  }
-};
-
-export const loginApple = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  try {
-    const identityToken = String(req.body?.identityToken ?? "").trim();
-    if (!identityToken) {
-      res
-        .status(400)
-        .json({ success: false, message: "identityToken required" });
-      return;
-    }
-    const profile = await verifyAppleIdentityToken(identityToken);
-    const user = await upsertSocialUser("apple", profile, {
-      firstName: req.body?.firstName,
-      lastName: req.body?.lastName,
-    });
-    await issueSession(res, user);
-  } catch (error) {
-    const status = (error as { status?: number }).status;
-    if (status) {
-      res.status(status).json({
-        success: false,
-        message: error instanceof Error ? error.message : "Apple sign-in failed",
-      });
-      return;
-    }
-    next(error);
-  }
+  res.status(410).json({ success: false, message: "Apple sign-in is disabled" });
 };
 
 export const refreshToken = async (
@@ -326,32 +267,26 @@ export const refreshToken = async (
       include: { user: true },
     });
 
-    if (!storedToken || storedToken.expiresAt < new Date()) {
+    if (
+      !storedToken ||
+      storedToken.expiresAt < new Date() ||
+      !storedToken.user.isActive
+    ) {
       res
         .status(401)
         .json({ success: false, message: "Invalid or expired refresh token" });
       return;
     }
 
-    const { accessToken, refreshToken: newRefreshToken } = generateTokens(
-      storedToken.user.id,
-      storedToken.user.email,
-    );
-
-    await prisma.$transaction([
-      prisma.refreshToken.delete({ where: { id: storedToken.id } }),
-      prisma.refreshToken.create({
-        data: {
-          userId: storedToken.userId,
-          token: newRefreshToken,
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        },
-      }),
-    ]);
+    await prisma.refreshToken.delete({ where: { id: storedToken.id } });
+    const session = await issueSession(storedToken.user);
 
     res.json({
       success: true,
-      data: { accessToken, refreshToken: newRefreshToken },
+      data: {
+        accessToken: session.accessToken,
+        refreshToken: session.refreshToken,
+      },
     });
   } catch (error) {
     next(error);
@@ -374,44 +309,74 @@ export const logout = async (
   }
 };
 
+export const changePassword = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+    const { currentPassword, newPassword } = req.body as {
+      currentPassword?: string;
+      newPassword: string;
+    };
+    const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+    if (!user) {
+      res.status(404).json({ success: false, message: "User not found" });
+      return;
+    }
+    if (user.passwordHash) {
+      const valid =
+        !!currentPassword &&
+        (await bcrypt.compare(currentPassword, user.passwordHash));
+      if (!valid) {
+        res
+          .status(401)
+          .json({ success: false, message: "Current password is incorrect" });
+        return;
+      }
+    }
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash: await bcrypt.hash(newPassword, 12) },
+      }),
+      prisma.refreshToken.deleteMany({ where: { userId: user.id } }),
+    ]);
+    res.json({ success: true, message: "Password updated" });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getMe = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
   try {
-    await accrueUser(req.user!.id);
     const user = await prisma.user.findUnique({
       where: { id: req.user!.id },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        phone: true,
-        tier: true,
-        kycStatus: true,
-        accreditationStatus: true,
-        isFrozen: true,
-        isBlocked: true,
-        tradingEnabled: true,
-        unlockedRails: true,
-        createdAt: true,
-        wallet: {
-          select: {
-            id: true,
-            fiatBalance: true,
-            cryptoBalance: true,
-            lockedBalance: true,
-            lastAccruedAt: true,
-            totalYieldGenerated: true,
-            approvedCapital: true,
-          },
-        },
-        yieldConfig: true,
+    });
+    if (!user) {
+      res.status(404).json({ success: false, message: "User not found" });
+      return;
+    }
+    await ensureUserAccounts(user.id);
+    const balances = await userBalances(user.id);
+    res.json({
+      success: true,
+      data: {
+        ...publicUser(user),
+        phone: user.phone,
+        createdAt: user.createdAt,
+        wallet: { balances },
       },
     });
-    res.json({ success: true, data: user });
   } catch (error) {
     next(error);
   }

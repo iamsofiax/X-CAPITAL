@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
-
 export default function GlobalError({
   error,
   reset,
@@ -9,12 +7,6 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  useEffect(() => {
-    console.error("[X-CAPITAL Global Error]", error);
-  }, [error]);
-
-  const isDev = process.env.NODE_ENV !== "production";
-
   return (
     <html lang="en" className="dark">
       <body
@@ -61,14 +53,18 @@ export default function GlobalError({
               style={{
                 color: "#9ca3af",
                 fontSize: 13,
+                fontFamily: "monospace",
+                background: "rgba(0,0,0,0.4)",
+                borderRadius: 8,
+                padding: 12,
+                textAlign: "left",
+                wordBreak: "break-all",
                 marginBottom: 16,
               }}
             >
-              {isDev
-                ? error.message || "Unknown error"
-                : "A critical error occurred. Please refresh the page or contact support."}
+              {error.message || "Unknown error"}
             </p>
-            {isDev && error.stack && (
+            {error.stack && (
               <details style={{ textAlign: "left", marginBottom: 16 }}>
                 <summary
                   style={{ color: "#6b7280", fontSize: 12, cursor: "pointer" }}
@@ -89,39 +85,21 @@ export default function GlobalError({
                 </pre>
               </details>
             )}
-            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-              <button
-                onClick={reset}
-                style={{
-                  padding: "10px 24px",
-                  background: "rgba(255,255,255,0.08)",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 8,
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                Try Again
-              </button>
-              <a
-                href="/dashboard"
-                style={{
-                  padding: "10px 24px",
-                  background: "rgba(16,185,129,0.15)",
-                  color: "#34d399",
-                  border: "1px solid rgba(16,185,129,0.3)",
-                  borderRadius: 8,
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  textDecoration: "none",
-                }}
-              >
-                Go to Dashboard
-              </a>
-            </div>
+            <button
+              onClick={reset}
+              style={{
+                padding: "10px 24px",
+                background: "rgba(255,255,255,0.08)",
+                color: "#fff",
+                border: "none",
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Try Again
+            </button>
           </div>
         </div>
       </body>

@@ -1,429 +1,284 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowDownRight, ArrowUpRight, Radio } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import {
-  MissionPanel,
-  RailLock,
-  PhaseTrack,
-  RailInfrastructureHeader,
-} from "@/components/x-engine";
-import AssetList from "@/components/trading/AssetList";
-import OrderForm from "@/components/trading/OrderForm";
-import { Badge } from "@/components/ui/Badge";
-import { BarChart, Bar, ResponsiveContainer, Cell } from "recharts";
-import { BarChart3, Activity, Flame } from "lucide-react";
-import { Lock, Zap } from "lucide-react";
-import Link from "next/link";
-import { useMarketPrices } from "@/hooks/useMarketPrices";
-import { formatPercent, formatCurrency, cn } from "@/lib/utils";
+import { Panel, Notice } from "@/components/sim/Panel";
+import { useSim } from "@/hooks/useSim";
 import { useStore } from "@/store/useStore";
-import { useStreakStore, formatCountdown } from "@/store/useStreakStore";
-import {
-  FOUNDER_HOT_SIGNALS,
-  FOUNDER_SIGNAL_ATTRIBUTION,
-} from "@/lib/founderSignals";
-import type { Asset } from "@/types";
+import { pushNotice } from "@/lib/yieldDesk";
+import { useSimQuotes } from "@/hooks/useSimQuotes";
+import { INSTRUMENTS, INSTRUMENT_BY_SYMBOL, type InstrumentClass } from "@/lib/sim/instruments";
+import { fmtNum, fmtPct, fmtPrice, fmtUsdc, signClass } from "@/lib/sim/format";
+import { cn } from "@/lib/utils";
 
-const DEMO_ASSETS: Asset[] = [
-  {
-    id: "aapl",
-    symbol: "AAPL",
-    name: "Apple Inc.",
-    type: "STOCK",
-    price: 245.5,
-    priceChange24h: 2.3,
-    isTradable: true,
-  },
-  {
-    id: "tsla",
-    symbol: "TSLA",
-    name: "Tesla Inc.",
-    type: "STOCK",
-    price: 387.2,
-    priceChange24h: 1.8,
-    isTradable: true,
-  },
-  {
-    id: "nvda",
-    symbol: "NVDA",
-    name: "NVIDIA Corp.",
-    type: "STOCK",
-    price: 1204.85,
-    priceChange24h: 4.2,
-    isTradable: true,
-  },
-  {
-    id: "btc",
-    symbol: "BTC",
-    name: "Bitcoin",
-    type: "CRYPTO",
-    price: 89420,
-    priceChange24h: 3.1,
-    isTradable: true,
-  },
-  {
-    id: "eth",
-    symbol: "ETH",
-    name: "Ethereum",
-    type: "CRYPTO",
-    price: 4282,
-    priceChange24h: 2.8,
-    isTradable: true,
-  },
-  {
-    id: "gld",
-    symbol: "GLD",
-    name: "SPDR Gold Shares",
-    type: "ETF",
-    price: 198.75,
-    priceChange24h: 0.9,
-    isTradable: true,
-  },
-  {
-    id: "qqq",
-    symbol: "QQQ",
-    name: "Invesco QQQ Trust",
-    type: "ETF",
-    price: 543.2,
-    priceChange24h: 3.5,
-    isTradable: true,
-  },
-  {
-    id: "xlink",
-    symbol: "XLINK",
-    name: "Starlink Growth Token",
-    type: "TOKEN",
-    price: 95.24,
-    priceChange24h: 12.4,
-    isTradable: true,
-  },
+const CLASSES: { id: InstrumentClass | "all"; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "crypto", label: "Digital assets" },
+  { id: "equity", label: "Equities" },
+  { id: "etf", label: "ETFs" },
 ];
 
-const volumeData = [
-  { time: "09:30", volume: 2400 },
-  { time: "10:00", volume: 1398 },
-  { time: "10:30", volume: 9800 },
-  { time: "11:00", volume: 3908 },
-  { time: "11:30", volume: 4800 },
-  { time: "12:00", volume: 3800 },
-  { time: "12:30", volume: 4300 },
-];
+export default function ExecutionPage() {
+  return (
+    <DashboardLayout title="Execution" subtitle="R2 · Spot fills at bid/ask · spread feeds the protocol fee pool" wide requireGenesis>
+      <Execution />
+    </DashboardLayout>
+  );
+}
 
-const orderBookData = [
-  { price: 95.5, size: 1200, side: "ask" },
-  { price: 95.4, size: 850, side: "ask" },
-  { price: 95.3, size: 2100, side: "ask" },
-  { price: 95.24, size: 0, side: "mid" },
-  { price: 95.18, size: 1800, side: "bid" },
-  { price: 95.1, size: 950, side: "bid" },
-  { price: 94.95, size: 2300, side: "bid" },
-];
-
-export default function TradingPage() {
-  const [selectedAsset, setSelectedAsset] = useState<Asset>(DEMO_ASSETS[7]); // XLINK
-  const { prices: livePrices } = useMarketPrices({ refreshInterval: 120_000 });
-
-  // Retention hooks — locked positions + compound-velocity fuel gauge.
-  const { user, wallet } = useStore();
-  const lockedBalance = Number(wallet?.lockedBalance ?? 0);
-  const [now, setNow] = useState(() => Date.now());
-
-  // Subscribe to the stable records slice; derive inline so the ticking
-  // `now` never triggers selector-identity re-render loops.
-  useStreakStore((s) => s.records);
-  const nextTier = user
-    ? useStreakStore.getState().getNextTierTarget(user.id, now)
-    : null;
-  const streakLevel = user
-    ? useStreakStore.getState().getStreakLevel(user.id)
-    : 1;
+function Execution() {
+  const { account, actions } = useSim();
+  const userId = useStore((s) => s.user?.id);
+  const { quotes, liveCount } = useSimQuotes();
+  const [cls, setCls] = useState<InstrumentClass | "all">("all");
+  const [symbol, setSymbol] = useState("BTC");
+  const [side, setSide] = useState<"BUY" | "SELL">("BUY");
+  const [amount, setAmount] = useState("");
+  const [msg, setMsg] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [q, setQ] = useState("");
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
+    const s = new URLSearchParams(window.location.search).get("symbol");
+    if (s && INSTRUMENT_BY_SYMBOL[s]) setSymbol(s);
   }, []);
 
-  const assetWithLivePrice = useMemo(() => {
-    const live = livePrices[selectedAsset?.symbol ?? ""];
-    return live
-      ? {
-          ...selectedAsset,
-          price: live.price,
-          priceChange24h: live.changePercent24h,
-        }
-      : selectedAsset;
-  }, [selectedAsset, livePrices]);
+  const list = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    return INSTRUMENTS.filter((i) => {
+      if (cls !== "all" && i.cls !== cls) return false;
+      if (!s) return true;
+      return i.symbol.toLowerCase().includes(s) || i.name.toLowerCase().includes(s) || i.sector.toLowerCase().includes(s);
+    });
+  }, [cls, q]);
+  const pageSize = 20;
+  const pages = Math.max(1, Math.ceil(list.length / pageSize));
+  const safePage = Math.min(page, pages - 1);
+  const view = list.slice(safePage * pageSize, safePage * pageSize + pageSize);
+  const inst = INSTRUMENT_BY_SYMBOL[symbol];
+  const quote = quotes[symbol];
+  const pos = account?.positions[symbol];
+  const value = Number(amount) || 0;
 
-  const isPositive = (assetWithLivePrice?.priceChange24h ?? 0) >= 0;
+  if (!account || !quote) {
+    return (
+      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 text-sm text-white/55">
+        Opening the book
+      </div>
+    );
+  }
+
+  const preview =
+    side === "BUY"
+      ? { qty: value / quote.ask, notional: value, spread: (value / quote.ask) * (quote.ask - quote.mid) }
+      : { qty: value, notional: value * quote.bid, spread: value * (quote.mid - quote.bid) };
+
+  const submit = () => {
+    setMsg(null);
+    const res = actions.trade(quote, side, side === "BUY" ? { notional: value } : { qty: value });
+    if (res.ok) {
+      const text = `${side === "BUY" ? "Bought" : "Sold"} ${fmtNum(preview.qty, 6)} ${symbol} @ ${fmtPrice(side === "BUY" ? quote.ask : quote.bid)} (${quote.source}).`;
+      setMsg({ tone: "success", text });
+      if (userId) pushNotice(userId, side === "BUY" ? "Buy filled" : "Sell filled", text);
+      setAmount("");
+    } else {
+      setMsg({ tone: "error", text: res.error });
+    }
+  };
+
+  const positions = Object.entries(account.positions);
 
   return (
-    <DashboardLayout
-      title="Execution"
-      subtitle="Live order routing · XLINK mesh"
-      wide
-    >
-      <RailLock rail="trading">
-      <div className="space-y-8">
-        <RailInfrastructureHeader rail="trading" />
-        <MissionPanel
-          title="XLINK"
-          code="EXEC-01"
-          headerRight={
-            <span className="engine-mono text-[10px] text-emerald-400">LIVE</span>
+    <div className="grid xl:grid-cols-[1fr_380px] gap-5">
+      <div className="space-y-5 min-w-0">
+        <Panel
+          code="Order book"
+          title="Instruments"
+          action={
+            <span className={cn("sim-chip", liveCount > 0 ? "sim-chip-live" : "sim-chip-warn")}>
+              <Radio className="w-3 h-3" /> {liveCount}/{INSTRUMENTS.length} live feeds
+            </span>
           }
+          bodyClassName="p-0"
         >
-          <div className="grid md:grid-cols-3 gap-6 items-start">
-            <div>
-              <p className="text-xs text-xc-muted font-bold mb-1">XLINK</p>
-              <p className="text-3xl font-black text-white mb-1">
-                ${assetWithLivePrice.price.toFixed(2)}
-              </p>
-              <p
-                className={cn(
-                  "text-sm font-bold flex items-center gap-1",
-                  isPositive ? "text-emerald-400" : "text-red-400",
-                )}
-              >
-                {isPositive ? "↑" : "↓"}{" "}
-                {formatPercent(Number(assetWithLivePrice.priceChange24h ?? 0))} 24h
-              </p>
-            </div>
-            <div className="node-panel-inset p-4">
-              <p className="text-xs text-xc-muted font-bold mb-2">24h volume</p>
-              <p className="text-2xl font-black text-emerald-400">$285.4M</p>
-            </div>
-            <div className="node-panel-inset p-4">
-              <p className="text-xs text-xc-muted font-bold mb-2">Network cap</p>
-              <p className="text-2xl font-black text-emerald-400">$4.2B</p>
-            </div>
-          </div>
-        </MissionPanel>
-
-        {/* ── Retention strip: open positions + compound fuel gauge ── */}
-        {user && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Open positions — capital in play, celebrated not hidden */}
-            <div className="bg-xc-card border border-xc-border rounded-2xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Lock className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs font-black uppercase tracking-wider text-white/60">
-                  Locked in positions
-                </span>
-                {lockedBalance > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                    COMPOUNDING
-                  </span>
-                )}
-              </div>
-              <div className="text-2xl font-black text-white font-mono tabular-nums">
-                {formatCurrency(lockedBalance)}
-              </div>
-              <p className="text-[11px] text-xc-muted mt-1">
-                {lockedBalance > 0
-                  ? "Locked yield nodes and open orders keep this capital compounding at the daily rate."
-                  : "Sell with the yield-lock toggle on to route proceeds into a 30-day yield node."}
-              </p>
-            </div>
-
-            {/* Next-tier fuel gauge — countdown to keep the multiplier */}
-            <div className="bg-xc-card border border-xc-border rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-amber-400" />
-                  <span className="text-xs font-black uppercase tracking-wider text-white/60">
-                    Compound fuel gauge
-                  </span>
-                </div>
-                <Badge variant="default">L{streakLevel}</Badge>
-              </div>
-              {nextTier ? (
-                <>
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-sm font-bold text-emerald-400">
-                      {nextTier.multiplier > 1
-                        ? `${nextTier.multiplier}× Dynamic Multiplier`
-                        : "Weekly vault bonus"}
-                    </span>
-                    <span className="font-mono text-sm font-black text-white tabular-nums">
-                      {formatCountdown(nextTier.remainingMs)}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-xc-muted mt-1.5">
-                    {nextTier.required}
-                  </p>
-                  <div className="mt-2.5 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-amber-500 to-emerald-400 transition-all duration-500"
-                      style={{ width: `${Math.min(100, nextTier.progress * 100)}%` }}
-                    />
-                  </div>
-                </>
-              ) : (
-                <p className="text-[11px] text-xc-muted">
-                  No active streak.{" "}
-                  <Link href="/wallet" className="text-emerald-400 hover:text-emerald-300 font-bold">
-                    Top up in Uplink
-                  </Link>{" "}
-                  to unlock the daily accelerator.
-                </p>
-              )}
-              {nextTier && nextTier.mode === "maintain" && (
-                <div className="mt-3">
-                  <Link
-                    href="/wallet"
-                    className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-400 hover:text-emerald-300 border border-emerald-700/40 bg-emerald-950/30 rounded-lg px-3 py-1.5 transition-colors"
-                  >
-                    <Zap className="w-3 h-3" /> Top up to maintain
-                  </Link>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Main Trading Layout */}
-        <div className="grid lg:grid-cols-3 gap-4">
-          {/* Left: Asset List & Chart */}
-          <div className="lg:col-span-2 space-y-4">
-            {/* Charts Grid */}
-            <div className="grid md:grid-cols-2 gap-4">
-              {/* Volume Chart */}
-              <div className="bg-xc-card border border-xc-border rounded-2xl p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-black text-white text-sm">
-                    Volume Trend
-                  </h3>
-                  <BarChart3 className="w-4 h-4 text-xc-muted" />
-                </div>
-                <div style={{ height: 160 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={volumeData}>
-                      <Bar dataKey="volume" radius={[4, 4, 0, 0]}>
-                        {volumeData.map((_, i) => (
-                          <Cell
-                            key={i}
-                            fill={
-                              i === volumeData.length - 1
-                                ? "#10b981"
-                                : "#7c3aed"
-                            }
-                            opacity={i === volumeData.length - 1 ? 0.9 : 0.4}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Order Book */}
-              <div className="bg-xc-card border border-xc-border rounded-2xl p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-black text-white text-sm">Order Book</h3>
-                  <Activity className="w-4 h-4 text-xc-muted" />
-                </div>
-                <div className="space-y-1 text-xs">
-                  {orderBookData.map((row, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "flex justify-between px-2 py-1 rounded",
-                        row.side === "ask"
-                          ? "bg-red-500/10"
-                          : row.side === "bid"
-                            ? "bg-emerald-500/10"
-                            : "border-t border-b border-white/10",
-                      )}
-                    >
-                      <span
-                        className={
-                          row.side === "ask"
-                            ? "text-red-400"
-                            : row.side === "bid"
-                              ? "text-emerald-400"
-                              : "text-white font-bold"
-                        }
-                      >
-                        {row.price.toFixed(2)}
-                      </span>
-                      <span className="text-xc-muted">
-                        {row.size.toLocaleString()}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Asset List */}
-            <AssetList
-              assets={DEMO_ASSETS}
-              selectedAsset={selectedAsset}
-              onSelectAsset={setSelectedAsset}
+          <div className="flex flex-wrap items-center gap-2 px-5 pt-4">
+            {CLASSES.map((c) => (
+              <button key={c.id} type="button" onClick={() => { setCls(c.id); setPage(0); }} className={cn("sim-chip cursor-pointer", cls === c.id && "sim-chip-live")}>
+                {c.label}
+              </button>
+            ))}
+            <input
+              className="sim-input ml-auto max-w-xs"
+              placeholder="Search the book"
+              value={q}
+              onChange={(e) => { setQ(e.target.value); setPage(0); }}
             />
           </div>
-
-          {/* Right: Order Form */}
-          <div>
-            <OrderForm asset={assetWithLivePrice} />
-          </div>
-        </div>
-
-        {/* HOT SIGNALS */}
-        <div className="bg-xc-card border border-xc-border rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Flame className="w-5 h-5 text-orange-400" />
-              <h3 className="font-black text-white">Hot Signals</h3>
-            </div>
-            <Badge variant="default">{FOUNDER_SIGNAL_ATTRIBUTION}</Badge>
-          </div>
-          <div className="space-y-3">
-            {FOUNDER_HOT_SIGNALS.map((item, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between bg-white/[0.02] border border-white/[0.05] rounded-xl p-3"
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-black text-white text-sm">
-                      {item.symbol}
-                    </span>
-                    <span
-                      className={cn(
-                        "text-xs font-black px-2 py-0.5 rounded",
-                        item.signal === "BUY"
-                          ? "bg-emerald-500/20 text-emerald-400"
-                          : item.signal === "SELL"
-                            ? "bg-red-500/20 text-red-400"
-                            : "bg-amber-500/20 text-amber-400",
-                      )}
+          <p className="px-5 pt-3 text-[11px] font-mono text-white/35">
+            {list.length} names · {safePage * pageSize + 1}–{Math.min(list.length, safePage * pageSize + pageSize)}
+          </p>
+          <div className="overflow-x-auto mt-3">
+            <table className="w-full min-w-[640px] text-left">
+              <thead>
+                <tr className="sim-label text-[9px] border-b border-white/[0.05]">
+                  <th className="font-normal px-5 py-2">Instrument</th>
+                  <th className="font-normal px-2 py-2 text-right">Bid</th>
+                  <th className="font-normal px-2 py-2 text-right">Ask</th>
+                  <th className="font-normal px-2 py-2 text-right">Spread</th>
+                  <th className="font-normal px-2 py-2 text-right">24h</th>
+                  <th className="font-normal px-5 py-2 text-right">Feed</th>
+                </tr>
+              </thead>
+              <tbody className="sim-num text-[12px]">
+                {view.map((i) => {
+                  const q = quotes[i.symbol];
+                  if (!q) return null;
+                  return (
+                    <tr
+                      key={i.symbol}
+                      onClick={() => setSymbol(i.symbol)}
+                      className={cn("border-b border-white/[0.03] cursor-pointer", symbol === i.symbol ? "bg-white/[0.05]" : "hover:bg-white/[0.02]")}
                     >
-                      {item.signal}
-                    </span>
-                  </div>
-                  <p className="text-xs text-xc-muted">{item.reason}</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-xs font-black text-white">
-                    {item.strength}%
-                  </p>
-                  <div className="w-16 h-1 bg-white/10 rounded-full mt-1 overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400"
-                      style={{ width: `${item.strength}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
+                      <td className="px-5 py-2.5">
+                        <span className="text-white font-bold">{i.symbol}</span>
+                        <span className="block text-[10px] text-white/35 font-sans">{i.name}</span>
+                      </td>
+                      <td className="px-2 py-2.5 text-right sim-neg">{fmtPrice(q.bid)}</td>
+                      <td className="px-2 py-2.5 text-right sim-pos">{fmtPrice(q.ask)}</td>
+                      <td className="px-2 py-2.5 text-right text-white/45">{i.spreadBps} bp</td>
+                      <td className={cn("px-2 py-2.5 text-right", signClass(q.change24h))}>{q.change24h >= 0 ? "+" : ""}{q.change24h.toFixed(2)}%</td>
+                      <td className={cn("px-5 py-2.5 text-right text-[9px] tracking-widest", q.source === "LIVE" ? "text-emerald-400/70" : "text-amber-300/60")}>{q.source}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex items-center justify-between px-5 py-3 border-t border-white/[0.05]">
+            <button type="button" className="sim-btn sim-btn-ghost" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>Previous</button>
+            <span className="text-[11px] font-mono text-white/35">{safePage + 1} / {pages}</span>
+            <button type="button" className="sim-btn sim-btn-ghost" disabled={safePage >= pages - 1} onClick={() => setPage(safePage + 1)}>Next</button>
+          </div>
+        </Panel>
+
+        <Panel code="Positions" title="Open spot positions">
+          {positions.length === 0 ? (
+            <p className="text-sm text-white/40 text-center py-4">No open positions.</p>
+          ) : (
+            <div className="overflow-x-auto -mx-5">
+              <table className="w-full min-w-[560px] text-left">
+                <thead>
+                  <tr className="sim-label text-[9px] border-b border-white/[0.05]">
+                    <th className="font-normal px-5 py-2">Symbol</th>
+                    <th className="font-normal px-2 py-2 text-right">Qty</th>
+                    <th className="font-normal px-2 py-2 text-right">Avg cost</th>
+                    <th className="font-normal px-2 py-2 text-right">Mark</th>
+                    <th className="font-normal px-2 py-2 text-right">Value</th>
+                    <th className="font-normal px-5 py-2 text-right">Unrealized</th>
+                  </tr>
+                </thead>
+                <tbody className="sim-num text-[12px]">
+                  {positions.map(([sym, p]) => {
+                    const mark = quotes[sym]?.mid ?? account.marks[sym] ?? p.avgCost;
+                    const pnl = (mark - p.avgCost) * p.qty;
+                    return (
+                      <tr key={sym} onClick={() => { setSymbol(sym); setSide("SELL"); }} className="border-b border-white/[0.03] cursor-pointer hover:bg-white/[0.02]">
+                        <td className="px-5 py-2.5 text-white font-bold">{sym}</td>
+                        <td className="px-2 py-2.5 text-right text-white/80">{fmtNum(p.qty, 6)}</td>
+                        <td className="px-2 py-2.5 text-right text-white/60">{fmtPrice(p.avgCost)}</td>
+                        <td className="px-2 py-2.5 text-right text-white/80">{fmtPrice(mark)}</td>
+                        <td className="px-2 py-2.5 text-right text-white">{fmtUsdc(p.qty * mark)}</td>
+                        <td className={cn("px-5 py-2.5 text-right", signClass(pnl))}>
+                          {pnl >= 0 ? "+" : ""}{fmtUsdc(pnl)} ({fmtPct(mark / p.avgCost - 1)})
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+      </div>
+
+      <div className="space-y-5">
+        <Panel code={`Ticket · ${inst.sector}`} title={`${inst.symbol} · ${inst.name}`} edge className="xl:sticky xl:top-20">
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <button type="button" onClick={() => setSide("BUY")} className={cn("sim-btn", side === "BUY" ? "sim-btn-primary" : "sim-btn-ghost")}>
+              <ArrowUpRight className="w-4 h-4" /> Buy
+            </button>
+            <button type="button" onClick={() => setSide("SELL")} className={cn("sim-btn", side === "SELL" ? "bg-red-500/90 text-white" : "sim-btn-ghost")}>
+              <ArrowDownRight className="w-4 h-4" /> Sell
+            </button>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 sim-num text-[11px] mb-4">
+            <div className="rounded-lg border border-white/[0.06] p-2"><p className="sim-label text-[8px]">Bid</p><p className="sim-neg font-bold">{fmtPrice(quote.bid)}</p></div>
+            <div className="rounded-lg border border-white/[0.06] p-2"><p className="sim-label text-[8px]">Mid</p><p className="text-white font-bold">{fmtPrice(quote.mid)}</p></div>
+            <div className="rounded-lg border border-white/[0.06] p-2"><p className="sim-label text-[8px]">Ask</p><p className="sim-pos font-bold">{fmtPrice(quote.ask)}</p></div>
+          </div>
+
+          <label className="sim-label block mb-1.5" htmlFor="amt">{side === "BUY" ? "Notional (USD)" : `Quantity (${symbol})`}</label>
+          <input
+            id="amt"
+            type="number"
+            min="0"
+            step="any"
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0.00"
+            className="sim-input sim-num"
+          />
+          <div className="flex gap-1.5 mt-2">
+            {[0.1, 0.25, 0.5, 1].map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() =>
+                  setAmount(
+                    side === "BUY"
+                      ? (Math.floor(account.cash * f * 100) / 100).toString()
+                      : ((pos?.qty ?? 0) * f).toPrecision(8),
+                  )
+                }
+                className="sim-chip cursor-pointer flex-1 justify-center"
+              >
+                {f === 1 ? "Max" : `${f * 100}%`}
+              </button>
             ))}
           </div>
-        </div>
 
-        <PhaseTrack />
+          <dl className="sim-num text-[11.5px] space-y-1.5 mt-4 border-t border-white/[0.05] pt-3">
+            <div className="flex justify-between"><dt className="text-white/40">Fill price</dt><dd className="text-white">{fmtPrice(side === "BUY" ? quote.ask : quote.bid)}</dd></div>
+            <div className="flex justify-between"><dt className="text-white/40">Est. quantity</dt><dd className="text-white">{fmtNum(preview.qty, 6)}</dd></div>
+            <div className="flex justify-between"><dt className="text-white/40">{side === "BUY" ? "Cost" : "Proceeds"}</dt><dd className="text-white">{fmtUsdc(preview.notional)}</dd></div>
+            <div className="flex justify-between"><dt className="text-white/40">Spread paid</dt><dd className="text-amber-300">{fmtUsdc(preview.spread)}</dd></div>
+            <div className="flex justify-between"><dt className="text-white/40">{side === "BUY" ? "Free USD" : "Position"}</dt><dd className="text-white/70">{side === "BUY" ? fmtUsdc(account.cash) : `${fmtNum(pos?.qty ?? 0, 6)} ${symbol}`}</dd></div>
+          </dl>
+
+          {account.tradingHalted && (
+            <Notice tone="error" className="mt-4">
+              Trading is frozen on this desk. Vaults and the ledger stay readable.
+            </Notice>
+          )}
+          {msg && <Notice tone={msg.tone} className="mt-4">{msg.text}</Notice>}
+
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!(value > 0) || !!account.tradingHalted}
+            className={cn("sim-btn w-full mt-4", side === "BUY" ? "sim-btn-primary" : "bg-red-500/90 text-white")}
+          >
+            {side === "BUY" ? "Execute buy" : "Execute sell"}
+          </button>
+          <p className="text-[11px] text-white/35 mt-3 leading-relaxed">
+            Fills are at the quoted side. Half of every spread is booked to the protocol fee pool
+            and accrues to conviction locks at the next settlement.
+          </p>
+        </Panel>
       </div>
-      </RailLock>
-    </DashboardLayout>
+    </div>
   );
 }

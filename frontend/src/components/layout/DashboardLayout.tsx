@@ -5,14 +5,34 @@ import { useRouter } from "next/navigation";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import MarketTicker from "./MarketTicker";
-import { XEngineShell } from "@/components/x-engine";
+import { SimulationBadge } from "@/components/sim/SimulationBadge";
+import { GenesisGate } from "@/components/sim/GenesisGate";
 import { useStore } from "@/store/useStore";
+import { useSimSync } from "@/hooks/useSimSync";
+import { useSimQuotes } from "@/hooks/useSimQuotes";
+import { useSim } from "@/hooks/useSim";
+import { cn } from "@/lib/utils";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
   title: string;
   subtitle?: string;
   wide?: boolean;
+  /** Rails render only after the user has claimed Genesis. */
+  requireGenesis?: boolean;
+}
+
+function SimSync() {
+  useSimSync();
+  const { quotes } = useSimQuotes();
+  const { actions, claimed } = useSim();
+  useEffect(() => {
+    if (!claimed) return;
+    const mids: Record<string, number> = {};
+    for (const q of Object.values(quotes)) mids[q.symbol] = q.mid;
+    actions.mark(mids);
+  }, [quotes, claimed, actions]);
+  return null;
 }
 
 export default function DashboardLayout({
@@ -20,31 +40,36 @@ export default function DashboardLayout({
   title,
   subtitle,
   wide,
+  requireGenesis = false,
 }: DashboardLayoutProps) {
-  const { isAuthenticated, theme } = useStore();
+  const isAuthenticated = useStore((s) => s.isAuthenticated);
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
+  const [ready, setReady] = useState(() =>
+    typeof window !== "undefined" && useStore.persist.hasHydrated(),
+  );
 
   useEffect(() => {
-    setMounted(true);
+    const finish = () => setReady(true);
+    if (useStore.persist.hasHydrated()) finish();
+    const unsub = useStore.persist.onFinishHydration(finish);
+    void useStore.persist.rehydrate();
+    return unsub;
   }, []);
 
   useEffect(() => {
-    if (mounted && !isAuthenticated) {
-      router.push("/auth/login");
-    }
-  }, [isAuthenticated, mounted, router]);
-
-  if (!mounted || !isAuthenticated) return null;
+    if (ready && !isAuthenticated) router.push("/auth/login");
+  }, [isAuthenticated, ready, router]);
 
   return (
-    <div className={theme === "light" ? "min-h-screen bg-[#f0f0f0]" : "min-h-screen bg-black"}>
+    <div className="min-h-screen sim-canvas">
       <Sidebar />
-      <div className="md:ml-[64px] lg:ml-[220px]">
+      <div className="md:ml-[248px]">
+        <SimulationBadge variant="banner" />
         <MarketTicker />
         <Header title={title} subtitle={subtitle} />
-        <main>
-          <XEngineShell wide={wide}>{children}</XEngineShell>
+        <SimSync />
+        <main className={cn("mx-auto px-4 md:px-6 py-6 md:py-8", wide ? "max-w-[1600px]" : "max-w-7xl")}>
+          {requireGenesis ? <GenesisGate>{children}</GenesisGate> : children}
         </main>
       </div>
     </div>

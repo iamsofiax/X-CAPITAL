@@ -6,18 +6,15 @@ import morgan from 'morgan';
 import { errorHandler } from './middleware/errorHandler';
 import { apiRateLimit } from './middleware/rateLimit';
 import { env } from './config/env';
-import { prisma } from './config/database';
-import { withTimeout } from './utils/withTimeout';
 import routes from './routes';
+import { collectHealth } from './services/healthService';
 
 const app = express();
 
 const corsOrigins = [
   env.FRONTEND_URL,
   'https://xcapital.investments',
-  'https://www.xcapital.investments',
   'https://xcapital-web.onrender.com',
-  'https://iamsofiax.github.io',
   'http://localhost:3000',
   ...env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean),
 ].filter((o, i, arr) => o && arr.indexOf(o) === i);
@@ -25,15 +22,9 @@ const corsOrigins = [
 // ─── Security ────────────────────────────────────────────────────────────────
 app.use(helmet());
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || corsOrigins.includes(origin)) {
-      callback(null, true);
-      return;
-    }
-    callback(null, false);
-  },
+  origin: corsOrigins,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
@@ -47,40 +38,13 @@ if (env.NODE_ENV !== 'test') {
   app.use(morgan(env.IS_PRODUCTION ? 'combined' : 'dev'));
 }
 
-// ─── Rate Limiting (never throttle liveness — Render + keep-alive ping this) ─
-app.use('/api/', (req, res, next) => {
-  if (req.path === '/v1/health' || req.path === '/health') {
-    next();
-    return;
-  }
-  apiRateLimit(req, res, next);
-});
+// ─── Rate Limiting ────────────────────────────────────────────────────────────
+app.use('/api/', apiRateLimit);
 
-// ─── Liveness ─────────────────────────────────────────────────────────────────
-// Always 200 if the process is up. A hanging DB query must NEVER stall this
-// endpoint — Render treats a timeout as a dead service and restarts it.
+// ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', async (_req, res) => {
-  let db = false;
-  let authSchema = false;
-  try {
-    await withTimeout(prisma.$queryRaw`SELECT 1`, 1500, 'db-timeout');
-    db = true;
-    await withTimeout(prisma.$queryRaw`SELECT 1 FROM users LIMIT 1`, 1500, 'auth-schema-timeout');
-    authSchema = true;
-  } catch (err) {
-    if (!db) db = false;
-    const message = err instanceof Error ? err.message : 'unknown';
-    console.warn(`[health] database not ready: ${message}`);
-  }
-  res.status(200).json({
-    status: db && authSchema ? 'healthy' : 'starting',
-    database: db,
-    authSchema,
-    service: 'X-CAPITAL API',
-    version: '1.0.0',
-    timestamp: new Date().toISOString(),
-    environment: env.NODE_ENV,
-  });
+  const snap = await collectHealth();
+  res.status(200).json(snap);
 });
 
 // ─── API Routes ───────────────────────────────────────────────────────────────

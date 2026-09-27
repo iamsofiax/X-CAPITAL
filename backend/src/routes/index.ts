@@ -7,12 +7,16 @@ import walletRoutes from './wallet';
 import commerceRoutes from './commerce';
 import oracleRoutes from './oracle';
 import adminRoutes from './admin';
-import accountRoutes from './account';
-import { getSystemHealth } from '../controllers/healthController';
+import simRoutes from './sim';
 
 const router = Router();
 
-router.get('/health', getSystemHealth);
+router.get('/health', async (_req, res) => {
+  const { collectHealth } = await import('../services/healthService');
+  const snap = await collectHealth();
+  res.json({ success: true, data: snap });
+});
+
 router.use('/auth', authRoutes);
 router.use('/trading', tradingRoutes);
 router.use('/portfolio', portfolioRoutes);
@@ -21,6 +25,6 @@ router.use('/wallet', walletRoutes);
 router.use('/commerce', commerceRoutes);
 router.use('/oracle', oracleRoutes);
 router.use('/admin', adminRoutes);
-router.use('/account', accountRoutes);
+router.use('/sim', simRoutes);
 
 export default router;

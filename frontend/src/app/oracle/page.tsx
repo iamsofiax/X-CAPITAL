@@ -1,789 +1,153 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import AIOracle from "@/components/oracle/AIOracle";
-import { StatCard } from "@/components/ui/Card";
-import { RailLock, RailInfrastructureHeader } from "@/components/x-engine";
-import { useStore } from "@/store/useStore";
-import { oracleAPI, tradingAPI } from "@/lib/api";
-import { useMarketPrices } from "@/hooks/useMarketPrices";
-import { formatCurrency, cn } from "@/lib/utils";
-import { getXlinkFounderSpotlight } from "@/lib/founderSignals";
-import {
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-  Cell,
-} from "recharts";
-import {
-  Brain,
-  TrendingUp,
-  TrendingDown,
-  BarChart3,
-  Zap,
-  Target,
-  Activity,
-  Radio,
-  LineChart,
-} from "lucide-react";
-
-const SYMBOLS = [
-  "TSLA",
-  "NVDA",
-  "AAPL",
-  "META",
-  "AMZN",
-  "PLTR",
-  "XSPACE",
-  "MSFT",
-  "BTC",
-  "SOL",
-  "DOGE",
-  "AMD",
-];
-
-function generateAccuracyData() {
-  const data = [];
-  const now = new Date();
-  for (let i = 20; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i * 7);
-    data.push({
-      week: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      accuracy: Number((65 + Math.random() * 25).toFixed(1)),
-      predictions: Math.round(80 + Math.random() * 60),
-    });
-  }
-  return data;
-}
-
-function generateSentimentTimeline(symbol: string) {
-  const data = [];
-  const now = new Date();
-  let score = 0.5;
-  for (let i = 30; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    score = Math.max(
-      0.1,
-      Math.min(0.95, score + (Math.random() - 0.47) * 0.08),
-    );
-    data.push({
-      date: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      score: Number(score.toFixed(3)),
-    });
-  }
-  return data;
-}
+import { Panel } from "@/components/sim/Panel";
+import { ProjectionFan } from "@/components/sim/ProjectionFan";
+import { RegimeChip } from "@/components/sim/EpochClock";
+import { modelExpectedReturn } from "@/components/sim/VaultCard";
+import { useSim } from "@/hooks/useSim";
+import { REGIME_TRANSITION, VAULTS, realizedVol, regimeAt, trailingReturn } from "@/lib/sim/vaults";
+import { fmtPct, fmtUsdc, signClass } from "@/lib/sim/format";
+import { cn } from "@/lib/utils";
 
 export default function OraclePage() {
-  const { user, wallet, pendingTransactions } = useStore();
-  const [allocation, setAllocation] = useState<Record<string, number>>({});
-  const [forecasts, setForecasts] = useState<
-    Array<{
-      symbol: string;
-      currentPrice: number;
-      predictedPrice: number;
-      expectedReturn: number;
-      horizon: string;
-      confidence: number;
-      signal: "BUY" | "HOLD" | "SELL";
-    }>
-  >([]);
-  const [loading, setLoading] = useState(true);
-  const [activeSymbol, setActiveSymbol] = useState("TSLA");
-  const [sentiment, setSentiment] = useState<{
-    score: number;
-    label: string;
-    sources: number;
-  } | null>(null);
-  const [accuracyData, setAccuracyData] = useState<
-    Array<{ week: string; accuracy: number; predictions: number }>
-  >([]);
-  const [sentimentTimeline, setSentimentTimeline] = useState<
-    Array<{ date: string; score: number }>
-  >([]);
-
-  const fetchAll = async () => {
-    setLoading(true);
-    try {
-      const [allocRes, ...fcastResults] = await Promise.allSettled([
-        oracleAPI.getOptimalAllocation(),
-        ...SYMBOLS.slice(0, 8).map((sym) => oracleAPI.getForecast(sym, "30d")),
-      ]);
-      if (
-        allocRes.status === "fulfilled" &&
-        allocRes.value.data.data &&
-        Object.keys(allocRes.value.data.data).length > 0
-      ) {
-        setAllocation(allocRes.value.data.data);
-      } else {
-        setAllocation({
-          AI: 40,
-          Energy: 20,
-          Space: 15,
-          PrivateEquity: 15,
-          Cash: 10,
-        });
-      }
-      const fcasts = fcastResults
-        .map((r, i) =>
-          r.status === "fulfilled"
-            ? { ...r.value.data.data, symbol: SYMBOLS[i] }
-            : null,
-        )
-        .filter(Boolean);
-      if (fcasts.length > 0) setForecasts(fcasts as typeof forecasts);
-      else setForecasts([]);
-    } catch {
-      setAllocation({
-        AI: 40,
-        Energy: 20,
-        Space: 15,
-        PrivateEquity: 15,
-        Cash: 10,
-      });
-      setForecasts([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAll();
-    setAccuracyData(generateAccuracyData());
-  }, []);
-
-  useEffect(() => {
-    const fetchSentiment = async () => {
-      try {
-        const res = await oracleAPI.getSentiment(activeSymbol);
-        setSentiment(res.data.data);
-      } catch {
-        setSentiment({
-          score: 0.62 + Math.random() * 0.25,
-          label: Math.random() > 0.3 ? "Bullish" : "Neutral",
-          sources: Math.round(120 + Math.random() * 200),
-        });
-      }
-    };
-    fetchSentiment();
-    setSentimentTimeline(generateSentimentTimeline(activeSymbol));
-  }, [activeSymbol]);
-
-  // Accuracy and sentiment charts are static snapshots — no random drift
-
-  // Live market prices — overlay onto forecasts' currentPrice
-  const { prices: livePrices } = useMarketPrices({ refreshInterval: 120_000 });
-  useEffect(() => {
-    if (Object.keys(livePrices).length === 0) return;
-    setForecasts((prev) =>
-      prev.map((f) => {
-        const live = livePrices[f.symbol];
-        if (!live) return f;
-        return { ...f, currentPrice: live.price };
-      }),
-    );
-  }, [livePrices]);
-
-  const bullishCount = forecasts.filter((f) => f.signal === "BUY").length;
-  const avgReturn = forecasts.length
-    ? forecasts.reduce((s, f) => s + f.expectedReturn, 0) / forecasts.length
-    : 0;
-  const avgAccuracy = accuracyData.length
-    ? accuracyData.reduce((s, d) => s + d.accuracy, 0) / accuracyData.length
-    : 0;
-
-  // Signal distribution for bar chart
-  const signalDist = useMemo(() => {
-    const buy = forecasts.filter((f) => f.signal === "BUY").length;
-    const hold = forecasts.filter((f) => f.signal === "HOLD").length;
-    const sell = forecasts.filter((f) => f.signal === "SELL").length;
-    return [
-      { signal: "BUY", count: buy, color: "#10b981" },
-      { signal: "HOLD", count: hold, color: "#d97706" },
-      { signal: "SELL", count: sell, color: "#ef4444" },
-    ];
-  }, [forecasts]);
-
-  // Return distribution
-  const returnDist = useMemo(
-    () =>
-      forecasts
-        .map((f) => ({
-          symbol: f.symbol,
-          return: f.expectedReturn,
-          confidence: f.confidence,
-        }))
-        .sort((a, b) => b.return - a.return),
-    [forecasts],
-  );
-
   return (
-    <DashboardLayout title="Oracle" subtitle="Inference · sentiment · signals">
-      <RailLock rail="oracle">
-      <div className="space-y-8">
-        <RailInfrastructureHeader rail="oracle" />
-        {/* ── Stats ── */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3 lg:gap-4">
-          <StatCard
-            title="Bullish Signals"
-            value={`${bullishCount}/${forecasts.length}`}
-            icon={<TrendingUp className="w-5 h-5" />}
-          />
-          <StatCard
-            title="Avg Predicted Return"
-            value={`${avgReturn >= 0 ? "+" : ""}${avgReturn.toFixed(1)}%`}
-            change={avgReturn}
-            icon={<BarChart3 className="w-5 h-5" />}
-          />
-          <StatCard
-            title="Model Accuracy"
-            value={`${avgAccuracy.toFixed(1)}%`}
-            subtitle="20-week average"
-            icon={<Target className="w-5 h-5" />}
-          />
-          <StatCard
-            title="Models Active"
-            value="3"
-            subtitle="LSTM · MC · Sentiment"
-            icon={<Brain className="w-5 h-5" />}
-          />
-          <StatCard
-            title="Data Sources"
-            value="50+"
-            subtitle="News, filings, social"
-            icon={<Zap className="w-5 h-5" />}
-          />
-        </div>
-
-        {/* ── Forecast Accuracy Chart (full width) ── */}
-        <div className="bg-xc-card border border-xc-border rounded-2xl p-4 md:p-6 lg:p-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 md:mb-6 gap-2">
-            <div>
-              <h3 className="font-black text-white text-base md:text-lg">
-                Forecast Accuracy
-              </h3>
-              <p className="text-xs md:text-sm text-xc-muted mt-1">
-                20-week rolling accuracy · All models combined
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="text-xl md:text-2xl font-black text-emerald-400 font-mono">
-                {avgAccuracy.toFixed(1)}%
-              </div>
-              <div className="text-xs text-xc-muted">avg accuracy</div>
-            </div>
-          </div>
-          <div className="h-[200px] md:h-[260px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={accuracyData}
-                margin={{ top: 5, right: 5, bottom: 5, left: 5 }}
-              >
-                <defs>
-                  <linearGradient id="accGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis
-                  dataKey="week"
-                  tick={{ fill: "#64748b", fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                  interval={3}
-                />
-                <YAxis
-                  tick={{ fill: "#64748b", fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v) => `${Number(v ?? 0)}%`}
-                  domain={[50, 100]}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "#0d0d1e",
-                    border: "1px solid #1a1a3a",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                  formatter={(v: number, name: string) => [
-                    name === "accuracy" ? `${Number(v ?? 0)}%` : v,
-                    name === "accuracy" ? "Accuracy" : "Predictions",
-                  ]}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="accuracy"
-                  stroke="#10b981"
-                  strokeWidth={2.5}
-                  fill="url(#accGrad)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* ── Return Distribution + Signal Distribution ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 lg:gap-6">
-          {/* Expected Return by Asset */}
-          <div className="bg-xc-card border border-xc-border rounded-2xl p-4 md:p-6">
-            <div className="flex items-center gap-2 mb-5">
-              <BarChart3 className="w-4 h-4 text-white/60" />
-              <h3 className="font-black text-white text-sm md:text-base">
-                Predicted Returns by Asset
-              </h3>
-              <span className="text-xs text-xc-muted ml-auto hidden sm:inline">
-                30-day horizon
-              </span>
-            </div>
-            <div className="h-[220px] md:h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={returnDist}
-                  layout="vertical"
-                  margin={{ top: 5, right: 20, bottom: 5, left: 60 }}
-                >
-                  <XAxis
-                    type="number"
-                    tick={{ fill: "#64748b", fontSize: 10 }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v) => `${v}%`}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="symbol"
-                    tick={{ fill: "#fff", fontSize: 11, fontWeight: 700 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: "#0d0d1e",
-                      border: "1px solid #1a1a3a",
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
-                    formatter={(v: number) => [
-                      `${Number(v ?? 0).toFixed(1)}%`,
-                      "Expected Return",
-                    ]}
-                  />
-                  <Bar dataKey="return" radius={[0, 4, 4, 0]}>
-                    {returnDist.map((entry, i) => (
-                      <Cell
-                        key={i}
-                        fill={entry.return >= 0 ? "#10b981" : "#ef4444"}
-                        opacity={0.7}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Signal Distribution */}
-          <div className="bg-xc-card border border-xc-border rounded-2xl p-4 md:p-6">
-            <div className="flex items-center gap-2 mb-4 md:mb-5">
-              <Radio className="w-4 h-4 text-emerald-400" />
-              <h3 className="font-black text-white text-sm md:text-base">
-                Signal Distribution
-              </h3>
-            </div>
-            <div className="grid grid-cols-3 gap-2 md:gap-4 mb-4 md:mb-6">
-              {signalDist.map((s) => (
-                <div
-                  key={s.signal}
-                  className="bg-xc-dark/40 border border-xc-border/60 rounded-xl p-3 md:p-5 text-center"
-                >
-                  <div
-                    className="text-2xl md:text-3xl font-black font-mono"
-                    style={{ color: s.color }}
-                  >
-                    {s.count}
-                  </div>
-                  <div className="text-xs font-bold text-xc-muted mt-1">
-                    {s.signal}
-                  </div>
-                </div>
-              ))}
-            </div>
-            {/* Confidence distribution */}
-            <div className="space-y-3">
-              <div className="text-xs font-bold text-xc-muted uppercase tracking-wider">
-                Confidence by Forecast
-              </div>
-              {forecasts.slice(0, 8).map((f) => (
-                <div key={f.symbol} className="flex items-center gap-4">
-                  <span className="text-xs font-bold text-white w-16">
-                    {f.symbol}
-                  </span>
-                  <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
-                    <div
-                      className={cn(
-                        "h-full rounded-full transition-all",
-                        f.signal === "BUY"
-                          ? "bg-emerald-500"
-                          : f.signal === "SELL"
-                            ? "bg-red-500"
-                            : "bg-amber-500",
-                      )}
-                      style={{ width: `${f.confidence}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-mono text-white/70 w-10 text-right">
-                    {f.confidence}%
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* ═══════════════════════════════════════════════════════════════════
-            STARLINK FORECAST SPOTLIGHT - Highest Confidence BUY Signal
-            ═══════════════════════════════════════════════════════════════════ */}
-        {(() => {
-          const xlinkForecast = forecasts.find((f) => f.symbol === "XLINK");
-          return xlinkForecast ? (
-            <section className="relative group overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-900/25 to-slate-900/25 border border-emerald-500/50 p-6 md:p-8 mb-6">
-              <div className="absolute -top-40 -right-40 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-              <div className="relative z-10">
-                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Radio className="w-6 h-6 text-emerald-400 animate-pulse" />
-                      <span className="text-xs font-black text-emerald-400 uppercase tracking-widest">
-                        Founder Signal · XLINK
-                      </span>
-                    </div>
-                    <h3 className="text-2xl lg:text-3xl font-black text-white mb-2">
-                      {xlinkForecast.symbol} — $
-                      {xlinkForecast.currentPrice.toFixed(2)}
-                    </h3>
-                    <p className="text-base text-emerald-50 max-w-xl mb-4 italic leading-relaxed">
-                      &ldquo;
-                      {getXlinkFounderSpotlight(
-                        xlinkForecast.confidence,
-                        xlinkForecast.horizon,
-                        xlinkForecast.predictedPrice,
-                      )}
-                      &rdquo;
-                    </p>
-                    <div className="flex flex-wrap gap-3">
-                      <div className="bg-emerald-500/20 border border-emerald-500/40 rounded-lg px-4 py-2">
-                        <p className="text-xs text-xc-muted">Signal</p>
-                        <p className="font-black text-emerald-400">
-                          {xlinkForecast.signal}
-                        </p>
-                      </div>
-                      <div className="bg-emerald-500/20 border border-emerald-500/40 rounded-lg px-4 py-2">
-                        <p className="text-xs text-xc-muted">Expected Return</p>
-                        <p className="font-black text-emerald-400">
-                          +{xlinkForecast.expectedReturn.toFixed(1)}%
-                        </p>
-                      </div>
-                      <div className="bg-emerald-500/20 border border-emerald-500/40 rounded-lg px-4 py-2">
-                        <p className="text-xs text-xc-muted">Confidence</p>
-                        <p className="font-black text-emerald-400">
-                          {xlinkForecast.confidence}%
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="w-full lg:w-auto lg:min-w-[240px]">
-                    <div className="bg-white/5 border border-emerald-500/30 rounded-xl p-6 text-center">
-                      <p className="text-xs text-xc-muted font-bold mb-2">
-                        PRICE TARGET
-                      </p>
-                      <p className="text-3xl font-black text-emerald-400 font-mono mb-3">
-                        ${xlinkForecast.predictedPrice.toFixed(2)}
-                      </p>
-                      <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-3">
-                        <div
-                          className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400"
-                          style={{
-                            width: `${Math.min(100, (xlinkForecast.predictedPrice / xlinkForecast.currentPrice - 1) * 5 + 50)}%`,
-                          }}
-                        />
-                      </div>
-                      <button className="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-black py-2 rounded-lg transition-all">
-                        Execute Order
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-          ) : null;
-        })()}
-
-        {/* ── Oracle Widget + Sentiment Panel ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
-          <div className="lg:col-span-2 bg-xc-card border border-xc-border rounded-2xl p-4 md:p-6">
-            <AIOracle
-              allocation={allocation}
-              forecasts={forecasts}
-              loading={loading}
-              onRefresh={fetchAll}
-            />
-          </div>
-
-          <div className="bg-xc-card border border-xc-border rounded-2xl p-4 md:p-6 space-y-4 md:space-y-5">
-            <h3 className="font-black text-white text-base">
-              Market Sentiment
-            </h3>
-
-            {/* Symbol selector */}
-            <div className="flex flex-wrap gap-1.5 md:gap-2">
-              {SYMBOLS.map((sym) => (
-                <button
-                  key={sym}
-                  onClick={() => setActiveSymbol(sym)}
-                  className={cn(
-                    "px-3 py-1 rounded-lg text-xs font-bold transition-all",
-                    activeSymbol === sym
-                      ? "bg-xc-purple text-black font-bold"
-                      : "bg-white/5 text-xc-muted hover:text-white",
-                  )}
-                >
-                  {sym}
-                </button>
-              ))}
-            </div>
-
-            {sentiment && (
-              <div className="space-y-4">
-                <div className="text-center py-4">
-                  <div
-                    className={cn(
-                      "text-4xl md:text-5xl font-black mb-2",
-                      sentiment.score > 0.5
-                        ? "text-xc-green"
-                        : sentiment.score < 0.4
-                          ? "text-xc-red"
-                          : "text-white/50",
-                    )}
-                  >
-                    {Math.round(sentiment.score * 100)}
-                  </div>
-                  <div className="text-sm font-bold text-white">
-                    {sentiment.label}
-                  </div>
-                  <div className="text-xs text-xc-muted mt-1">
-                    {sentiment.sources} sources analyzed
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-xs text-xc-muted mb-1.5">
-                    <span>Bearish</span>
-                    <span>Bullish</span>
-                  </div>
-                  <div className="h-3 bg-white/10 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-xc-red via-amber-400 to-xc-green transition-all duration-500"
-                      style={{ width: `${sentiment.score * 100}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Model stack */}
-            <div className="pt-4 border-t border-xc-border space-y-3">
-              <div className="text-xs font-bold text-xc-muted uppercase tracking-wider">
-                Model Stack
-              </div>
-              {[
-                { name: "LSTM Forecasting", status: "Active", accuracy: "82%" },
-                {
-                  name: "Monte Carlo",
-                  status: "Active",
-                  simulations: "10,000",
-                },
-                { name: "Sentiment NLP", status: "Active", model: "FinBERT" },
-              ].map((m) => (
-                <div
-                  key={m.name}
-                  className="flex items-center justify-between text-xs"
-                >
-                  <span className="text-xc-muted">{m.name}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-white/60">
-                      {m.accuracy || m.simulations || m.model}
-                    </span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-xc-green" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Sentiment Timeline Chart (full width) ── */}
-        <div className="bg-xc-card border border-xc-border rounded-2xl p-4 md:p-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 md:mb-5 gap-2">
-            <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-white/50" />
-              <h3 className="font-black text-white text-sm md:text-base">
-                Sentiment Timeline — {activeSymbol}
-              </h3>
-            </div>
-            <span className="text-xs text-emerald-400 flex items-center gap-1 font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />{" "}
-              LIVE · 30 days
-            </span>
-          </div>
-          <div className="h-[160px] md:h-[200px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={sentimentTimeline}
-                margin={{ top: 5, right: 5, bottom: 5, left: 5 }}
-              >
-                <defs>
-                  <linearGradient id="sentGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis
-                  dataKey="date"
-                  tick={{ fill: "#64748b", fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                  interval="preserveStartEnd"
-                />
-                <YAxis
-                  tick={{ fill: "#64748b", fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                  domain={[0, 1]}
-                  tickFormatter={(v) => `${(Number(v ?? 0) * 100).toFixed(0)}`}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "#0d0d1e",
-                    border: "1px solid #1a1a3a",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                  formatter={(v: number) => [
-                    `${(Number(v ?? 0) * 100).toFixed(1)}`,
-                    "Sentiment Score",
-                  ]}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="score"
-                  stroke="#06b6d4"
-                  strokeWidth={2}
-                  fill="url(#sentGrad)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="flex items-center justify-between mt-3 text-xs text-xc-muted">
-            <span>0 = Extremely Bearish</span>
-            <span>50 = Neutral</span>
-            <span>100 = Extremely Bullish</span>
-          </div>
-        </div>
-      </div>
-      </RailLock>
+    <DashboardLayout title="Oracle" subtitle="R6 · Regime model, strategy analytics and allocation" wide requireGenesis>
+      <Oracle />
     </DashboardLayout>
   );
 }
 
-const DEMO_FORECASTS = [
-  {
-    symbol: "TSLA",
-    currentPrice: 342.18,
-    predictedPrice: 405.1,
-    expectedReturn: 18.4,
-    horizon: "30d",
-    confidence: 74,
-    signal: "BUY" as const,
-  },
-  {
-    symbol: "NVDA",
-    currentPrice: 875.39,
-    predictedPrice: 1086.98,
-    expectedReturn: 24.2,
-    horizon: "30d",
-    confidence: 81,
-    signal: "BUY" as const,
-  },
-  {
-    symbol: "AAPL",
-    currentPrice: 213.07,
-    predictedPrice: 232.44,
-    expectedReturn: 9.1,
-    horizon: "30d",
-    confidence: 78,
-    signal: "BUY" as const,
-  },
-  {
-    symbol: "META",
-    currentPrice: 513.92,
-    predictedPrice: 528.15,
-    expectedReturn: 2.8,
-    horizon: "30d",
-    confidence: 65,
-    signal: "HOLD" as const,
-  },
-  {
-    symbol: "AMZN",
-    currentPrice: 196.25,
-    predictedPrice: 184.01,
-    expectedReturn: -6.2,
-    horizon: "30d",
-    confidence: 61,
-    signal: "SELL" as const,
-  },
-  {
-    symbol: "PLTR",
-    currentPrice: 23.47,
-    predictedPrice: 28.92,
-    expectedReturn: 23.2,
-    horizon: "30d",
-    confidence: 69,
-    signal: "BUY" as const,
-  },
-  {
-    symbol: "XSPACE",
-    currentPrice: 252.0,
-    predictedPrice: 318.5,
-    expectedReturn: 26.4,
-    horizon: "30d",
-    confidence: 72,
-    signal: "BUY" as const,
-  },
-  {
-    symbol: "MSFT",
-    currentPrice: 428.86,
-    predictedPrice: 442.2,
-    expectedReturn: 3.1,
-    horizon: "30d",
-    confidence: 70,
-    signal: "HOLD" as const,
-  },
-  {
-    symbol: "XLINK",
-    currentPrice: 95.25,
-    predictedPrice: 134.8,
-    expectedReturn: 41.6,
-    horizon: "30d",
-    confidence: 85,
-    signal: "BUY" as const,
-  },
-];
+function Oracle() {
+  const { epoch, account } = useSim();
+  const { calmToStress, stressToCalm } = REGIME_TRANSITION;
+  const pStress = calmToStress / (calmToStress + stressToCalm);
+
+  const strip = useMemo(() => {
+    const out: ("calm" | "stress")[] = [];
+    for (let e = Math.max(0, epoch - 179); e <= epoch; e++) out.push(regimeAt(e));
+    return out;
+  }, [epoch]);
+  const stressShare = strip.filter((r) => r === "stress").length / strip.length;
+
+  const [weights, setWeights] = useState<Record<string, number>>(() =>
+    Object.fromEntries(VAULTS.map((v) => [v.id, v.id === "tbill" ? 40 : v.id === "basis" ? 30 : v.id === "tail" ? 10 : v.id === "aidx" ? 20 : 0])),
+  );
+  const [capital, setCapital] = useState(100_000);
+  const [horizon, setHorizon] = useState(180);
+  const totalW = Object.values(weights).reduce((a, b) => a + b, 0);
+
+  const input = useMemo(() => {
+    const vaults: Record<string, number> = {};
+    for (const [id, w] of Object.entries(weights)) if (w > 0 && totalW > 0) vaults[id] = (capital * w) / totalW;
+    return {
+      vaults,
+      idle: totalW === 0 ? capital : 0,
+      feeShareApr: 0,
+      horizonEpochs: horizon * 3,
+      startRegime: regimeAt(epoch),
+      paths: 500,
+      seedKey: `lab:${account?.userId ?? "anon"}`,
+    };
+  }, [weights, totalW, capital, horizon, epoch, account?.userId]);
+  const deferredInput = useDeferredValue(input);
+
+  return (
+    <div className="space-y-5">
+      <div className="grid lg:grid-cols-3 gap-5">
+        <Panel code="Regime model" title="Two-state Markov chain" edge className="lg:col-span-2">
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <RegimeChip epoch={epoch} />
+            <span className="sim-chip">Stationary P(stress) {fmtPct(pStress, 1, false)}</span>
+            <span className="sim-chip">Last 60D in stress {fmtPct(stressShare, 1, false)}</span>
+            <span className="sim-chip">Mean stress spell {(1 / stressToCalm / 3).toFixed(1)}D</span>
+          </div>
+          <div className="flex gap-[2px] h-10 items-stretch" aria-label="Regime history, last 180 epochs">
+            {strip.map((r, i) => (
+              <span key={i} className={cn("flex-1 rounded-[1px]", r === "calm" ? "bg-emerald-400/35" : "bg-amber-400/85")} />
+            ))}
+          </div>
+          <div className="flex justify-between sim-label text-[8.5px] mt-1.5">
+            <span>60 days ago</span>
+            <span>Now · epoch {epoch.toLocaleString()}</span>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3 mt-5 sim-num text-[12px]">
+            <div className="rounded-xl border border-white/[0.06] p-3">
+              <p className="sim-label text-[8.5px] mb-2">Transition matrix (per 8h epoch)</p>
+              <table className="w-full">
+                <thead><tr className="text-white/35 text-[10px]"><th /><th className="text-right font-normal">→ calm</th><th className="text-right font-normal">→ stress</th></tr></thead>
+                <tbody>
+                  <tr><td className="text-white/50">calm</td><td className="text-right text-white">{fmtPct(1 - calmToStress, 1, false)}</td><td className="text-right text-amber-300">{fmtPct(calmToStress, 1, false)}</td></tr>
+                  <tr><td className="text-white/50">stress</td><td className="text-right text-emerald-300">{fmtPct(stressToCalm, 1, false)}</td><td className="text-right text-white">{fmtPct(1 - stressToCalm, 1, false)}</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="text-[12px] text-white/45 leading-relaxed font-sans">
+              One global regime drives every vault, so correlations jump together in stress, as they do in real
+              markets. The chain is seeded and deterministic: every user sees the same history, and nobody,
+              including the operator, can steer an individual book.
+            </p>
+          </div>
+        </Panel>
+
+        <Panel code="Strategy analytics" title="Model vs realized">
+          <ul className="space-y-2.5">
+            {VAULTS.map((v) => {
+              const exp = modelExpectedReturn(v);
+              const r = trailingReturn(v.id, epoch, 270);
+              return (
+                <li key={v.id} className="flex items-center gap-3 text-[12px]">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: v.accent }} />
+                  <span className="flex-1 min-w-0 text-white/80 truncate">{v.name}</span>
+                  <span className="sim-num w-16 text-right text-white/50" title="Model long-run expected return, net of fees">{fmtPct(exp, 1)}</span>
+                  <span className={cn("sim-num w-16 text-right", signClass(r))} title="Realized 90-day return">{fmtPct(r, 1)}</span>
+                  <span className="sim-num w-12 text-right text-white/40" title="Realized annualized vol">{fmtPct(realizedVol(v.id, epoch, 270), 0, false)}</span>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="sim-label text-[8px] mt-3 text-right">Model E[r] · Realized 90D · Vol</p>
+        </Panel>
+      </div>
+
+      <Panel code="Allocation lab" title="What-if Monte Carlo" action={<span className="sim-chip">Nothing here is executed</span>}>
+        <div className="grid lg:grid-cols-[360px_1fr] gap-6">
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block">
+                <span className="sim-label text-[8.5px]">Capital (USD)</span>
+                <input type="number" min={1000} step={1000} value={capital} onChange={(e) => setCapital(Math.max(0, Number(e.target.value) || 0))} className="sim-input sim-num mt-1 py-2" />
+              </label>
+              <label className="block">
+                <span className="sim-label text-[8.5px]">Horizon</span>
+                <select value={horizon} onChange={(e) => setHorizon(Number(e.target.value))} className="sim-input sim-num mt-1 py-2">
+                  {[30, 90, 180, 365].map((d) => <option key={d} value={d}>{d} days</option>)}
+                </select>
+              </label>
+            </div>
+            {VAULTS.map((v) => (
+              <label key={v.id} className="block">
+                <span className="flex justify-between text-[12px]">
+                  <span className="text-white/75">{v.name}</span>
+                  <span className="sim-num text-white/50">{totalW > 0 ? ((weights[v.id] / totalW) * 100).toFixed(0) : 0}%</span>
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={weights[v.id]}
+                  onChange={(e) => setWeights((w) => ({ ...w, [v.id]: Number(e.target.value) }))}
+                  className="w-full accent-emerald-400"
+                  style={{ accentColor: v.accent }}
+                />
+              </label>
+            ))}
+            <p className="sim-num text-[11px] text-white/40">Deploying {fmtUsdc(capital, { decimals: 0 })} across {Object.values(weights).filter((w) => w > 0).length} sleeves.</p>
+          </div>
+          <ProjectionFan input={deferredInput} height={300} />
+        </div>
+      </Panel>
+    </div>
+  );
+}

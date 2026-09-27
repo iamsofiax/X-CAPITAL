@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
+  fetchBrokerQuotes,
   fetchCryptoPrices,
   fetchStockQuotes,
   STOCK_SYMBOLS,
@@ -46,14 +47,17 @@ export function useMarketPrices(
       Object.assign(results, cryptoPrices);
     }
 
-    // Fetch stocks + ETFs (Finnhub — needs key, gracefully returns {} if no key)
+    // Equities / ETFs: Alpaca IEX via the desk API, then Finnhub if configured.
     if (stocks || etfs) {
       const symbols = [
         ...(stocks ? STOCK_SYMBOLS : []),
         ...(etfs ? ETF_SYMBOLS : []),
       ];
-      const stockPrices = await fetchStockQuotes(symbols);
-      Object.assign(results, stockPrices);
+      const [broker, finnhub] = await Promise.all([
+        fetchBrokerQuotes(symbols),
+        fetchStockQuotes(symbols),
+      ]);
+      Object.assign(results, finnhub, broker);
     }
 
     if (mountedRef.current && Object.keys(results).length > 0) {

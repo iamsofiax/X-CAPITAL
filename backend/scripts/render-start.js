@@ -1,12 +1,5 @@
 /**
- * Render production startup.
- *
- * The HTTP process MUST listen immediately. Blocking on prisma db push used
- * to stall /health, which made Render mark the service dead and restart it —
- * the API then looked permanently OFFLINE.
- *
- * Schema apply runs in the background with retries. Neon (or any reachable
- * Postgres) is required for logins; liveness does not wait on it.
+ * Render production startup (Node — avoids shell/CRLF issues on Windows commits).
  */
 require("dotenv").config();
 
@@ -22,110 +15,72 @@ function fail(msg) {
 }
 
 function ensureSsl(url) {
-  if (!url) return url;
-  let stripped = url
-    .replace(/([?&])sslmode=[^&]*/gi, "$1")
-    .replace(/([?&])channel_binding=[^&]*/gi, "$1")
-    .replace(/\?&/, "?")
-    .replace(/&&/g, "&")
-    .replace(/[?&]$/, "");
-  if (stripped.includes("neon.tech") || process.env.NODE_ENV === "production") {
-    return stripped.includes("?")
-      ? `${stripped}&sslmode=no-verify`
-      : `${stripped}?sslmode=no-verify`;
-  }
-  if (url.includes("sslmode=")) return url;
-  return stripped.includes("?")
-    ? `${stripped}&sslmode=require`
-    : `${stripped}?sslmode=require`;
-}
-
-async function applySchemaInBackground() {
-  const pushUrl =
-    process.env.DATABASE_URL_UNPOOLED ||
-    process.env.DIRECT_URL ||
-    process.env.DATABASE_URL;
-  const pushEnv = {
-    ...process.env,
-    DATABASE_URL: ensureSsl(pushUrl),
-    DATABASE_URL_UNPOOLED: ensureSsl(pushUrl),
-    DIRECT_URL: ensureSsl(pushUrl),
-    PGSSLMODE: "no-verify",
-    NODE_TLS_REJECT_UNAUTHORIZED: "0",
-  };
-
-  for (let attempt = 1; attempt <= 30; attempt++) {
-    try {
-      console.log(`Applying schema (prisma db push) attempt ${attempt}/30...`);
-      execSync("npx prisma db push", {
-        stdio: "inherit",
-        env: pushEnv,
-      });
-      console.log("Schema applied.");
-      return;
-    } catch {
-      console.log(`Schema apply failed — retry in 12s (API stays up).`);
-      await sleep(12_000);
-    }
-  }
-  console.error(
-    "Schema apply still failing after 30 attempts. API is live; logins will work once Postgres accepts the schema.",
-  );
+  if (!url || url.includes("sslmode=")) return url;
+  return url.includes("?") ? `${url}&sslmode=require` : `${url}?sslmode=require`;
 }
 
 async function main() {
   console.log("=== X-CAPITAL API startup (Render) ===");
 
-  let databaseUrl =
-    process.env.DATABASE_URL_UNPOOLED ||
-    process.env.DIRECT_URL ||
-    process.env.DATABASE_URL;
+  let databaseUrl = process.env.DATABASE_URL;
   const jwtSecret = process.env.JWT_SECRET;
 
   if (!databaseUrl) {
     fail(
       "ERROR: DATABASE_URL is not set.\n" +
-        "  Paste the Neon pooled connection string on Render → xcapital-api → Environment.",
+        "  Render -> xcapital-api -> Environment -> Add from database -> xcapital-db"
     );
   }
 
   if (!jwtSecret) {
     fail(
       "ERROR: JWT_SECRET is not set.\n" +
-        "  Run: .\\scripts\\make-render-paste.ps1 then Add from .env on Render",
+        "  Run: .\\scripts\\make-render-paste.ps1 then Add from .env on Render"
     );
   }
 
   if (/@postgres[:/]/.test(databaseUrl)) {
     fail(
       "ERROR: DATABASE_URL uses Docker host 'postgres'.\n" +
-        "  Use the Neon pooled URL (*.neon.tech), not backend/.env Docker values.",
+        "  Link Render Postgres (xcapital-db), do not paste backend/.env"
     );
   }
 
   databaseUrl = ensureSsl(databaseUrl);
   process.env.DATABASE_URL = databaseUrl;
-  process.env.PGSSLMODE = process.env.PGSSLMODE || "no-verify";
-  if (process.env.DATABASE_URL_UNPOOLED) {
-    process.env.DATABASE_URL_UNPOOLED = ensureSsl(
-      process.env.DATABASE_URL_UNPOOLED,
-    );
+
+  console.log("Waiting for Postgres...");
+  await sleep(5000);
+
+  const maxAttempts = 5;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      console.log(`Applying schema (prisma db push) attempt ${attempt}/${maxAttempts}...`);
+      execSync("npx prisma db push --skip-generate", {
+        stdio: "inherit",
+        env: process.env,
+      });
+      console.log("Schema applied.");
+      break;
+    } catch (err) {
+      if (attempt === maxAttempts) {
+        fail(
+          "ERROR: prisma db push failed.\n" +
+            "  Confirm xcapital-db is running and DATABASE_URL is linked on Render."
+        );
+      }
+      console.log(`Retry in 10s...`);
+      await sleep(10000);
+    }
   }
 
-  // Prisma 7 can start with an incomplete generated client after a cached deploy.
-  // Fail before serving requests rather than exposing a broken authentication API.
-  console.log("Generating Prisma client...");
-  execSync("npx prisma generate", { stdio: "inherit", env: process.env });
-
   const port = process.env.PORT || "4000";
-  console.log(`Starting API on port ${port} (schema apply in background)...`);
+  console.log(`Starting API on port ${port}...`);
   const child = spawn("node", ["dist/server.js"], {
     stdio: "inherit",
     env: process.env,
   });
   child.on("exit", (code) => process.exit(code ?? 1));
-
-  void applySchemaInBackground();
 }
 
 main().catch((err) => {

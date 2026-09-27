@@ -1,70 +1,61 @@
 /**
- * Founder-voice trading signals (Elon Musk tone) for Hot Signals & oracle copy.
+ * Oracle Desk model notes — quantitative copy, no celebrity attribution.
  */
 
-export type FounderSignalAction = "BUY" | "HOLD" | "SELL";
+export type OracleSignalAction = "BUY" | "HOLD" | "SELL";
 
-export interface FounderHotSignal {
+export interface OracleHotSignal {
   symbol: string;
-  signal: FounderSignalAction;
+  signal: OracleSignalAction;
   strength: number;
   reason: string;
 }
 
-export const FOUNDER_SIGNAL_ATTRIBUTION = "Operator desk";
+export const FOUNDER_SIGNAL_ATTRIBUTION = "Oracle Desk · model note";
 
-/** Hot Signals panel on /trading */
-export const FOUNDER_HOT_SIGNALS: FounderHotSignal[] = [
+export const FOUNDER_HOT_SIGNALS: OracleHotSignal[] = [
   {
-    symbol: "XLINK",
-    signal: "BUY",
-    strength: 85,
-    reason:
-      "Low Earth orbit is the ultimate network effect. Starlink scales faster than bears can spreadsheet.",
+    symbol: "BTC",
+    signal: "HOLD",
+    strength: 54,
+    reason: "Funding is mixed and realized vol is mid-range. Size to the hedge, not the headline.",
   },
   {
     symbol: "NVDA",
     signal: "BUY",
-    strength: 72,
-    reason:
-      "Compute is the new oil. If you're not building AI infrastructure, you're already obsolete.",
+    strength: 68,
+    reason: "Compute capex still dominates the forward book. Treat drawdowns as vol, not a thesis change.",
   },
   {
-    symbol: "TSLA",
+    symbol: "TLT",
     signal: "HOLD",
-    strength: 58,
-    reason:
-      "Short-term noise. Long-term: autonomy, energy, and manufacturing at scale. Patience is physics.",
+    strength: 51,
+    reason: "Duration is a ballast sleeve, not an alpha sleeve. Keep the ticket small versus beta vaults.",
   },
 ];
 
-/** One-liner reasons keyed by symbol (oracle spotlight, tooltips, etc.) */
 export const FOUNDER_REASON_BY_SYMBOL: Record<string, string> = {
-  XLINK:
-    "We're not betting on a token — we're betting on civilization-scale bandwidth. The rocket pays for the constellation.",
-  NVDA: "The limiting factor for intelligence is silicon. Whoever ships the most compute wins the decade.",
-  TSLA: "Production is hard. Competition is easy. Wait for the next step-change, not the next headline.",
-  AAPL: "Ecosystem lock-in compounds. Services and on-device AI are underpriced by linear thinkers.",
-  META: "Attention is finite; Llama makes it programmable. Ads plus open models is a unfair combo.",
-  AMZN: "AWS is the profit engine. Retail is the distribution channel. Bears confuse the two.",
-  PLTR: "Software that wins wars eventually wins enterprises. The moat is deployment, not slides.",
-  XSPACE: "Reusable rockets change the unit economics of everything upstream — including capital.",
-  MSFT: "Copilot turns every seat into a GPU customer. The enterprise bundle is the real product.",
-  BTC: "Hard money is a hedge on fiat debasement. Volatility is the price of independence.",
-  SOL: "Throughput matters when you want an actual economy, not a museum piece.",
-  DOGE: "Memes move markets faster than committees. Risk accordingly.",
-  AMD: "When one player owns the high end, the second source becomes strategic by default.",
+  BTC: "Hard-asset beta. Pair with a hedge if the book already owns momentum.",
+  NVDA: "AI infrastructure proxy. High realized vol — size from Sortino, not conviction.",
+  TSLA: "Idiosyncratic. Do not let one name dominate the Execution sleeve.",
+  AAPL: "Quality compounder. Useful ballast next to crypto beta.",
+  META: "Ad + model mix. Treat as growth equity, not a hedge.",
+  AMZN: "AWS is the cash engine. Retail is distribution.",
+  PLTR: "Deployment-cycle name. Wide range of outcomes.",
+  MSFT: "Enterprise AI bundle. Lower vol than pure silicon.",
+  ETH: "Smart-contract beta. Correlated with BTC in stress.",
+  SOL: "High-throughput L1. Size as a satellite, not the core.",
+  AMD: "Second-source compute. Useful diversifier versus NVDA.",
 };
 
 export function getFounderReason(symbol: string, fallback?: string): string {
   return (
     FOUNDER_REASON_BY_SYMBOL[symbol] ??
     fallback ??
-    "First principles beat consensus. Do the math yourself."
+    "Oracle Desk: size from published vault physics and your book’s Sortino, not from a narrative."
   );
 }
 
-/** Oracle XLINK spotlight — full paragraph */
 export function getXlinkFounderSpotlight(confidence: number, horizon: string, targetPrice: number): string {
-  return `${getFounderReason("XLINK")} Model confidence ${confidence}% · ${horizon} target $${targetPrice.toFixed(2)}.`;
+  return `Oracle Desk model note. Confidence ${confidence}% · ${horizon} mark $${targetPrice.toFixed(2)}.`;
 }

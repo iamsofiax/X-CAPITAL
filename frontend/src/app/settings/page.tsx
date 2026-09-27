@@ -39,7 +39,6 @@ export default function SettingsPage() {
   const [lastName, setLastName] = useState(user?.lastName ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [saved, setSaved] = useState(false);
-  const [picError, setPicError] = useState("");
 
   // Notification preferences (local state)
   const [emailNotifs, setEmailNotifs] = useState(true);
@@ -61,7 +60,9 @@ export default function SettingsPage() {
 
   const handleChangePassword = async () => {
     setPwMessage(null);
-    if (!currentPw) {
+    const provider = useStore.getState().user?.authProvider;
+    const hasPassword = !provider || provider === "password";
+    if (hasPassword && !currentPw) {
       setPwMessage({ type: "error", text: "Enter your current password." });
       return;
     }
@@ -87,8 +88,6 @@ export default function SettingsPage() {
         setCurrentPw("");
         setNewPw("");
         setConfirmPw("");
-        // Auto-dismiss success message after 4 seconds
-        setTimeout(() => setPwMessage(null), 4000);
       } else {
         setPwMessage({
           type: "error",
@@ -104,10 +103,9 @@ export default function SettingsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      setPicError("Image must be under 5MB.");
+      alert("Image must be under 5MB");
       return;
     }
-    setPicError("");
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result as string;
@@ -175,9 +173,6 @@ export default function SettingsPage() {
               >
                 {user.tier} Tier
               </span>
-              {picError && (
-                <p className="text-xs text-red-400 mt-1.5">{picError}</p>
-              )}
             </div>
           </div>
         </NodePanel>

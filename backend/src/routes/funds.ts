@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { body } from 'express-validator';
 import * as fundsController from '../controllers/fundsController';
-import { authenticate, requireKYC, requireAccreditation } from '../middleware/auth';
+import { authenticate } from '../middleware/auth';
+import { retiredInSimulation } from '../middleware/simulationOnly';
 
 const router = Router();
 
@@ -13,16 +13,7 @@ router.use(authenticate);
 
 router.get('/my/investments', fundsController.getMyInvestments);
 
-router.post(
-  '/:id/invest',
-  requireKYC,
-  requireAccreditation,
-  [
-    body('amount').isFloat({ min: 1000 }).withMessage('Minimum investment is $1,000'),
-  ],
-  fundsController.investInFund
-);
-
-router.post('/:investmentId/redeem', requireKYC, fundsController.redeemInvestment);
+router.post('/:id/invest', retiredInSimulation);
+router.post('/:investmentId/redeem', retiredInSimulation);
 
 export default router;

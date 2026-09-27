@@ -13,13 +13,8 @@ export const errorHandler = (
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _next: NextFunction
 ): void => {
-  const prismaError = err.name.startsWith('Prisma') || Boolean((err as Error & { code?: string }).code?.startsWith('P'));
-  const statusCode = err.statusCode || (prismaError ? 503 : 500);
-  const message = err.isOperational
-    ? err.message
-    : prismaError
-      ? 'Authentication service is temporarily unavailable. Please try again shortly.'
-      : 'Internal server error';
+  const statusCode = err.statusCode || 500;
+  const message = err.isOperational ? err.message : 'Internal server error';
 
   logger.error(`${statusCode} - ${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`);
 

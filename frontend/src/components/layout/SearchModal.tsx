@@ -1,437 +1,120 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createPortal } from "react-dom";
-import {
-  Search,
-  X,
-  Home,
-  BarChart3,
-  Briefcase,
-  Globe,
-  ShoppingBag,
-  Cpu,
-  Wallet,
-  Settings,
-  TrendingUp,
-  ArrowRight,
-} from "lucide-react";
+import { ArrowRight, Search, Settings, X } from "lucide-react";
+import { COMMAND_CENTER, RAILS } from "@/lib/rails";
+import { INSTRUMENTS } from "@/lib/sim/instruments";
+import { VAULTS } from "@/lib/sim/vaults";
 import { cn } from "@/lib/utils";
 
-interface SearchItem {
+interface Item {
   id: string;
   label: string;
-  description?: string;
+  description: string;
   href: string;
-  category: "page" | "asset" | "product" | "action";
-  icon: React.ReactNode;
+  group: "Rails" | "Instruments" | "Vaults";
 }
 
-const SEARCH_ITEMS: SearchItem[] = [
-  // Pages
-  {
-    id: "p-home",
-    label: "Home",
-    description: "Dashboard overview",
-    href: "/dashboard",
-    category: "page",
-    icon: <Home className="w-4 h-4" />,
-  },
-  {
-    id: "p-trading",
-    label: "Trading",
-    description: "Buy & sell assets",
-    href: "/trading",
-    category: "page",
-    icon: <BarChart3 className="w-4 h-4" />,
-  },
-  {
-    id: "p-portfolio",
-    label: "Portfolio",
-    description: "Holdings & performance",
-    href: "/portfolio",
-    category: "page",
-    icon: <Briefcase className="w-4 h-4" />,
-  },
-  {
-    id: "p-funds",
-    label: "Funds & SPVs",
-    description: "Private equity & venture",
-    href: "/funds",
-    category: "page",
-    icon: <Globe className="w-4 h-4" />,
-  },
-  {
-    id: "p-commerce",
-    label: "Commerce",
-    description: "Products & investments",
-    href: "/commerce",
-    category: "page",
-    icon: <ShoppingBag className="w-4 h-4" />,
-  },
-  {
-    id: "p-oracle",
-    label: "AI Oracle",
-    description: "AI forecasts & signals",
-    href: "/oracle",
-    category: "page",
-    icon: <Cpu className="w-4 h-4" />,
-  },
-  {
-    id: "p-wallet",
-    label: "Wallet",
-    description: "Deposits & withdrawals",
-    href: "/wallet",
-    category: "page",
-    icon: <Wallet className="w-4 h-4" />,
-  },
-  {
-    id: "p-settings",
-    label: "Settings",
-    description: "Account & preferences",
-    href: "/settings",
-    category: "page",
-    icon: <Settings className="w-4 h-4" />,
-  },
-
-  // Assets
-  {
-    id: "a-tsla",
-    label: "TSLA",
-    description: "Tesla, Inc.",
-    href: "/trading",
-    category: "asset",
-    icon: <TrendingUp className="w-4 h-4" />,
-  },
-  {
-    id: "a-nvda",
-    label: "NVDA",
-    description: "NVIDIA Corporation",
-    href: "/trading",
-    category: "asset",
-    icon: <TrendingUp className="w-4 h-4" />,
-  },
-  {
-    id: "a-aapl",
-    label: "AAPL",
-    description: "Apple Inc.",
-    href: "/trading",
-    category: "asset",
-    icon: <TrendingUp className="w-4 h-4" />,
-  },
-  {
-    id: "a-meta",
-    label: "META",
-    description: "Meta Platforms",
-    href: "/trading",
-    category: "asset",
-    icon: <TrendingUp className="w-4 h-4" />,
-  },
-  {
-    id: "a-amzn",
-    label: "AMZN",
-    description: "Amazon.com Inc.",
-    href: "/trading",
-    category: "asset",
-    icon: <TrendingUp className="w-4 h-4" />,
-  },
-  {
-    id: "a-msft",
-    label: "MSFT",
-    description: "Microsoft Corporation",
-    href: "/trading",
-    category: "asset",
-    icon: <TrendingUp className="w-4 h-4" />,
-  },
-  {
-    id: "a-pltr",
-    label: "PLTR",
-    description: "Palantir Technologies",
-    href: "/trading",
-    category: "asset",
-    icon: <TrendingUp className="w-4 h-4" />,
-  },
-  {
-    id: "a-xspace",
-    label: "XSPACE",
-    description: "X-SPACE SPV Fund",
-    href: "/trading",
-    category: "asset",
-    icon: <TrendingUp className="w-4 h-4" />,
-  },
-
-  // Products
-  {
-    id: "pr-my",
-    label: "Tesla Model Y",
-    description: "AWD — $47,990",
-    href: "/commerce",
-    category: "product",
-    icon: <ShoppingBag className="w-4 h-4" />,
-  },
-  {
-    id: "pr-ct",
-    label: "Tesla Cybertruck",
-    description: "Foundation — $99,990",
-    href: "/commerce",
-    category: "product",
-    icon: <ShoppingBag className="w-4 h-4" />,
-  },
-  {
-    id: "pr-pw",
-    label: "Tesla Powerwall 3",
-    description: "Home battery — $11,500",
-    href: "/commerce",
-    category: "product",
-    icon: <ShoppingBag className="w-4 h-4" />,
-  },
-  {
-    id: "pr-sl",
-    label: "Starlink Residential",
-    description: "Satellite internet — $499",
-    href: "/commerce",
-    category: "product",
-    icon: <ShoppingBag className="w-4 h-4" />,
-  },
-
-  // Actions
-  {
-    id: "act-deposit",
-    label: "Deposit Funds",
-    description: "Add money to wallet",
-    href: "/wallet",
-    category: "action",
-    icon: <Wallet className="w-4 h-4" />,
-  },
-  {
-    id: "act-withdraw",
-    label: "Withdraw Funds",
-    description: "Cash out to bank",
-    href: "/wallet",
-    category: "action",
-    icon: <Wallet className="w-4 h-4" />,
-  },
+const ITEMS: Item[] = [
+  { id: "cmd", label: COMMAND_CENTER.label, description: "Command center", href: COMMAND_CENTER.href, group: "Rails" },
+  ...RAILS.map((r) => ({ id: r.id, label: r.label, description: r.blurb, href: r.href, group: "Rails" as const })),
+  { id: "settings", label: "Settings", description: "Profile, password, theme", href: "/settings", group: "Rails" },
+  ...INSTRUMENTS.map((i) => ({
+    id: `i-${i.symbol}`,
+    label: i.symbol,
+    description: `${i.name} · ${i.sector}`,
+    href: `/trading?symbol=${i.symbol}`,
+    group: "Instruments" as const,
+  })),
+  ...VAULTS.map((v) => ({
+    id: `v-${v.id}`,
+    label: v.name,
+    description: `${v.code} · ${v.thesis}`,
+    href: v.kind === "rwa" ? `/commerce?vault=${v.id}` : `/funds?vault=${v.id}`,
+    group: "Vaults" as const,
+  })),
 ];
 
-const CATEGORY_LABELS: Record<string, string> = {
-  page: "Pages",
-  asset: "Assets",
-  product: "Products",
-  action: "Actions",
-};
-
-interface SearchModalProps {
-  open: boolean;
-  onClose: () => void;
-}
-
-export default function SearchModal({ open, onClose }: SearchModalProps) {
-  const [query, setQuery] = useState("");
-  const [activeIndex, setActiveIndex] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
+export default function SearchModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const router = useRouter();
+  const [q, setQ] = useState("");
+  const [idx, setIdx] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const filtered = query.trim()
-    ? SEARCH_ITEMS.filter((item) => {
-        const q = query.toLowerCase();
-        return (
-          item.label.toLowerCase().includes(q) ||
-          item.description?.toLowerCase().includes(q)
-        );
-      })
-    : SEARCH_ITEMS.filter((item) => item.category === "page");
+  const results = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    const list = s
+      ? ITEMS.filter((i) => i.label.toLowerCase().includes(s) || i.description.toLowerCase().includes(s))
+      : ITEMS.filter((i) => i.group === "Rails");
+    return list.slice(0, 12);
+  }, [q]);
 
-  const grouped = filtered.reduce<Record<string, SearchItem[]>>((acc, item) => {
-    (acc[item.category] ??= []).push(item);
-    return acc;
-  }, {});
-
-  const flatList = Object.values(grouped).flat();
-
-  const navigate = useCallback(
-    (item: SearchItem) => {
-      onClose();
-      setQuery("");
-      router.push(item.href);
-    },
-    [onClose, router],
-  );
-
-  // Keyboard navigation
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setActiveIndex((i) => Math.min(i + 1, flatList.length - 1));
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setActiveIndex((i) => Math.max(i - 1, 0));
-      } else if (e.key === "Enter" && flatList[activeIndex]) {
-        e.preventDefault();
-        navigate(flatList[activeIndex]);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, activeIndex, flatList, navigate]);
-
-  // Reset on open
   useEffect(() => {
     if (open) {
-      setQuery("");
-      setActiveIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      setQ("");
+      setIdx(0);
+      setTimeout(() => inputRef.current?.focus(), 20);
     }
   }, [open]);
 
-  // Reset active index when results change
-  useEffect(() => {
-    setActiveIndex(0);
-  }, [query]);
-
-  // Scroll active item into view
-  useEffect(() => {
-    const el = listRef.current?.querySelector('[data-active="true"]');
-    el?.scrollIntoView({ block: "nearest" });
-  }, [activeIndex]);
-
-  // Ctrl/Cmd+K shortcut
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        if (open) onClose();
-        else onClose(); // parent toggles
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose]);
+  useEffect(() => setIdx(0), [q]);
 
   if (!open) return null;
 
-  let itemCounter = 0;
+  const go = (item: Item | undefined) => {
+    if (!item) return;
+    onClose();
+    router.push(item.href);
+  };
 
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[8vh] sm:pt-[15vh]">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* Panel */}
-      <div className="relative w-full max-w-xl mx-3 sm:mx-4 bg-xc-card border border-white/[0.08] rounded-2xl shadow-2xl shadow-black/60 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        {/* Search input */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06]">
-          <Search className="w-5 h-5 text-xc-muted flex-shrink-0" />
+  return (
+    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[12vh] px-4" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-xl sim-glass overflow-hidden">
+        <div className="flex items-center gap-3 px-4 border-b border-white/[0.06]">
+          <Search className="w-4 h-4 text-white/40" />
           <input
             ref={inputRef}
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search pages, assets, products..."
-            className="flex-1 bg-transparent text-white text-sm placeholder:text-xc-muted/60 outline-none"
-            autoComplete="off"
-            spellCheck={false}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") onClose();
+              if (e.key === "ArrowDown") { e.preventDefault(); setIdx((i) => Math.min(i + 1, results.length - 1)); }
+              if (e.key === "ArrowUp") { e.preventDefault(); setIdx((i) => Math.max(i - 1, 0)); }
+              if (e.key === "Enter") go(results[idx]);
+            }}
+            placeholder="Search rails, instruments, vaults…"
+            className="flex-1 bg-transparent py-4 text-[14px] text-white placeholder:text-white/30 outline-none"
           />
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 text-[10px] text-xc-muted/50 font-mono bg-white/5 border border-white/[0.06] rounded px-1.5 py-0.5">
-            ESC
-          </kbd>
-          <button
-            onClick={onClose}
-            className="sm:hidden text-xc-muted hover:text-white"
-          >
+          <button onClick={onClose} className="text-white/40 hover:text-white" aria-label="Close search">
             <X className="w-4 h-4" />
           </button>
         </div>
-
-        {/* Results */}
-        <div
-          ref={listRef}
-          className="max-h-[60vh] sm:max-h-[50vh] overflow-y-auto py-2"
-        >
-          {flatList.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-xc-muted">
-              No results for &ldquo;{query}&rdquo;
-            </div>
-          ) : (
-            Object.entries(grouped).map(([category, items]) => (
-              <div key={category}>
-                <div className="px-4 pt-3 pb-1.5 text-[10px] font-bold text-xc-muted/60 uppercase tracking-widest">
-                  {CATEGORY_LABELS[category] ?? category}
-                </div>
-                {items.map((item) => {
-                  const idx = itemCounter++;
-                  const isActive = idx === activeIndex;
-                  return (
-                    <button
-                      key={item.id}
-                      data-active={isActive}
-                      onClick={() => navigate(item)}
-                      onMouseEnter={() => setActiveIndex(idx)}
-                      className={cn(
-                        "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors",
-                        isActive ? "bg-white/[0.06]" : "hover:bg-white/[0.03]",
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
-                          isActive
-                            ? "bg-xc-purple/20 text-white/70"
-                            : "bg-white/[0.04] text-xc-muted",
-                        )}
-                      >
-                        {item.icon}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-white truncate">
-                          {item.label}
-                        </div>
-                        {item.description && (
-                          <div className="text-xs text-xc-muted truncate">
-                            {item.description}
-                          </div>
-                        )}
-                      </div>
-                      {isActive && (
-                        <ArrowRight className="w-4 h-4 text-xc-muted flex-shrink-0" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="px-4 py-2 border-t border-white/[0.06] flex items-center gap-4 text-[10px] text-xc-muted/50">
-          <span className="flex items-center gap-1">
-            <kbd className="font-mono bg-white/5 border border-white/[0.06] rounded px-1 py-0.5">
-              ↑↓
-            </kbd>
-            navigate
-          </span>
-          <span className="flex items-center gap-1">
-            <kbd className="font-mono bg-white/5 border border-white/[0.06] rounded px-1 py-0.5">
-              ↵
-            </kbd>
-            select
-          </span>
-          <span className="flex items-center gap-1">
-            <kbd className="font-mono bg-white/5 border border-white/[0.06] rounded px-1 py-0.5">
-              esc
-            </kbd>
-            close
-          </span>
-        </div>
+        <ul className="max-h-[50vh] overflow-y-auto p-2">
+          {results.length === 0 && <li className="px-3 py-6 text-center text-sm text-white/40">No matches.</li>}
+          {results.map((item, i) => (
+            <li key={item.id}>
+              <button
+                type="button"
+                onMouseEnter={() => setIdx(i)}
+                onClick={() => go(item)}
+                className={cn(
+                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left",
+                  i === idx ? "bg-white/[0.06]" : "hover:bg-white/[0.03]",
+                )}
+              >
+                <span className="sim-label text-[8px] w-20 shrink-0">{item.group}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-bold text-white truncate">{item.label}</span>
+                  <span className="block text-[11px] text-white/40 truncate">{item.description}</span>
+                </span>
+                {item.id === "settings" ? <Settings className="w-3.5 h-3.5 text-white/30" /> : <ArrowRight className="w-3.5 h-3.5 text-white/30" />}
+              </button>
+            </li>
+          ))}
+        </ul>
       </div>
-    </div>,
-    document.body,
+    </div>
   );
 }

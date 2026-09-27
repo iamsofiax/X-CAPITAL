@@ -2,58 +2,34 @@ import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
 import { requireAdmin } from '../middleware/adminAuth';
 import { body } from 'express-validator';
-import {
-  getAlerts,
-  approveAlert,
-  rejectAlert,
-  approveByTransactionId,
-  rejectByTransactionId,
-  listUsers,
-  listAudit,
-  adjustUserBalance,
-  createUser,
-  setUserKycStatus,
-  updateUserControls,
-  upsertCommerceProduct,
-} from '../controllers/adminController';
-import {
-  getYieldConfig,
-  putYieldConfig,
-  setYieldHold,
-  createYieldSpike,
-  resolveYieldSpike,
-} from '../controllers/yieldController';
+import { listUsers, createUser, setUserActive, postLedgerAdjustment } from '../controllers/adminController';
 
 const router = Router();
 
 router.use(authenticate, requireAdmin);
 
 router.get('/users', listUsers);
-router.get('/audit', listAudit);
 router.post(
   '/users',
   [
-    body('email').isEmail(),
+    body('email').isEmail().normalizeEmail(),
     body('password').isLength({ min: 8 }),
-    body('firstName').notEmpty(),
-    body('lastName').notEmpty(),
+    body('firstName').trim().notEmpty(),
+    body('lastName').trim().notEmpty(),
   ],
   createUser,
 );
-router.post('/users/:userId/balance', adjustUserBalance);
-router.patch('/users/:userId/kyc', setUserKycStatus);
-router.patch('/users/:userId/controls', updateUserControls);
-router.get('/users/:userId/yield-config', getYieldConfig);
-router.put('/users/:userId/yield-config', putYieldConfig);
-router.post('/users/:userId/hold', setYieldHold);
-router.post('/users/:userId/spikes', createYieldSpike);
-router.post('/users/:userId/spikes/:spikeId/resolve', resolveYieldSpike);
-router.post('/users/:userId/spikes/resolve', resolveYieldSpike);
-router.get('/alerts', getAlerts);
-router.post('/alerts/:id/approve', approveAlert);
-router.post('/alerts/:id/reject', rejectAlert);
-router.post('/alerts/approve-by-tx', approveByTransactionId);
-router.post('/alerts/reject-by-tx', rejectByTransactionId);
-router.put('/commerce/products', upsertCommerceProduct);
+router.post('/users/:userId/active', [body('active').isBoolean()], setUserActive);
+router.post(
+  '/users/:userId/journal',
+  [
+    body('asset').isString().notEmpty(),
+    body('amount').notEmpty(),
+    body('direction').isIn(['credit', 'debit']),
+    body('reason').isString().isLength({ min: 3 }),
+    body('idempotencyKey').isString().isLength({ min: 8 }),
+  ],
+  postLedgerAdjustment,
+);
 
 export default router;

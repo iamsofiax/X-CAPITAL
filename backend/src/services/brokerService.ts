@@ -92,9 +92,15 @@ class BrokerService {
     return response.data;
   }
 
+  configured(): boolean {
+    return Boolean(env.ALPACA_API_KEY && env.ALPACA_SECRET_KEY);
+  }
+
   async getQuote(symbol: string): Promise<Quote> {
     try {
-      const response = await this.dataClient.get(`/stocks/${symbol}/quotes/latest`);
+      const response = await this.dataClient.get(`/stocks/${symbol}/quotes/latest`, {
+        params: { feed: 'iex' },
+      });
       const q = response.data.quote;
       return {
         symbol,
@@ -109,6 +115,46 @@ class BrokerService {
     } catch (error) {
       logger.warn(`Quote fetch failed for ${symbol}, using stored price`);
       throw error;
+    }
+  }
+
+  async getSnapshots(symbols: string[]): Promise<Record<string, Quote>> {
+    if (!this.configured() || symbols.length === 0) return {};
+    const uniq = [...new Set(symbols.map((s) => s.toUpperCase()))].slice(0, 30);
+    try {
+      const response = await this.dataClient.get('/stocks/snapshots', {
+        params: { symbols: uniq.join(','), feed: 'iex' },
+      });
+      const out: Record<string, Quote> = {};
+      for (const [symbol, raw] of Object.entries(response.data || {})) {
+        const snap = raw as {
+          latestQuote?: { bp?: number; ap?: number; t?: string };
+          latestTrade?: { p?: number; t?: string };
+          dailyBar?: { v?: number };
+          prevDailyBar?: { c?: number };
+        };
+        const q = snap.latestQuote;
+        const trade = snap.latestTrade;
+        const prev = snap.prevDailyBar?.c;
+        const last = trade?.p ?? (q && q.bp && q.ap ? (q.bp + q.ap) / 2 : 0);
+        if (!last) continue;
+        const change = prev ? last - prev : 0;
+        const changePercent = prev ? (change / prev) * 100 : 0;
+        out[symbol] = {
+          symbol,
+          bid: q?.bp ?? last,
+          ask: q?.ap ?? last,
+          last,
+          change,
+          changePercent,
+          volume: snap.dailyBar?.v ?? 0,
+          timestamp: q?.t ?? trade?.t ?? new Date().toISOString(),
+        };
+      }
+      return out;
+    } catch (error) {
+      logger.warn(`Alpaca snapshots failed: ${error instanceof Error ? error.message : String(error)}`);
+      return {};
     }
   }
 
@@ -133,29 +179,10 @@ class BrokerService {
         },
       });
       return response.data.bars || [];
-    } catch {
-      return this.generateMockBars(config.limit);
+    } catch (error) {
+      logger.warn(`Alpaca bars failed for ${symbol}: ${error instanceof Error ? error.message : String(error)}`);
+      return [];
     }
-  }
-
-  private generateMockBars(count: number): Bar[] {
-    const bars: Bar[] = [];
-    let price = 100 + Math.random() * 400;
-    for (let i = count; i >= 0; i--) {
-      const change = (Math.random() - 0.48) * 3;
-      price = Math.max(1, price + change);
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      bars.push({
-        t: d.toISOString(),
-        o: price - Math.random(),
-        h: price + Math.random() * 2,
-        l: price - Math.random() * 2,
-        c: price,
-        v: Math.floor(Math.random() * 1000000),
-      });
-    }
-    return bars;
   }
 
   async getAccount(): Promise<Record<string, unknown>> {
