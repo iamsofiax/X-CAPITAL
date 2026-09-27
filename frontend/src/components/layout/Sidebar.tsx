@@ -39,11 +39,11 @@ export default function Sidebar() {
         className={cn(
           "fixed top-0 bottom-0 left-0 z-50 flex flex-col",
           "bg-[#030405]/95 backdrop-blur-md border-r border-white/[0.05]",
-          "w-[264px] transition-transform duration-150",
+          "w-[min(88vw,340px)] transition-transform duration-150",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex items-center justify-between px-3 pt-5 pb-4 border-b border-white/[0.05]">
+        <div className="flex items-center justify-between px-4 pt-6 pb-5 border-b border-white/[0.05]">
           <Link href="/dashboard" className="flex items-center gap-3" onClick={close}>
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500/20 to-indigo-500/10 border border-white/10 flex items-center justify-center shrink-0">
               <XCapitalLogo size={20} />
@@ -53,7 +53,7 @@ export default function Sidebar() {
               <span className="sim-label text-[8px] text-emerald-300/70">Operator desk</span>
             </div>
           </Link>
-          <button onClick={close} className="w-8 h-8 rounded-lg text-white/30 hover:text-white hover:bg-white/5 flex items-center justify-center" aria-label="Close menu">
+          <button onClick={close} className="w-11 h-11 rounded-xl text-white/50 hover:text-white hover:bg-white/5 flex items-center justify-center" aria-label="Close menu">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -67,7 +67,7 @@ export default function Sidebar() {
           </div>
         )}
 
-        <nav className="flex-1 py-2 px-2 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 py-3 px-3 space-y-1 overflow-y-auto">
           {items.map(({ href, label, icon: Icon, accent, gated }) => {
             const active = pathname === href || pathname.startsWith(href + "/");
             const locked = gated && !claimed;
@@ -78,7 +78,7 @@ export default function Sidebar() {
                 onClick={close}
                 title={locked ? "Open the book in Treasury. Cash stays at zero until a deposit is confirmed." : label}
                 className={cn(
-                  "group relative flex items-center gap-3 px-2.5 py-2 rounded-xl transition-colors duration-75",
+                  "group relative flex items-center gap-4 px-3 py-3.5 rounded-xl transition-colors duration-75",
                   "justify-start",
                   active ? "bg-white/[0.07] text-white" : "text-white/50 hover:text-white hover:bg-white/[0.04]",
                 )}
@@ -112,28 +112,28 @@ export default function Sidebar() {
         </div>
 
         {user && (
-          <div className="border-t border-white/[0.05] p-2 space-y-0.5">
+          <div className="border-t border-white/[0.05] p-3 space-y-1">
             {isAdminUser(user) && (
-              <Link href="/admin" onClick={close} className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.04] text-[13px]">
+              <Link href="/admin" onClick={close} className="flex items-center gap-3 px-3 py-3.5 rounded-xl text-white/40 hover:text-white hover:bg-white/[0.04] text-[15px]">
                 <Users className="w-4 h-4 shrink-0" />
                 <span>Ground station</span>
               </Link>
             )}
-            <Link href="/settings" onClick={close} className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.04] text-[13px]">
+            <Link href="/settings" onClick={close} className="flex items-center gap-3 px-3 py-3.5 rounded-xl text-white/40 hover:text-white hover:bg-white/[0.04] text-[15px]">
               <Settings className="w-4 h-4 shrink-0" />
               <span>Settings</span>
             </Link>
-            <Link href="/settings/kyc" onClick={close} className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.04] text-[13px]">
+            <Link href="/settings/kyc" onClick={close} className="flex items-center gap-3 px-3 py-3.5 rounded-xl text-white/40 hover:text-white hover:bg-white/[0.04] text-[15px]">
               <ShieldCheck className="w-4 h-4 shrink-0" />
               <span>Identity</span>
             </Link>
-            <Link href="/settings/links" onClick={close} className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.04] text-[13px]">
+            <Link href="/settings/links" onClick={close} className="flex items-center gap-3 px-3 py-3.5 rounded-xl text-white/40 hover:text-white hover:bg-white/[0.04] text-[15px]">
               <ShieldCheck className="w-4 h-4 shrink-0" />
               <span>Link a plan</span>
             </Link>
             <button
               onClick={() => { logout(); close(); router.push("/auth/login"); }}
-              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-white/40 hover:text-red-300 hover:bg-red-950/20 text-[13px]"
+              className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl text-white/40 hover:text-red-300 hover:bg-red-950/20 text-[15px]"
             >
               <LogOut className="w-4 h-4 shrink-0" />
               <span>Sign out</span>

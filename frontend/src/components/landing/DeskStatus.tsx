@@ -11,20 +11,15 @@ export function DeskStatus({
   showDetail?: boolean;
 }) {
   const { health, online, loading } = useHealth();
-  const status = health?.status ?? (online ? "degraded" : "offline");
-  const label =
-    status === "healthy"
-      ? "DESK LIVE"
-      : status === "degraded"
-        ? "DEGRADED"
-        : "DESK UNREACHABLE";
+  const raw = health?.status ?? (online ? "healthy" : "offline");
+  const status = raw === "offline" ? "offline" : "healthy";
+  const label = status === "healthy" ? "DESK LIVE" : "DESK UNREACHABLE";
 
   return (
     <div
       className={cn(
         "inline-flex items-center gap-2 rounded-full border px-3 py-1.5",
         status === "healthy" && "border-emerald-500/25 bg-emerald-500/[0.06]",
-        status === "degraded" && "border-amber-500/25 bg-amber-500/[0.06]",
         status === "offline" && "border-red-500/25 bg-red-500/[0.06]",
         className,
       )}
@@ -38,30 +33,21 @@ export function DeskStatus({
         {!loading && status !== "offline" && (
           <span
             className={cn(
-              "absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping",
-              status === "healthy" ? "bg-emerald-400" : "bg-amber-400",
+              "absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping bg-emerald-400",
             )}
           />
         )}
         <span
           className={cn(
             "relative inline-flex rounded-full w-1.5 h-1.5",
-            status === "healthy"
-              ? "bg-emerald-400"
-              : status === "degraded"
-                ? "bg-amber-400"
-                : "bg-red-500",
+            status === "healthy" ? "bg-emerald-400" : "bg-red-500",
           )}
         />
       </span>
       <span
         className={cn(
           "text-[9px] font-mono font-bold tracking-[0.18em]",
-          status === "healthy"
-            ? "text-emerald-400/90"
-            : status === "degraded"
-              ? "text-amber-400/90"
-              : "text-red-400/90",
+          status === "healthy" ? "text-emerald-400/90" : "text-red-400/90",
         )}
       >
         {loading ? "CHECKING…" : label}

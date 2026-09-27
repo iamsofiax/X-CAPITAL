@@ -40,11 +40,11 @@ export default function Header({ title, subtitle }: HeaderProps) {
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-white/[0.05] bg-[#030405]/92 backdrop-blur-md">
-        <div className="flex items-center justify-between px-4 md:px-6 h-16 gap-4">
-          <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 h-[4.5rem] gap-4">
+          <div className="flex items-center gap-4 min-w-0">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="w-10 h-10 rounded-lg flex items-center justify-center text-white/70 hover:text-white hover:bg-white/5 border border-white/10"
+              className="h-12 w-12 shrink-0 rounded-xl flex items-center justify-center text-white/80 hover:text-white hover:bg-white/5 border border-white/15"
               aria-label="Open menu"
             >
               <Menu className="w-5 h-5" />
@@ -71,7 +71,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
             <ActivityBell />
             <button
               onClick={() => setSearchOpen(true)}
-              className="w-10 h-10 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5"
+              className="hidden sm:flex w-11 h-11 rounded-xl items-center justify-center text-white/40 hover:text-white hover:bg-white/5"
               aria-label="Search (Ctrl+K)"
             >
               <Search className="w-3.5 h-3.5" />
