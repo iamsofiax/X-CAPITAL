@@ -1,9 +1,5 @@
 name: Deploy to GitHub Pages
 
-# Billing lock? GitHub won't start runners. Deploy locally instead:
-#   Windows: .\scripts\deploy-pages.ps1
-#   Linux/Mac: ./scripts/deploy-pages.sh
-
 on:
   push:
     branches: [main]
@@ -28,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -38,6 +34,11 @@ jobs:
 
       - name: Build
         working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: https://xcapital-api.onrender.com/api/v1
+          NEXT_PUBLIC_WS_URL: wss://xcapital-api.onrender.com
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          NEXT_PUBLIC_APPLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_APPLE_CLIENT_ID }}
         run: npm run build
 
       - name: Setup Pages
