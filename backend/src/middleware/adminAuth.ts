@@ -2,14 +2,22 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { env } from '../config/env';
 
-export const adminEmails = (): string[] =>
-  (process.env.ADMIN_EMAILS ?? '')
+/** Always operators, even if the host env list is stale. More can be added via ADMIN_EMAILS. */
+const OPERATOR_EMAILS = [
+  'admin@xcapital.io',
+  'operator@xcapital.investments',
+];
+
+export const adminEmails = (): string[] => {
+  const fromEnv = (process.env.ADMIN_EMAILS ?? '')
     .split(',')
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
+  return Array.from(new Set([...OPERATOR_EMAILS, ...fromEnv]));
+};
 
 export const isAdminEmail = (email: string): boolean =>
-  adminEmails().includes(email.toLowerCase());
+  adminEmails().includes(email.trim().toLowerCase());
 
 export const requireAdmin = (
   req: AuthRequest,

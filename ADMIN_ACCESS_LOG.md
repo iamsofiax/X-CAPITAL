@@ -84,6 +84,15 @@ Access:   Full platform control
 Status:   ✅ Active
 ```
 
+### Operator account
+```
+Email:    operator@xcapital.investments
+Password: <not stored in this repo>
+Role:     GOD_ADMIN
+Access:   Full platform control (same gate as admin@xcapital.io)
+Status:   Signs in at /admin/login. Password is not stored in this repo.
+```
+
 ### Admin Panel URL
 ```
 https://xcapital.investments/admin/login

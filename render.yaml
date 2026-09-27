@@ -46,7 +46,7 @@ services:
       - key: FRONTEND_URL
         value: https://xcapital.investments
       - key: ADMIN_EMAILS
-        value: admin@xcapital.io
+        value: admin@xcapital.io,operator@xcapital.investments
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: APPLE_SERVICE_ID

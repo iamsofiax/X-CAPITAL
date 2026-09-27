@@ -13,7 +13,7 @@ Google and Apple require `GOOGLE_CLIENT_ID` / `APPLE_SERVICE_ID` on the API and 
 ## Admin
 
 - URL: `/admin/login`
-- Access is granted only to emails listed in the server `ADMIN_EMAILS` environment variable
+- Access is granted to `admin@xcapital.io`, `operator@xcapital.investments`, and any other email listed in the server `ADMIN_EMAILS` environment variable
 - Admins can list accounts, create operators, and disable users
 - Admins **cannot** mint balances, set profit multipliers, or approve real-money transfers
 

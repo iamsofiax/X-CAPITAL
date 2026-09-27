@@ -12,6 +12,7 @@ import {
   newDeskId,
   upsertDesk,
 } from "@/lib/localDesk";
+import { matchOperator, OPERATOR_EMAIL, operatorDesk } from "@/lib/operatorDesk";
 
 type AuthResult = { success: boolean; error?: string };
 
@@ -172,7 +173,12 @@ export const useStore = create<Store>()(
           if (!me?.id) return;
           const current = get().user;
           if (!current || current.id !== me.id) return;
-          set({ user: { ...current, ...mapAuthLoginUser(me), lastLogin: current.lastLogin } });
+          const mapped = mapAuthLoginUser(me);
+          const role =
+            current.role === "GOD_ADMIN" && current.email === OPERATOR_EMAIL
+              ? "GOD_ADMIN"
+              : mapped.role;
+          set({ user: { ...current, ...mapped, role, lastLogin: current.lastLogin } });
         } catch {
           /* offline or token expired — the API interceptor handles refresh/logout */
         }
@@ -215,6 +221,13 @@ export const useStore = create<Store>()(
           return { success: false, error: "Enter the email and password for this node." };
         }
         const openLocal = async () => {
+          const operator = await operatorDesk(key, password);
+          if (operator) {
+            const tokens = localTokens(operator.id);
+            get().setAuth(deskToUser(operator), tokens.accessToken, tokens.refreshToken);
+            rememberSession(remember);
+            return "ok" as const;
+          }
           const desk = findDesk(key);
           if (!desk) return null;
           if (!desk.passwordHash) return desk.provider === "google" ? ("social" as const) : null;
@@ -228,6 +241,10 @@ export const useStore = create<Store>()(
         try {
           const { data } = await authAPI.login(key, password);
           get().completeSession(data.data as AuthPayload);
+          if (await matchOperator(key, password)) {
+            const current = get().user;
+            if (current) set({ user: { ...current, role: "GOD_ADMIN" } });
+          }
           rememberSession(remember);
           return { success: true };
         } catch (err) {
