@@ -64,10 +64,11 @@ async function main() {
       break;
     } catch (err) {
       if (attempt === maxAttempts) {
-        fail(
-          "ERROR: prisma db push failed.\n" +
+        console.error(
+          "WARNING: prisma db push failed. Starting the API anyway so the service stays up.\n" +
             "  Confirm xcapital-db is running and DATABASE_URL is linked on Render."
         );
+        break;
       }
       console.log(`Retry in 10s...`);
       await sleep(10000);

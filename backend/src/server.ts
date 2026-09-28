@@ -8,6 +8,7 @@ async function bootstrap(): Promise<void> {
   // Listen first so Render health checks pass while DB connects
   const server = app.listen(env.PORT, () => {
     logger.info(`X-CAPITAL API listening on port ${env.PORT} [${env.NODE_ENV}]`);
+    keepRenderAwake();
   });
 
   connectDatabase()
@@ -41,8 +42,24 @@ async function bootstrap(): Promise<void> {
 
   process.on('unhandledRejection', (reason) => {
     logger.error('Unhandled Rejection:', reason);
-    shutdown('UNHANDLED_REJECTION');
   });
+}
+
+/** Render free tier sleeps after ~15 minutes with no inbound request. Ping the public health URL so the process stays up between GitHub wakes. */
+function keepRenderAwake(): void {
+  if (!env.IS_PRODUCTION) return;
+  const base = (process.env.RENDER_EXTERNAL_URL || 'https://xcapital-api.onrender.com').replace(/\/$/, '');
+  const url = `${base}/health`;
+  const beat = () => {
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 20_000);
+    fetch(url, { signal: ac.signal })
+      .then(() => logger.info('Keep-awake ping ok'))
+      .catch((err) => logger.warn(`Keep-awake ping failed: ${err instanceof Error ? err.message : String(err)}`))
+      .finally(() => clearTimeout(timer));
+  };
+  setTimeout(beat, 60_000);
+  setInterval(beat, 4 * 60 * 1000);
 }
 
 bootstrap().catch((err) => {
