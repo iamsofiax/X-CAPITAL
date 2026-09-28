@@ -2,26 +2,45 @@
 
 import { cn } from "@/lib/utils";
 
-export type XCapitalLogoProps = {
+type XCapitalLogoProps = {
   size?: number;
   className?: string;
+  /** Soft green on the rising stroke. */
+  glow?: boolean;
 };
 
-/** Institutional seal. A cut capital X with an emerald baseline, not a social mark. */
-export function XCapitalLogo({ size = 20, className }: XCapitalLogoProps) {
+/** Earlier X: a white leg and a green leg. */
+export function XCapitalLogo({
+  size = 20,
+  className,
+  glow = true,
+}: XCapitalLogoProps) {
+  const green = "#22c55e";
+
   return (
-    <svg
-      viewBox="0 0 32 32"
-      width={size}
-      height={size}
-      className={cn("x-logo shrink-0", className)}
+    <div
+      className={cn("x-logo inline-flex items-center justify-center", className)}
+      style={{ width: size, height: size }}
       aria-hidden
     >
-      <rect width="32" height="32" rx="7" fill="#101816" />
-      <rect x="0.75" y="0.75" width="30.5" height="30.5" rx="6.5" fill="none" stroke="#6ee7b7" strokeOpacity="0.72" strokeWidth="1" />
-      <path fill="#f4f7f5" d="M8.2 7.2h3.4L16 12.6 20.4 7.2H23.8L17.6 16l6.2 8.8h-3.4L16 19.4l-4.4 5.4H8.2L14.4 16 8.2 7.2z" />
-      <rect x="8" y="26.15" width="16" height="1.15" fill="#34d399" />
-    </svg>
+      <svg viewBox="0 0 24 24" width={size} height={size} fill="none">
+        <line x1="6" y1="6" x2="18" y2="18" stroke="white" strokeWidth="2.75" strokeLinecap="round" />
+        <line
+          x1="6"
+          y1="18"
+          x2="18"
+          y2="6"
+          stroke={green}
+          strokeWidth="2.75"
+          strokeLinecap="round"
+          style={
+            glow
+              ? { filter: "drop-shadow(0 0 3px rgba(34,197,94,0.45))" }
+              : undefined
+          }
+        />
+      </svg>
+    </div>
   );
 }
 
@@ -32,5 +51,15 @@ export function XCapitalLogoMark({
   size?: number;
   className?: string;
 }) {
-  return <XCapitalLogo size={size} className={className} />;
+  return (
+    <div
+      className={cn(
+        "rounded-xl bg-gradient-to-br from-zinc-950 to-black border border-white/15 flex items-center justify-center",
+        className,
+      )}
+      style={{ width: size, height: size }}
+    >
+      <XCapitalLogo size={Math.round(size * 0.55)} glow={false} />
+    </div>
+  );
 }

@@ -74,9 +74,9 @@ export const metadata: Metadata = {
     canonical: "https://xcapital.investments",
   },
   icons: {
-    icon: [{ url: "/brand-mark.svg?v=20260928", type: "image/svg+xml" }],
-    shortcut: [{ url: "/brand-mark.svg?v=20260928", type: "image/svg+xml" }],
-    apple: [{ url: "/brand-mark.svg?v=20260928", type: "image/svg+xml" }],
+    icon: [{ url: "/brand-mark.svg?v=20260928x", type: "image/svg+xml" }],
+    shortcut: [{ url: "/brand-mark.svg?v=20260928x", type: "image/svg+xml" }],
+    apple: [{ url: "/brand-mark.svg?v=20260928x", type: "image/svg+xml" }],
   },
 };
 
@@ -101,9 +101,9 @@ export default function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
-        <link rel="icon" href="/brand-mark.svg?v=20260928" type="image/svg+xml" sizes="any" />
-        <link rel="shortcut icon" href="/brand-mark.svg?v=20260928" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/brand-mark.svg?v=20260928" />
+        <link rel="icon" href="/brand-mark.svg?v=20260928x" type="image/svg+xml" sizes="any" />
+        <link rel="shortcut icon" href="/brand-mark.svg?v=20260928x" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/brand-mark.svg?v=20260928x" />
         {/* Structured data — Organization */}
         <script
           type="application/ld+json"
@@ -114,7 +114,7 @@ export default function RootLayout({
               name: "X-CAPITAL",
               alternateName: ["X Capital", "X CAPITAL", "X·CAPITAL", "X Investment", "xcapital.investments"],
               url: "https://xcapital.investments",
-              logo: "https://xcapital.investments/brand-mark.svg?v=20260928",
+              logo: "https://xcapital.investments/brand-mark.svg?v=20260928x",
               description:
                 "X-CAPITAL is a capital desk. Specialties are public markets, private equity, tokenized assets, commerce-capital, AI decision support, infrastructure, and the orbital economy. Published desk access is Quantum at $9,999 per month, Sovereign at $49,999 per month, and Vertex by invitation. Projected yield on the site is illustrative modelling, not a guaranteed earning.",
               knowsAbout: [

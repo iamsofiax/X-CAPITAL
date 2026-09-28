@@ -8,12 +8,14 @@ import {
   BookOpen,
   Fingerprint,
   Globe,
+  Database,
   Landmark,
   Layers,
   Menu,
   Scale,
   Server,
   Shield,
+  Wallet,
   X,
   Zap,
 } from "lucide-react";
@@ -164,10 +166,10 @@ const MANDATES = [
 ];
 
 const CUSTODY = [
-  { k: "Identity", v: "Session bound to one node on every read and write" },
-  { k: "Wallet", v: "One wallet per node. Cash is never shared" },
-  { k: "Yield", v: "Accrual Core credits that wallet only" },
-  { k: "Persistence", v: "Durable ledger. Compute is not the book" },
+  { k: "Identity", v: "Session bound to one node on every read and write", icon: Fingerprint },
+  { k: "Wallet", v: "One wallet per node. Cash is never shared", icon: Wallet },
+  { k: "Yield", v: "Accrual Core credits that wallet only", icon: Scale },
+  { k: "Persistence", v: "Durable ledger. Compute is not the book", icon: Database },
 ];
 
 function HeroVideo() {
@@ -309,7 +311,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 shrink-0">
             <XCapitalLogoMark size={32} />
-            <span className="text-white text-lg font-black tracking-tight">X·CAPITAL</span>
+            <span className="text-white text-base sm:text-lg font-black tracking-tight">X·CAPITAL</span>
           </div>
           <div className="hidden md:flex items-center gap-7 text-[11px] font-mono uppercase tracking-[0.16em] text-white/45">
             <a href="#mandate" className="hover:text-white transition-colors">Mandate</a>
@@ -492,8 +494,8 @@ export default function LandingPage() {
           <SectionRule index="01" />
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
             <div>
-              <p className="sim-label text-emerald-300/80 mb-4">Operating mandate</p>
-              <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">How the desk is run.</h2>
+              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/50 mb-4">Operating mandate</p>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight">How the desk is run.</h2>
             </div>
             <p className="text-sm text-white/35 max-w-md leading-relaxed">
               Accrual Core is authoritative. Each session hydrates one book.
@@ -503,10 +505,10 @@ export default function LandingPage() {
             {MANDATES.map((item) => {
               const Icon = item.icon;
               return (
-                <div key={item.code} className="pnl-card pnl-card-pos h-full border-l-2 border-emerald-400/50">
+                <div key={item.code} className="h-full border border-white/12 bg-[#070b09] px-5 py-5 sm:px-6">
                   <div className="flex items-center justify-between mb-5">
-                    <span className="text-[10px] font-mono font-black text-emerald-400/60 tracking-[0.3em]">{item.code}</span>
-                    <Icon className="w-4 h-4 text-white/30" />
+                    <span className="text-[10px] font-mono tracking-[0.28em] text-white/45">{item.code}</span>
+                    <Icon className="w-4 h-4 text-white/55" />
                   </div>
                   <h3 className="text-lg font-black text-white mb-2 tracking-tight">{item.title}</h3>
                   <p className="text-sm text-white/40 leading-relaxed">{item.desc}</p>
@@ -525,8 +527,8 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <SectionRule index="02" />
           <div className="mb-10">
-            <p className="sim-label text-emerald-300/80 mb-4">Clearing map</p>
-            <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/50 mb-4">Clearing map</p>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight">
               Asset to node. <span className="text-white/40">Node to book.</span>
             </h2>
             <p className="text-white/35 text-sm max-w-lg mt-4">
@@ -537,12 +539,11 @@ export default function LandingPage() {
             {STEPS.map((step) => (
               <div
                 key={step.step}
-                className="pnl-stage p-6 sm:p-8 h-full relative overflow-hidden border-l-2 border-emerald-400/40"
+                className="h-full border border-white/12 bg-[#070b09] p-5 sm:p-7"
               >
-                <span className="text-[10px] font-mono font-black text-emerald-400/60 tracking-[0.3em]">{step.step}</span>
-                <h3 className="text-xl font-black text-white mt-4 mb-2 tracking-tight">{step.title}</h3>
-                <p className="text-sm text-white/40 leading-relaxed">{step.desc}</p>
-                <div className="absolute -bottom-10 -right-10 w-32 h-32 rounded-full bg-emerald-500/[0.04] blur-2xl pointer-events-none" />
+                <span className="text-[10px] font-mono tracking-[0.28em] text-white/45">{step.step}</span>
+                <h3 className="text-lg sm:text-xl font-black text-white mt-4 mb-2 tracking-tight">{step.title}</h3>
+                <p className="text-sm text-white/55 leading-relaxed">{step.desc}</p>
               </div>
             ))}
           </div>
@@ -555,7 +556,7 @@ export default function LandingPage() {
           <div className="pnl-stage p-6 md:p-8">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
               <div>
-                <p className="sim-label text-emerald-300/80 mb-3">Desk status</p>
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/50 mb-3">Desk status</p>
                 <h3 className="text-2xl md:text-3xl font-black text-white tracking-tight mb-2">Live network.</h3>
                 <p className="text-sm text-white/35 max-w-lg">
                   Desk, ledger, oracle, and rail sync — sampled from the book.
@@ -565,12 +566,12 @@ export default function LandingPage() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-8">
               {services.map(({ name, ok }) => (
-                <div key={name} className="pnl-card pnl-card-pos">
+                <div key={name} className="border border-white/12 bg-[#070b09] px-4 py-3">
                   <div className="flex items-center justify-between">
                     <span className="engine-mono text-[9px] text-white/40 tracking-wider">{name}</span>
-                    <span className={`w-1.5 h-1.5 rounded-full ${ok ? "bg-emerald-400" : "bg-red-500"} animate-pulse`} />
+                    <span className={`w-1.5 h-1.5 rounded-full ${ok ? "bg-[#8aa396]" : "bg-red-500"}`} />
                   </div>
-                  <div className={`mt-2 text-[10px] font-mono font-bold tracking-wider ${ok ? "text-emerald-400" : "text-red-400"}`}>
+                  <div className={`mt-2 text-[10px] font-mono font-bold tracking-wider ${ok ? "text-[#c5d4cb]" : "text-red-400"}`}>
                     {health ? (ok ? "LIVE" : "OFFLINE") : "CHECKING…"}
                   </div>
                 </div>
@@ -590,8 +591,8 @@ export default function LandingPage() {
           <div className="relative z-10">
           <SectionRule index="04" />
           <div className="mb-10">
-            <p className="sim-label text-emerald-300/80 mb-4">Seven capital rails</p>
-            <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/50 mb-4">Seven capital rails</p>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight">
               Seven venues. <span className="text-white/40">One book.</span>
             </h2>
           </div>
@@ -631,23 +632,29 @@ export default function LandingPage() {
       >
         <div className="max-w-5xl mx-auto">
         <SectionRule index="05" />
-        <div className="grid lg:grid-cols-2 gap-12 items-start">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
           <div>
-            <p className="sim-label text-emerald-300/80 mb-4">Custody architecture</p>
-            <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">History stays with the node.</h2>
-            <p className="text-white/40 text-sm mt-5 leading-relaxed max-w-md">
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/50 mb-4">Custody architecture</p>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight">History stays with the node.</h2>
+            <p className="text-white/55 text-sm mt-5 leading-relaxed max-w-md">
               Session binds to one node. Reads and writes are scoped to that node. The panel does not hold history.
             </p>
           </div>
           <div className="space-y-3">
-            {CUSTODY.map((row) => (
-              <div key={row.k} className="pnl-card pnl-card-pos flex gap-6 items-start">
-                <span className="text-[10px] font-mono font-black text-emerald-400/70 tracking-[0.2em] w-24 shrink-0 pt-0.5">
-                  {row.k.toUpperCase()}
-                </span>
-                <span className="text-sm text-white/45 leading-relaxed">{row.v}</span>
-              </div>
-            ))}
+            {CUSTODY.map((row) => {
+              const Icon = row.icon;
+              return (
+                <div key={row.k} className="flex items-start gap-3 sm:gap-4 border border-white/12 bg-[#070b09] px-4 py-4 sm:px-5">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center border border-white/15 text-white/70">
+                    <Icon className="w-4 h-4" />
+                  </span>
+                  <div className="min-w-0 pt-0.5">
+                    <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/50">{row.k}</p>
+                    <p className="mt-1 text-sm leading-relaxed text-white/75">{row.v}</p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
         </div>
@@ -875,7 +882,7 @@ export default function LandingPage() {
 function SectionRule({ index }: { index: string }) {
   return (
     <div className="mb-8 flex items-center gap-4">
-      <span className="font-mono text-[11px] font-bold tracking-[0.32em] text-emerald-300">{index}</span>
+      <span className="font-mono text-[11px] font-bold tracking-[0.32em] text-white/55">{index}</span>
       <span className="h-px flex-1 bg-white/15" />
     </div>
   );
