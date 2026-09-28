@@ -201,17 +201,28 @@ const BINANCE_PAIRS: Record<string, string> = {
   TRX: "TRXUSDT",
 };
 
-/** Last sale on Binance. These prints are the confirmed crypto marks. */
+/** Last sale on Binance. The vision host allows a browser to read the print. */
 export async function fetchBinancePrices(): Promise<Record<string, MarketPrice>> {
   const now = Date.now();
+  const symbols = Object.values(BINANCE_PAIRS);
+  const path = `/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(symbols))}`;
+  const hosts = ["https://data-api.binance.vision", "https://api.binance.com"];
+  let data: { symbol: string; lastPrice: string; priceChange: string; priceChangePercent: string; highPrice: string; lowPrice: string; quoteVolume: string }[] | null = null;
+  for (const host of hosts) {
+    try {
+      const res = await fetch(`${host}${path}`, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) continue;
+      data = (await res.json()) as NonNullable<typeof data>;
+      break;
+    } catch {
+      data = null;
+    }
+  }
+  if (!data) {
+    console.warn("[MarketData] Binance fetch failed");
+    return {};
+  }
   try {
-    const symbols = Object.values(BINANCE_PAIRS);
-    const res = await fetch(
-      `https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(symbols))}`,
-      { signal: AbortSignal.timeout(8000) },
-    );
-    if (!res.ok) throw new Error(`Binance ${res.status}`);
-    const data = (await res.json()) as { symbol: string; lastPrice: string; priceChange: string; priceChangePercent: string; highPrice: string; lowPrice: string; quoteVolume: string }[];
     const byPair = Object.fromEntries(Object.entries(BINANCE_PAIRS).map(([sym, pair]) => [pair, sym]));
     const result: Record<string, MarketPrice> = {
       USDT: { price: 1, change24h: 0, changePercent24h: 0, lastUpdated: now },
@@ -235,9 +246,107 @@ export async function fetchBinancePrices(): Promise<Record<string, MarketPrice>>
     }
     return result;
   } catch (e) {
-    console.warn("[MarketData] Binance fetch failed:", e);
+    console.warn("[MarketData] Binance parse failed:", e);
     return {};
   }
+}
+
+let lastEquityFetch = 0;
+const EQUITY_TTL = 25_000;
+
+function yahooSymbol(symbol: string) {
+  return symbol.replace(/\./g, "-");
+}
+
+async function fetchYahooChunk(symbols: string[]): Promise<Record<string, MarketPrice>> {
+  const now = Date.now();
+  const query = symbols.map(yahooSymbol).join(",");
+  const res = await fetch(
+    `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(query)}`,
+    { signal: AbortSignal.timeout(8000) },
+  );
+  if (!res.ok) return {};
+  const body = (await res.json()) as {
+    quoteResponse?: { result?: { symbol?: string; regularMarketPrice?: number; regularMarketChange?: number; regularMarketChangePercent?: number }[] };
+  };
+  const back = Object.fromEntries(symbols.map((s) => [yahooSymbol(s), s]));
+  const result: Record<string, MarketPrice> = {};
+  for (const row of body.quoteResponse?.result ?? []) {
+    const sym = back[row.symbol ?? ""] ?? row.symbol;
+    const price = Number(row.regularMarketPrice);
+    if (!sym || !(price > 0)) continue;
+    const mp: MarketPrice = {
+      price,
+      change24h: Number(row.regularMarketChange) || 0,
+      changePercent24h: Number(row.regularMarketChangePercent) || 0,
+      lastUpdated: now,
+    };
+    priceCache[sym] = mp;
+    result[sym] = mp;
+  }
+  return result;
+}
+
+async function fetchStooqChunk(symbols: string[]): Promise<Record<string, MarketPrice>> {
+  const now = Date.now();
+  const query = symbols.map((s) => `${yahooSymbol(s).toLowerCase()}.us`).join("+");
+  const res = await fetch(`https://stooq.com/q/l/?s=${query}&f=sc&h&e=csv`, { signal: AbortSignal.timeout(8000) });
+  if (!res.ok) return {};
+  const text = await res.text();
+  const back = Object.fromEntries(symbols.map((s) => [`${yahooSymbol(s).toUpperCase()}.US`, s]));
+  const result: Record<string, MarketPrice> = {};
+  for (const line of text.trim().split(/\r?\n/).slice(1)) {
+    const [raw, close] = line.split(",");
+    const sym = back[(raw ?? "").trim().toUpperCase()];
+    const price = Number(close);
+    if (!sym || !(price > 0)) continue;
+    const prev = priceCache[sym];
+    const mp: MarketPrice = {
+      price,
+      change24h: prev?.change24h ?? 0,
+      changePercent24h: prev?.changePercent24h ?? 0,
+      lastUpdated: now,
+    };
+    priceCache[sym] = mp;
+    result[sym] = mp;
+  }
+  return result;
+}
+
+/** Latest public print for listed equities and ETFs. A reference mark is used when no print returns. */
+export async function fetchEquityPrints(symbols: string[]): Promise<Record<string, MarketPrice>> {
+  const unique = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))];
+  if (unique.length === 0) return {};
+  const now = Date.now();
+  if (now - lastEquityFetch < EQUITY_TTL) {
+    const cached: Record<string, MarketPrice> = {};
+    for (const sym of unique) if (priceCache[sym]) cached[sym] = priceCache[sym];
+    if (Object.keys(cached).length > 0) return cached;
+  }
+  const chunks: string[][] = [];
+  for (let i = 0; i < unique.length; i += 40) chunks.push(unique.slice(i, i + 40));
+  const result: Record<string, MarketPrice> = {};
+  for (let i = 0; i < chunks.length; i += 3) {
+    const wave = chunks.slice(i, i + 3);
+    const parts = await Promise.all(
+      wave.map(async (chunk) => {
+        try {
+          const yahoo = await fetchYahooChunk(chunk);
+          if (Object.keys(yahoo).length > 0) return yahoo;
+        } catch {
+          /* The quote host refused the browser. Try the second print. */
+        }
+        try {
+          return await fetchStooqChunk(chunk);
+        } catch {
+          return {};
+        }
+      }),
+    );
+    for (const part of parts) Object.assign(result, part);
+  }
+  if (Object.keys(result).length > 0) lastEquityFetch = Date.now();
+  return result;
 }
 
 /** Alpaca IEX snapshots via the Express desk API. Silent if the API is down. */

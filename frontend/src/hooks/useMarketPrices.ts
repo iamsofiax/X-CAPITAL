@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { INSTRUMENTS } from "@/lib/sim/instruments";
 import {
   fetchBinancePrices,
   fetchBrokerQuotes,
   fetchCryptoPrices,
+  fetchEquityPrints,
   fetchStockQuotes,
   STOCK_SYMBOLS,
   ETF_SYMBOLS,
@@ -50,15 +52,14 @@ export function useMarketPrices(
 
     // Equities / ETFs: Alpaca IEX via the desk API, then Finnhub if configured.
     if (stocks || etfs) {
-      const symbols = [
-        ...(stocks ? STOCK_SYMBOLS : []),
-        ...(etfs ? ETF_SYMBOLS : []),
-      ];
-      const [broker, finnhub] = await Promise.all([
-        fetchBrokerQuotes(symbols),
-        fetchStockQuotes(symbols),
+      const listed = INSTRUMENTS.filter((inst) => (stocks && inst.cls === "equity") || (etfs && inst.cls === "etf")).map((inst) => inst.symbol);
+      const desk = [...(stocks ? STOCK_SYMBOLS : []), ...(etfs ? ETF_SYMBOLS : [])];
+      const [broker, finnhub, prints] = await Promise.all([
+        fetchBrokerQuotes(desk),
+        fetchStockQuotes(desk),
+        fetchEquityPrints(listed),
       ]);
-      Object.assign(results, finnhub, broker);
+      Object.assign(results, prints, finnhub, broker);
     }
 
     if (mountedRef.current && Object.keys(results).length > 0) {

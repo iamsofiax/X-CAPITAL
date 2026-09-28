@@ -168,7 +168,7 @@ function Execution() {
           title="Instruments"
           action={
             <span className={cn("sim-chip", liveCount > 0 ? "sim-chip-live" : "sim-chip-warn")}>
-              <Radio className="w-3 h-3" /> {liveCount} confirmed{markedCount > 0 ? ` · ${markedCount} on the index` : ""}
+              <Radio className="w-3 h-3" /> {liveCount} last{markedCount > 0 ? ` · ${markedCount} reference` : ""}
             </span>
           }
           bodyClassName="p-0"
@@ -190,10 +190,11 @@ function Execution() {
             {list.length} names · {safePage * pageSize + 1}–{Math.min(list.length, safePage * pageSize + pageSize)}
           </p>
           <div className="overflow-x-auto mt-3">
-            <table className="w-full min-w-[640px] text-left">
+            <table className="w-full min-w-[720px] text-left">
               <thead>
                 <tr className="sim-label text-[9px] border-b border-white/[0.05]">
                   <th className="font-normal px-5 py-2">Instrument</th>
+                  <th className="font-normal px-2 py-2 text-right">Last</th>
                   <th className="font-normal px-2 py-2 text-right">Bid</th>
                   <th className="font-normal px-2 py-2 text-right">Ask</th>
                   <th className="font-normal px-2 py-2 text-right">Spread</th>
@@ -222,12 +223,13 @@ function Execution() {
                         <span className="text-white font-bold">{i.symbol}</span>
                         <span className="block text-[10px] text-white/35 font-sans">{i.name}</span>
                       </td>
+                      <td className="px-2 py-2.5 text-right text-white font-semibold">{fmtPrice(q.mid)}</td>
                       <td className="px-2 py-2.5 text-right sim-neg">{fmtPrice(q.bid)}</td>
                       <td className="px-2 py-2.5 text-right sim-pos">{fmtPrice(q.ask)}</td>
                       <td className="px-2 py-2.5 text-right text-white/45">{i.spreadBps} bp</td>
                       <td className={cn("px-2 py-2.5 text-right", signClass(q.change24h))}>{q.change24h >= 0 ? "+" : ""}{q.change24h.toFixed(2)}%</td>
-                      <td className={cn("px-5 py-2.5 text-right text-[9px] tracking-widest", q.source === "LIVE" ? "text-emerald-400/70" : q.source === "MARKED" ? "text-sky-300/70" : "text-amber-300/60")}>
-                        {q.source === "LIVE" ? "Confirmed" : q.source === "MARKED" ? "Index" : "Indicative"}
+                      <td className={cn("px-5 py-2.5 text-right text-[9px] tracking-widest", q.source === "LIVE" ? "text-emerald-400/70" : "text-white/35")}>
+                        {q.source === "LIVE" ? "Last" : "Ref"}
                       </td>
                     </tr>
                   );

@@ -139,7 +139,7 @@ function LedgerDesk() {
                 <div>
                   <p className="text-sm font-bold text-white">{sym}</p>
                   <p className="text-[11px] text-white/40 tabular-nums">
-                    {px ? `$${px.toLocaleString(undefined, { maximumFractionDigits: px >= 100 ? 2 : 4 })} confirmed` : "Awaiting print"}
+                    {px ? `$${px.toLocaleString(undefined, { maximumFractionDigits: px >= 100 ? 2 : 4 })} last` : "Awaiting print"}
                   </p>
                 </div>
               </div>

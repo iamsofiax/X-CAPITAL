@@ -24,8 +24,8 @@ export default function MarketTicker() {
               <span className={cn(q.change24h >= 0 ? "sim-pos" : "sim-neg")}>
                 {q.change24h >= 0 ? "+" : ""}{q.change24h.toFixed(2)}%
               </span>
-              <span className={cn("text-[8px] tracking-widest", q.source === "LIVE" ? "text-emerald-400/60" : "text-amber-300/50")}>
-                {q.source}
+              <span className={cn("text-[8px] tracking-widest", q.source === "LIVE" ? "text-emerald-400/70" : "text-white/30")}>
+                {q.source === "LIVE" ? "Last" : "Ref"}
               </span>
             </div>
           );
