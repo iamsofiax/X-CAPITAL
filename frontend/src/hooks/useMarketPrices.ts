@@ -5,7 +5,6 @@ import { INSTRUMENTS } from "@/lib/sim/instruments";
 import {
   fetchBinancePrices,
   fetchBrokerQuotes,
-  fetchCryptoPrices,
   fetchEquityPrints,
   fetchStockQuotes,
   STOCK_SYMBOLS,
@@ -17,6 +16,8 @@ interface UseMarketPricesOptions {
   stocks?: boolean;
   crypto?: boolean;
   etfs?: boolean;
+  /** When set, only these names are requested. The full book is reserved for the desk. */
+  symbols?: string[];
   refreshInterval?: number;
 }
 
@@ -33,6 +34,7 @@ export function useMarketPrices(
     stocks = true,
     crypto = true,
     etfs = true,
+    symbols,
     refreshInterval = 120_000,
   } = options;
 
@@ -45,21 +47,26 @@ export function useMarketPrices(
     const results: Record<string, MarketPrice> = {};
 
     // Fetch crypto (CoinGecko — free, no key)
-    if (crypto) {
-      const [binance, cryptoPrices] = await Promise.all([fetchBinancePrices(), fetchCryptoPrices()]);
-      Object.assign(results, cryptoPrices, binance);
+    const wanted = symbols?.map((s) => s.toUpperCase());
+    const cryptoSet = new Set(["BTC", "ETH", "SOL", "DOGE", "ADA", "AVAX", "LINK", "DOT", "XRP", "BNB", "USDT", "USDC", "MATIC", "TRX"]);
+    if (crypto && (!wanted || wanted.some((s) => cryptoSet.has(s)))) {
+      Object.assign(results, await fetchBinancePrices());
     }
 
-    // Equities / ETFs: Alpaca IEX via the desk API, then Finnhub if configured.
     if (stocks || etfs) {
-      const listed = INSTRUMENTS.filter((inst) => (stocks && inst.cls === "equity") || (etfs && inst.cls === "etf")).map((inst) => inst.symbol);
-      const desk = [...(stocks ? STOCK_SYMBOLS : []), ...(etfs ? ETF_SYMBOLS : [])];
-      const [broker, finnhub, prints] = await Promise.all([
-        fetchBrokerQuotes(desk),
-        fetchStockQuotes(desk),
+      const listed = (wanted ?? INSTRUMENTS.filter((inst) => (stocks && inst.cls === "equity") || (etfs && inst.cls === "etf")).map((inst) => inst.symbol))
+        .filter((s) => !cryptoSet.has(s));
+      const desk = wanted ?? [...(stocks ? STOCK_SYMBOLS : []), ...(etfs ? ETF_SYMBOLS : [])];
+      const broker = Promise.race([
+        fetchBrokerQuotes(desk.slice(0, 20)),
+        new Promise<Record<string, MarketPrice>>((resolve) => setTimeout(() => resolve({}), 3500)),
+      ]);
+      const [brokerQuotes, finnhub, prints] = await Promise.all([
+        broker,
+        fetchStockQuotes(desk.slice(0, 20)),
         fetchEquityPrints(listed),
       ]);
-      Object.assign(results, prints, finnhub, broker);
+      Object.assign(results, prints, finnhub, brokerQuotes);
     }
 
     if (mountedRef.current && Object.keys(results).length > 0) {
@@ -69,7 +76,7 @@ export function useMarketPrices(
     } else if (mountedRef.current) {
       setLoading(false);
     }
-  }, [stocks, crypto, etfs]);
+  }, [stocks, crypto, etfs, symbols?.join(",")]);
 
   useEffect(() => {
     mountedRef.current = true;

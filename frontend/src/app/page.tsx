@@ -190,7 +190,7 @@ export default function LandingPage() {
   const [hoverRail, setHoverRail] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const { health, online, loading } = useHealth();
-  const { prices } = useMarketPrices({ refreshInterval: 120000 });
+  const { prices } = useMarketPrices({ symbols: TICKER, refreshInterval: 60_000 });
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -229,6 +229,10 @@ export default function LandingPage() {
       alpha: 0.15 + 0.35 * Math.random(),
     }));
     const draw = () => {
+      if (document.hidden) {
+        raf = requestAnimationFrame(draw);
+        return;
+      }
       t += 0.006;
       const w = canvas.offsetWidth;
       const h = canvas.offsetHeight;

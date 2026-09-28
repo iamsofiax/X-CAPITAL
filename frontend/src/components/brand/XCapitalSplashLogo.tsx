@@ -1,12 +1,12 @@
 "use client";
 
-import { XCapitalLogo } from "./XCapitalLogo";
+import { XCapitalLogoMark } from "./XCapitalLogo";
 
-/** Loading mark. The same X that sits beside the wordmark. */
+/** Loading mark. The same black X that sits beside the wordmark. */
 export default function XCapitalSplashLogo() {
   return (
     <div className="xc-splash-icon flex items-center justify-center">
-      <XCapitalLogo size={48} />
+      <XCapitalLogoMark size={52} />
     </div>
   );
 }

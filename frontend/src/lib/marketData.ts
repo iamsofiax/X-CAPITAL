@@ -252,7 +252,7 @@ export async function fetchBinancePrices(): Promise<Record<string, MarketPrice>>
 }
 
 let lastEquityFetch = 0;
-const EQUITY_TTL = 25_000;
+const EQUITY_TTL = 60_000;
 
 function yahooSymbol(symbol: string) {
   return symbol.replace(/\./g, "-");

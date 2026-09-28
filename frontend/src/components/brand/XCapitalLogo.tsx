@@ -5,42 +5,23 @@ import { cn } from "@/lib/utils";
 type XCapitalLogoProps = {
   size?: number;
   className?: string;
-  /** Soft green on the rising stroke. */
-  glow?: boolean;
 };
 
-/** Earlier X: a white leg and a green leg. */
-export function XCapitalLogo({
-  size = 20,
-  className,
-  glow = true,
-}: XCapitalLogoProps) {
-  const green = "#22c55e";
-
+/** Black X. A filled mark on its own; the tile is added by the wordmark frame. */
+export function XCapitalLogo({ size = 20, className }: XCapitalLogoProps) {
   return (
-    <div
-      className={cn("x-logo inline-flex items-center justify-center", className)}
-      style={{ width: size, height: size }}
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      className={cn("x-logo shrink-0", className)}
       aria-hidden
     >
-      <svg viewBox="0 0 24 24" width={size} height={size} fill="none">
-        <line x1="6" y1="6" x2="18" y2="18" stroke="white" strokeWidth="2.75" strokeLinecap="round" />
-        <line
-          x1="6"
-          y1="18"
-          x2="18"
-          y2="6"
-          stroke={green}
-          strokeWidth="2.75"
-          strokeLinecap="round"
-          style={
-            glow
-              ? { filter: "drop-shadow(0 0 3px rgba(34,197,94,0.45))" }
-              : undefined
-          }
-        />
-      </svg>
-    </div>
+      <path
+        fill="#0a0a0a"
+        d="M3.1 2.2h4.35L12 9.05 16.55 2.2H20.9L13.85 12l7.05 9.8h-4.35L12 14.95 7.45 21.8H3.1L10.15 12 3.1 2.2z"
+      />
+    </svg>
   );
 }
 
@@ -52,14 +33,11 @@ export function XCapitalLogoMark({
   className?: string;
 }) {
   return (
-    <div
-      className={cn(
-        "rounded-xl bg-gradient-to-br from-zinc-950 to-black border border-white/15 flex items-center justify-center",
-        className,
-      )}
-      style={{ width: size, height: size }}
+    <span
+      className={cn("inline-flex items-center justify-center bg-white shrink-0", className)}
+      style={{ width: size, height: size, borderRadius: Math.max(6, Math.round(size * 0.22)) }}
     >
-      <XCapitalLogo size={Math.round(size * 0.55)} glow={false} />
-    </div>
+      <XCapitalLogo size={Math.round(size * 0.62)} />
+    </span>
   );
 }

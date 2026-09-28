@@ -29,21 +29,12 @@ export function DeskStatus({
           : `${label} · last checked ${health ? new Date(health.timestamp).toLocaleTimeString() : "—"}`
       }
     >
-      <span className="relative flex w-1.5 h-1.5">
-        {!loading && status !== "offline" && (
-          <span
-            className={cn(
-              "absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping bg-emerald-400",
-            )}
-          />
+      <span
+        className={cn(
+          "inline-flex rounded-full w-1.5 h-1.5",
+          status === "healthy" ? "bg-[#8aa396]" : "bg-red-500",
         )}
-        <span
-          className={cn(
-            "relative inline-flex rounded-full w-1.5 h-1.5",
-            status === "healthy" ? "bg-emerald-400" : "bg-red-500",
-          )}
-        />
-      </span>
+      />
       <span
         className={cn(
           "text-[9px] font-mono font-bold tracking-[0.18em]",

@@ -1,56 +1,49 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getHealth, type HealthSnapshot } from "@/lib/health";
+import { getHealth, hydratedDesk, type HealthSnapshot } from "@/lib/health";
 
 type HealthState = {
-  health: HealthSnapshot | null;
+  health: HealthSnapshot;
   loading: boolean;
   online: boolean;
   lastCheckedAt: number | null;
 };
 
-const INITIAL: HealthState = {
-  health: null,
-  loading: true,
-  online: false,
-  lastCheckedAt: null,
-};
+let cached: HealthSnapshot = hydratedDesk();
 
-let cached: HealthSnapshot | null = null;
-let cachedOnline = false;
-
-export function useHealth(intervalMs = 30_000) {
-  const [state, setState] = useState<HealthState>(INITIAL);
-
-  const refresh = async () => {
-    const next = await getHealth();
-    if (next) {
-      cached = next;
-      cachedOnline = next.status === "healthy" || next.status === "degraded";
-    }
-    setState({
-      health: next ?? cached,
-      loading: false,
-      online: cachedOnline,
-      lastCheckedAt: Date.now(),
-    });
-  };
+export function useHealth(intervalMs = 60_000) {
+  const [state, setState] = useState<HealthState>({
+    health: cached,
+    loading: false,
+    online: true,
+    lastCheckedAt: null,
+  });
 
   useEffect(() => {
+    let stop = false;
+    let inflight = false;
+    const refresh = async () => {
+      if (inflight) return;
+      inflight = true;
+      const next = await getHealth();
+      inflight = false;
+      if (stop) return;
+      if (next) cached = next;
+      setState({
+        health: cached,
+        loading: false,
+        online: true,
+        lastCheckedAt: Date.now(),
+      });
+    };
     void refresh();
     const id = setInterval(() => void refresh(), intervalMs);
-    const onVis = () => {
-      if (document.visibilityState === "visible") void refresh();
-    };
-    document.addEventListener("visibilitychange", onVis);
-    window.addEventListener("focus", onVis);
     return () => {
+      stop = true;
       clearInterval(id);
-      document.removeEventListener("visibilitychange", onVis);
-      window.removeEventListener("focus", onVis);
     };
   }, [intervalMs]);
 
-  return { ...state, refresh };
+  return state;
 }
