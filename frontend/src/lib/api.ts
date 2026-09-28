@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { sessionKeys } from '@/lib/sessionScope';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
@@ -11,7 +12,7 @@ export const api = axios.create({
 // Attach auth token from localStorage on every request
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('xc_access_token');
+    const token = localStorage.getItem(sessionKeys().access);
     if (token) config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -29,21 +30,22 @@ api.interceptors.response.use(
     if (!original) return Promise.reject(error);
 
     const isAuthCall = typeof original.url === 'string' && /\/auth\/(login|register|oauth|refresh)/.test(original.url);
-    const stored = typeof window !== 'undefined' ? localStorage.getItem('xc_access_token') : null;
+    const stored = typeof window !== 'undefined' ? localStorage.getItem(sessionKeys().access) : null;
     if (stored?.startsWith('xc-local.')) return Promise.reject(error);
     if (error?.response?.status === 401 && !original._retry && !isAuthCall) {
       original._retry = true;
       try {
         if (typeof window === 'undefined') return Promise.reject(error);
 
-        const refreshToken = localStorage.getItem('xc_refresh_token');
+        const refreshToken = localStorage.getItem(sessionKeys().refresh);
         if (!refreshToken) return Promise.reject(error);
 
         const { data } = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
         const { accessToken, refreshToken: newRefresh } = data.data;
 
-        localStorage.setItem('xc_access_token', accessToken);
-        localStorage.setItem('xc_refresh_token', newRefresh);
+        const keys = sessionKeys();
+        localStorage.setItem(keys.access, accessToken);
+        localStorage.setItem(keys.refresh, newRefresh);
 
         original.headers = original.headers ?? {};
         original.headers.Authorization = `Bearer ${accessToken}`;
@@ -51,9 +53,10 @@ api.interceptors.response.use(
         return api(original);
       } catch {
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('xc_access_token');
-          localStorage.removeItem('xc_refresh_token');
-          window.location.href = '/auth/login';
+          const keys = sessionKeys();
+          localStorage.removeItem(keys.access);
+          localStorage.removeItem(keys.refresh);
+          window.location.href = keys.login;
         }
         return Promise.reject(error);
       }

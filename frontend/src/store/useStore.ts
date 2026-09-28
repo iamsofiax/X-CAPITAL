@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { sessionKeys } from "@/lib/sessionScope";
 import type { User } from "@/types";
 import { authAPI } from "@/lib/api";
 import { hasApiToken, hasSessionToken, mapAuthLoginUser } from "@/lib/apiUser";
@@ -63,9 +64,10 @@ function apiUnreachable(err: unknown): boolean {
 
 function rememberSession(remember: boolean) {
   if (typeof window === "undefined") return;
-  if (remember) localStorage.setItem("xc_remember_me", "1");
-  else localStorage.removeItem("xc_remember_me");
-  sessionStorage.setItem("xc_session_active", "1");
+  const keys = sessionKeys();
+  if (remember) localStorage.setItem(keys.remember, "1");
+  else localStorage.removeItem(keys.remember);
+  sessionStorage.setItem(keys.session, "1");
 }
 
 function describeAuthError(err: unknown, fallback: string): string {
@@ -133,8 +135,9 @@ export const useStore = create<Store>()(
 
       setAuth: (user, accessToken, refreshToken) => {
         if (typeof window !== "undefined") {
-          localStorage.setItem("xc_access_token", accessToken);
-          localStorage.setItem("xc_refresh_token", refreshToken);
+          const keys = sessionKeys();
+          localStorage.setItem(keys.access, accessToken);
+          localStorage.setItem(keys.refresh, refreshToken);
         }
         set({ user, accessToken, refreshToken, isAuthenticated: true });
       },
@@ -148,10 +151,11 @@ export const useStore = create<Store>()(
           void authAPI.logout(refreshToken).catch(() => undefined);
         }
         if (typeof window !== "undefined") {
-          localStorage.removeItem("xc_access_token");
-          localStorage.removeItem("xc_refresh_token");
-          localStorage.removeItem("xc_remember_me");
-          sessionStorage.removeItem("xc_session_active");
+          const keys = sessionKeys();
+          localStorage.removeItem(keys.access);
+          localStorage.removeItem(keys.refresh);
+          localStorage.removeItem(keys.remember);
+          sessionStorage.removeItem(keys.session);
         }
         set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
       },
@@ -162,7 +166,7 @@ export const useStore = create<Store>()(
           accessToken,
           refreshToken,
         );
-        if (typeof window !== "undefined") sessionStorage.setItem("xc_session_active", "1");
+        if (typeof window !== "undefined") sessionStorage.setItem(sessionKeys().session, "1");
       },
 
       syncSessionFromApi: async () => {
@@ -281,8 +285,8 @@ export const useStore = create<Store>()(
         const tokens = localTokens(desk.id);
         get().setAuth(deskToUser(desk), tokens.accessToken, tokens.refreshToken);
         if (typeof window !== "undefined") {
-          localStorage.setItem("xc_remember_me", "1");
-          sessionStorage.setItem("xc_session_active", "1");
+          localStorage.setItem(sessionKeys().remember, "1");
+          sessionStorage.setItem(sessionKeys().session, "1");
         }
       },
 
@@ -372,6 +376,11 @@ export const useStore = create<Store>()(
     }),
     {
       name: "xcapital-store",
+      storage: createJSONStorage(() => ({
+        getItem: () => localStorage.getItem(sessionKeys().store),
+        setItem: (_name, value) => localStorage.setItem(sessionKeys().store, value),
+        removeItem: () => localStorage.removeItem(sessionKeys().store),
+      })),
       version: 6,
       migrate: () => ({
         user: null,
@@ -394,13 +403,14 @@ export const useStore = create<Store>()(
         }
         if (typeof window === "undefined" || !state) return;
         if (state.theme) document.documentElement.setAttribute("data-theme", state.theme);
-        const remembered = localStorage.getItem("xc_remember_me") === "1";
-        const sessionActive = sessionStorage.getItem("xc_session_active") === "1";
+        const keys = sessionKeys();
+        const remembered = localStorage.getItem(keys.remember) === "1";
+        const sessionActive = sessionStorage.getItem(keys.session) === "1";
         if (state.isAuthenticated && ((!remembered && !sessionActive) || !hasSessionToken())) {
           useStore.setState({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
           return;
         }
-        if (state.isAuthenticated && !remembered) sessionStorage.setItem("xc_session_active", "1");
+        if (state.isAuthenticated && !remembered) sessionStorage.setItem(sessionKeys().session, "1");
       },
     },
   ),

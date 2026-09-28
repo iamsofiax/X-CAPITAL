@@ -1,16 +1,17 @@
 import type { User, KYCStatus, UserTier, UserRole } from "@/types";
 
 import { isLocalToken } from "@/lib/localDesk";
+import { sessionKeys } from "@/lib/sessionScope";
 
 export function hasApiToken(): boolean {
   if (typeof window === "undefined") return false;
-  const token = localStorage.getItem("xc_access_token");
+  const token = localStorage.getItem(sessionKeys().access);
   return !!token && token.split(".").length === 3 && !isLocalToken(token);
 }
 
 export function hasSessionToken(): boolean {
   if (typeof window === "undefined") return false;
-  const token = localStorage.getItem("xc_access_token");
+  const token = localStorage.getItem(sessionKeys().access);
   return hasApiToken() || isLocalToken(token);
 }
 

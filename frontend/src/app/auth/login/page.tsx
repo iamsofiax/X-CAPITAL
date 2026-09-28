@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "@/store/useStore";
+import { sessionKeys } from "@/lib/sessionScope";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { Eye, EyeOff, AlertCircle, ArrowRight, Loader2 } from "lucide-react";
 
@@ -18,11 +19,12 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(true);
 
   const onAuthenticated = useCallback(() => {
+    const keys = sessionKeys();
     if (rememberMe) {
-      localStorage.setItem("xc_remember_me", "1");
+      localStorage.setItem(keys.remember, "1");
     } else {
-      localStorage.removeItem("xc_remember_me");
-      sessionStorage.setItem("xc_session_active", "1");
+      localStorage.removeItem(keys.remember);
+      sessionStorage.setItem(keys.session, "1");
     }
     router.push("/dashboard");
   }, [rememberMe, router]);

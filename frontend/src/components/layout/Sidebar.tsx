@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Lock, LogOut, Settings, ShieldCheck, X, Users } from "lucide-react";
 import { useStore } from "@/store/useStore";
 import { useSim } from "@/hooks/useSim";
-import { XCapitalLogo } from "@/components/brand/XCapitalLogo";
+import { XCapitalLogoMark } from "@/components/brand/XCapitalLogo";
 import { TierBadge } from "@/components/sim/TierBadge";
 import { COMMAND_CENTER, RAILS } from "@/lib/rails";
 import { isAdminUser } from "@/lib/apiUser";
@@ -45,9 +45,7 @@ export default function Sidebar() {
       >
         <div className="flex items-center justify-between px-4 pt-6 pb-5 border-b border-white/[0.05]">
           <Link href="/dashboard" className="flex items-center gap-3" onClick={close}>
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500/20 to-indigo-500/10 border border-white/10 flex items-center justify-center shrink-0">
-              <XCapitalLogo size={20} />
-            </div>
+            <XCapitalLogoMark size={36} />
             <div className="min-w-0">
               <span className="font-black text-sm text-white tracking-[0.2em] block leading-none">X-CAPITAL</span>
               <span className="sim-label text-[8px] text-emerald-300/70">Operator desk</span>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import TawkChat from "@/components/support/TawkChat";
 import SessionSync from "@/components/SessionSync";
+import SessionScope from "@/components/SessionScope";
 import XCapitalSplashLogo from "@/components/brand/XCapitalSplashLogo";
 import "./globals.css";
 
@@ -210,7 +211,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
-                var KEY = 'xc_splash_seen';
+                var KEY = location.pathname.indexOf('/admin') === 0 ? 'xc_admin_splash_seen' : 'xc_splash_seen';
                 var splash = document.getElementById('xc-splash');
                 if (!splash) return;
                 splash.style.pointerEvents = 'none';
@@ -222,6 +223,7 @@ export default function RootLayout({
             `,
           }}
         />
+        <SessionScope />
         <SessionSync />
         {children}
         <TawkChat />

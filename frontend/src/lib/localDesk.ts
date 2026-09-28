@@ -1,4 +1,5 @@
 import type { User } from "@/types";
+import { sessionKeys } from "@/lib/sessionScope";
 
 const DESKS_KEY = "xc_local_desks";
 export const LOCAL_TOKEN_PREFIX = "xc-local.";
@@ -20,7 +21,7 @@ export function isLocalToken(token: string | null | undefined): boolean {
 
 export function hasLocalSession(): boolean {
   if (typeof window === "undefined") return false;
-  return isLocalToken(localStorage.getItem("xc_access_token"));
+  return isLocalToken(localStorage.getItem(sessionKeys().access));
 }
 
 export async function hashDeskSecret(secret: string): Promise<string> {

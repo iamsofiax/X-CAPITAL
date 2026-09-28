@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "@/store/useStore";
+import { sessionKeys } from "@/lib/sessionScope";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { Eye, EyeOff, AlertCircle, ArrowRight, Loader2 } from "lucide-react";
 
@@ -46,7 +47,7 @@ export default function RegisterPage() {
     Number(/[^A-Za-z0-9]/.test(pw));
 
   const onAuthenticated = useCallback(() => {
-    localStorage.setItem("xc_remember_me", "1");
+    localStorage.setItem(sessionKeys().remember, "1");
     router.push("/dashboard");
   }, [router]);
 
