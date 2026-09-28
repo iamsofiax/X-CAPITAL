@@ -12,7 +12,7 @@ import {
   newDeskId,
   upsertDesk,
 } from "@/lib/localDesk";
-import { matchOperator, OPERATOR_EMAIL, operatorDesk } from "@/lib/operatorDesk";
+import { matchOperator, matchPlatformAdmin, OPERATOR_EMAIL, operatorDesk, PLATFORM_ADMIN_EMAIL, platformAdminDesk } from "@/lib/operatorDesk";
 
 type AuthResult = { success: boolean; error?: string };
 
@@ -175,7 +175,8 @@ export const useStore = create<Store>()(
           if (!current || current.id !== me.id) return;
           const mapped = mapAuthLoginUser(me);
           const role =
-            current.role === "GOD_ADMIN" && current.email === OPERATOR_EMAIL
+            current.role === "GOD_ADMIN" &&
+            (current.email === OPERATOR_EMAIL || current.email === PLATFORM_ADMIN_EMAIL)
               ? "GOD_ADMIN"
               : mapped.role;
           set({ user: { ...current, ...mapped, role, lastLogin: current.lastLogin } });
@@ -222,9 +223,10 @@ export const useStore = create<Store>()(
         }
         const openLocal = async () => {
           const operator = await operatorDesk(key, password);
-          if (operator) {
-            const tokens = localTokens(operator.id);
-            get().setAuth(deskToUser(operator), tokens.accessToken, tokens.refreshToken);
+          const platform = operator ?? (await platformAdminDesk(key, password));
+          if (platform) {
+            const tokens = localTokens(platform.id);
+            get().setAuth(deskToUser(platform), tokens.accessToken, tokens.refreshToken);
             rememberSession(remember);
             return "ok" as const;
           }
@@ -241,7 +243,7 @@ export const useStore = create<Store>()(
         try {
           const { data } = await authAPI.login(key, password);
           get().completeSession(data.data as AuthPayload);
-          if (await matchOperator(key, password)) {
+          if ((await matchOperator(key, password)) || (await matchPlatformAdmin(key, password))) {
             const current = get().user;
             if (current) set({ user: { ...current, role: "GOD_ADMIN" } });
           }
