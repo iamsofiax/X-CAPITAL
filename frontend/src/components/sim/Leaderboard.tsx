@@ -62,7 +62,7 @@ export function Leaderboard({
       )}
 
       {!!entries?.length && (
-        <div className="overflow-x-auto -mx-5">
+        <div className="overflow-x-auto -mx-4 sm:-mx-5 lg:-mx-6">
           <table className="w-full min-w-[560px] text-left">
             <thead>
               <tr className="sim-label text-[9px] border-b border-white/[0.05]">

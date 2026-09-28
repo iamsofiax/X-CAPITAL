@@ -72,7 +72,9 @@ export default function AdminPage() {
   useEffect(() => {
     const finish = () => setReady(true);
     if (useStore.persist.hasHydrated()) finish();
-    return useStore.persist.onFinishHydration(finish);
+    const unsub = useStore.persist.onFinishHydration(finish);
+    void useStore.persist.rehydrate();
+    return unsub;
   }, []);
 
   useEffect(() => {

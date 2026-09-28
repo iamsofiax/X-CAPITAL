@@ -20,7 +20,7 @@ export function Panel({
   return (
     <section className={cn("pnl-stage", edge && "sim-glass-edge", className)}>
       {(title || code || action) && (
-        <header className="flex items-center justify-between gap-3 px-5 pt-5 pb-3 border-b border-white/[0.06]">
+        <header className="flex items-center justify-between gap-3 px-4 sm:px-5 lg:px-6 pt-5 pb-3 border-b border-white/[0.06]">
           <div className="min-w-0">
             {code && <p className="sim-label mb-1 text-emerald-300/80">{code}</p>}
             {title && <h2 className="text-lg md:text-xl font-black text-white tracking-tight truncate">{title}</h2>}
@@ -28,7 +28,7 @@ export function Panel({
           {action && <div className="shrink-0">{action}</div>}
         </header>
       )}
-      <div className={cn("p-5 md:p-6", bodyClassName)}>{children}</div>
+      <div className={cn("p-4 sm:p-5 lg:p-6", bodyClassName)}>{children}</div>
     </section>
   );
 }

@@ -52,7 +52,7 @@ export function LedgerTable({ ledger, limit = 50 }: { ledger: LedgerEntry[]; lim
       {rows.length === 0 ? (
         <p className="text-sm text-white/40 py-6 text-center">No entries yet.</p>
       ) : (
-        <div className="overflow-x-auto -mx-5">
+        <div className="overflow-x-auto -mx-4 sm:-mx-5 lg:-mx-6">
           <table className="w-full min-w-[720px] text-left">
             <thead>
               <tr className="sim-label text-[9px] border-b border-white/[0.05]">
