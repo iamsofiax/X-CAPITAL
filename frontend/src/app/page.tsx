@@ -697,12 +697,59 @@ export default function LandingPage() {
       </section>
 
       <section
-        id="stream"
+        id="projection"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
         className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#000000]"
       >
         <div className="max-w-5xl mx-auto">
           <SectionRule index="07" />
+          <div className="relative bg-[#070b09] px-5 py-8 sm:px-10 sm:py-12" style={{ border: "1px solid rgba(231,239,233,0.22)" }}>
+            <div className="pointer-events-none absolute inset-[7px]" style={{ border: "1px solid rgba(231,239,233,0.12)" }} />
+            <div className="relative">
+              <div className="flex flex-wrap items-center justify-between gap-3 font-mono text-[10px] uppercase tracking-[0.28em] text-emerald-300">
+                <span>X·CAPITAL</span>
+                <span>Seven rails · First wave</span>
+              </div>
+              <div className="mt-5 h-px bg-emerald-300/70" />
+              <p className="mt-8 font-mono text-[11px] uppercase tracking-[0.22em] text-white/70">Capitalization nodes</p>
+              <h2 className="mt-3 max-w-2xl text-3xl font-black tracking-tight text-white sm:text-5xl sm:leading-[1.02]">
+                What a funded node is built to show.
+              </h2>
+              <p className="mt-5 max-w-xl text-sm leading-relaxed text-white/80">
+                Through our advanced 7 rails capitalization nodes, first-wave projections currently indicate:
+              </p>
+              <div className="mt-8 border-y border-white/15">
+                {[
+                  ["10k", "~28k"],
+                  ["20k", "~55k"],
+                  ["50k", "~140k"],
+                  ["100k", "~310k"],
+                ].map(([from, to]) => (
+                  <div key={from} className="grid grid-cols-[1fr_auto_1fr] items-baseline gap-4 border-b border-white/10 py-4 last:border-b-0 sm:gap-8">
+                    <span className="font-mono text-sm tracking-wide text-white/55 sm:text-base">${from}</span>
+                    <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-emerald-300/80">to</span>
+                    <span className="text-right text-2xl font-black tabular-nums text-white sm:text-4xl">{to}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-8 max-w-2xl text-sm leading-relaxed text-white/75">
+                Daily and weekly growth remains consistently upward, as one would naturally expect from a system of this calibre.
+              </p>
+              <p className="mt-5 font-mono text-[10px] uppercase tracking-[0.16em] text-white/45">
+                Illustrative model. Not a guaranteed earning. Principal can be lost.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="stream"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+        className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#000000]"
+      >
+        <div className="max-w-5xl mx-auto">
+          <SectionRule index="08" />
           <div className="max-w-3xl">
             <p className="sim-label text-emerald-300/80 mb-4">
               Super AGI Core · Live
@@ -742,7 +789,7 @@ export default function LandingPage() {
 
       <section id="cta" className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#000000]">
         <div className="max-w-5xl mx-auto">
-          <SectionRule index="08" />
+          <SectionRule index="09" />
         <div className="max-w-3xl mx-auto">
           <div className="sim-glass sim-glass-edge px-8 py-16 sm:px-14 md:px-16 text-center">
           <p className="sim-label !text-emerald-300 mb-6">Qualified access</p>
