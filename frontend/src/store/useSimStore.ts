@@ -9,6 +9,7 @@ import {
   buyFleet,
   claimGenesis,
   creditConfirmedDeposit,
+  debitDeskCash,
   creditYield,
   createAccount,
   openZeroBook,
@@ -41,6 +42,7 @@ interface SimState {
   mark: (userId: string, mids: Record<string, number>) => void;
   claimGenesis: (userId: string) => SimResult;
   confirmDeposit: (userId: string, usd: number, asset: string, txHash: string) => SimResult;
+  debitCash: (userId: string, usd: number, memo: string) => SimResult;
   creditYield: (userId: string, amount: number, memo: string) => SimResult;
   buyFleet: (userId: string, units: number) => SimResult;
   buyCatalog: (userId: string, sku: string, units: number) => SimResult;
@@ -112,6 +114,7 @@ export const useSimStore = create<SimState>()(
         claimGenesis: (userId) => run(userId, (a) => claimGenesis(a)),
         confirmDeposit: (userId, usd, asset, txHash) =>
           run(userId, (a) => creditConfirmedDeposit(a, usd, asset, txHash)),
+        debitCash: (userId, usd, memo) => run(userId, (a) => debitDeskCash(a, usd, memo)),
         creditYield: (userId, amount, memo) => run(userId, (a) => creditYield(a, amount, memo)),
         buyFleet: (userId, units) => run(userId, (a) => buyFleet(a, units)),
         buyCatalog: (userId, sku, units) => run(userId, (a) => buyCatalog(a, sku, units)),
@@ -145,8 +148,7 @@ export const useSimStore = create<SimState>()(
         unlock: (userId, lockId) => run(userId, (a) => unlockSxc(a, lockId)),
 
         setHalt: (userId, halted) => {
-          const acc = get().accounts[userId];
-          if (!acc) return;
+          const acc = get().ensure(userId);
           set((s) => ({ accounts: { ...s.accounts, [userId]: setTradingHalt(acc, halted) } }));
         },
 

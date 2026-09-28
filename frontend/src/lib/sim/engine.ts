@@ -454,6 +454,32 @@ export function creditConfirmedDeposit(
   ]);
 }
 
+/** Removes booked cash. Refuses to invent a debit the node cannot cover. */
+export function debitDeskCash(acc: SimAccount, usd: number, memo: string, now = Date.now()): SimAccount {
+  if (!(usd > 0)) throw new SimError("Enter the USD amount to debit.");
+  if (!acc.genesisClaimedAt || acc.cash + 1e-8 < usd) throw new SimError("The node does not have that much cash.");
+  const epoch = currentEpoch(now);
+  const cash = acc.cash - usd;
+  const nav = accountNav({ ...acc, cash }, epoch);
+  const next: SimAccount = {
+    ...acc,
+    cash,
+    navHistory: [...acc.navHistory, { epoch, nav }].slice(-NAV_HISTORY_CAP),
+  };
+  return withLedger(next, [
+    makeEntry(next, {
+      epoch,
+      kind: "JOURNAL",
+      asset: "sUSDC",
+      amount: -usd,
+      from: TREASURY,
+      to: "desk:journal",
+      memo,
+      ts: now,
+    }),
+  ]);
+}
+
 export function resetAccount(acc: SimAccount, now = Date.now()): SimAccount {
   const claimed = claimGenesis(
     { ...createAccount(acc.userId, now), resets: acc.resets + 1, tradingHalted: acc.tradingHalted },

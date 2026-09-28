@@ -15,7 +15,8 @@ export type LedgerKind =
   | "UNLOCK"
   | "CARRY"
   | "YIELD"
-  | "DEPOSIT";
+  | "DEPOSIT"
+  | "JOURNAL";
 
 export interface LedgerEntry {
   id: string;

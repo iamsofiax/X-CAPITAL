@@ -6,7 +6,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Panel, Notice } from "@/components/sim/Panel";
 import { useSim } from "@/hooks/useSim";
 import { useStore } from "@/store/useStore";
-import { nodeActivated, pushNotice, readMandate, saveReceipt, type TradeReceipt as Slip } from "@/lib/yieldDesk";
+import { nodeActivated, pushNotice, readMandate, saveReceipt, tradesPaused, type TradeReceipt as Slip } from "@/lib/yieldDesk";
 import { TradeReceipt } from "@/components/desk/TradeReceipt";
 import { RaiseCash } from "@/components/desk/RaiseCash";
 import { useSimQuotes } from "@/hooks/useSimQuotes";
@@ -43,9 +43,14 @@ function Execution() {
   const [page, setPage] = useState(0);
   const [slip, setSlip] = useState<Slip | null>(null);
   const [liveNode, setLiveNode] = useState(false);
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
-    const pull = () => setLiveNode(nodeActivated(userId ? readMandate(userId) : null));
+    const pull = () => {
+      const mandate = userId ? readMandate(userId) : null;
+      setPaused(tradesPaused(mandate));
+      setLiveNode(nodeActivated(mandate) && !tradesPaused(mandate));
+    };
     pull();
     window.addEventListener("xc-yield", pull);
     return () => window.removeEventListener("xc-yield", pull);
@@ -88,6 +93,10 @@ function Execution() {
 
   const submit = () => {
     setMsg(null);
+    if (paused || account.tradingHalted) {
+      setMsg({ tone: "error", text: "The desk paused trading on this node." });
+      return;
+    }
     if (!liveNode) {
       setMsg({ tone: "error", text: "Execution opens after the desk confirms funds and activates the node." });
       return;
@@ -123,7 +132,13 @@ function Execution() {
 
   return (
     <div className="space-y-5">
-      {!liveNode && (
+      {(paused || account.tradingHalted) && (
+        <section className="sim-glass p-4 md:p-5">
+          <p className="sim-label">Node</p>
+          <p className="mt-1 text-sm text-white/70">Trading is paused. Fills stay closed until the desk starts this node again.</p>
+        </section>
+      )}
+      {!liveNode && !paused && !account.tradingHalted && (
         <section className="sim-glass p-4 md:p-5">
           <p className="sim-label">Node</p>
           <p className="mt-1 text-sm text-white/70">Execution is closed. It opens when the desk confirms the deposit and sets the operated percent for this node.</p>

@@ -7,6 +7,8 @@ export type YieldMandate = {
   /** Share of the confirmed book the desk operates for this user. Gains stay off at 0. */
   operatedPct: number;
   activatedAt: number | null;
+  /** False freezes fills. Missing means trading is allowed once the node is live. */
+  tradesOpen?: boolean;
   principal: number;
   lastSettledAt: number;
   updatedAt: number;
@@ -78,6 +80,41 @@ export function operatedOf(mandate: Pick<YieldMandate, "operatedPct">) {
 
 export function nodeActivated(mandate: YieldMandate | null | undefined) {
   return !!mandate && mandate.principal > 0 && operatedOf(mandate) > 0 && !!mandate.activatedAt;
+}
+
+export function tradesPaused(mandate: YieldMandate | null | undefined) {
+  return mandate?.tradesOpen === false;
+}
+
+/** Arms or freezes fills for a node. Does not book cash. */
+export function setTradeGate(input: { userId: string; email: string; open: boolean }) {
+  const now = Date.now();
+  const prev = readMandate(input.userId);
+  const next: YieldMandate = prev
+    ? { ...prev, email: input.email || prev.email, tradesOpen: input.open, updatedAt: now }
+    : {
+        userId: input.userId,
+        email: input.email,
+        dailyPct: 0,
+        weeklyPct: 0,
+        operatedPct: 0,
+        activatedAt: null,
+        tradesOpen: input.open,
+        principal: 0,
+        lastSettledAt: now,
+        updatedAt: now,
+      };
+  const rows = listMandates().filter((m) => m.userId !== input.userId);
+  rows.unshift(next);
+  writeJson(MANDATES, rows);
+  pushNotice(
+    input.userId,
+    input.open ? "Trading started" : "Trading paused",
+    input.open
+      ? "The desk opened fills on this node. Orders still wait until the book is funded and the node is activated."
+      : "The desk paused fills on this node.",
+  );
+  return next;
 }
 
 export function setDailyGrowth(input: {
@@ -358,4 +395,28 @@ export function setLinkStatus(id: string, status: ExternalLinkRequest["status"],
     LINKS,
     listLinks().map((row) => (row.id === id ? { ...row, status, bookedUsd: bookedUsd ?? row.bookedUsd } : row)),
   );
+}
+
+export type DeskJournal = {
+  id: string;
+  userId: string;
+  email: string;
+  asset: string;
+  amount: number;
+  direction: "credit" | "debit";
+  reason: string;
+  at: number;
+  where: "desk" | "network";
+};
+
+const JOURNAL = "xc_desk_journal";
+
+export function listDeskJournal(): DeskJournal[] {
+  return readJson<DeskJournal[]>(JOURNAL, []);
+}
+
+export function saveDeskJournal(row: Omit<DeskJournal, "id" | "at">): DeskJournal {
+  const next: DeskJournal = { ...row, id: newId(), at: Date.now() };
+  writeJson(JOURNAL, [next, ...listDeskJournal()].slice(0, 80));
+  return next;
 }

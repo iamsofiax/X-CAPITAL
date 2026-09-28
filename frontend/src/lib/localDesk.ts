@@ -74,6 +74,49 @@ export function deskToUser(desk: LocalDesk): User {
   };
 }
 
+const REGISTRY_KEY = "xc_admin_registry";
+
+export type RegistryUser = {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+};
+
+export function loadRegistry(): RegistryUser[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(REGISTRY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as RegistryUser[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function rememberRegistry(users: RegistryUser[]) {
+  if (typeof window === "undefined") return;
+  const map = new Map<string, RegistryUser>();
+  for (const row of loadRegistry()) {
+    const email = row.email?.trim().toLowerCase();
+    if (!email || !email.includes("@")) continue;
+    map.set(email, { ...row, email });
+  }
+  for (const row of users) {
+    const email = row.email?.trim().toLowerCase();
+    if (!email || !email.includes("@")) continue;
+    const prev = map.get(email);
+    map.set(email, {
+      id: row.id || prev?.id || email,
+      email,
+      firstName: row.firstName?.trim() || prev?.firstName || email.split("@")[0],
+      lastName: row.lastName?.trim() || prev?.lastName || "",
+    });
+  }
+  localStorage.setItem(REGISTRY_KEY, JSON.stringify([...map.values()]));
+}
+
 export function newDeskId(): string {
   return `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }

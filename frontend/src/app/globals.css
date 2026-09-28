@@ -2007,6 +2007,10 @@ body[data-admin-route="true"] iframe[title*="chat" i] {
   border-color: rgba(16, 185, 129, 0.55);
   box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.08);
 }
+select.sim-input option {
+  color: #111816;
+  background: #f4f7f5;
+}
 
 .sim-canvas input,
 .sim-canvas select,
