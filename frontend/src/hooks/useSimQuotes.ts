@@ -6,18 +6,19 @@ import {
   INSTRUMENTS,
   buildQuote,
   simQuote,
+  tapeMid,
   type Quote,
 } from "@/lib/sim/instruments";
 
 /** Confirmed last sales where a feed exists. Other equities are marked to the confirmed index. */
 export function useSimQuotes(): { quotes: Record<string, Quote>; liveCount: number; markedCount: number } {
-  const { prices } = useMarketPrices({ refreshInterval: 20_000 });
+  const { prices } = useMarketPrices({ refreshInterval: 12_000 });
   const [now, setNow] = useState(0);
 
   useEffect(() => {
     const tick = () => setNow(Date.now());
     tick();
-    const id = setInterval(tick, 5_000);
+    const id = setInterval(tick, 1_000);
     return () => clearInterval(id);
   }, []);
 
@@ -34,10 +35,12 @@ export function useSimQuotes(): { quotes: Record<string, Quote>; liveCount: numb
         quotes[inst.symbol] = buildQuote(inst, live.price, live.changePercent24h, "LIVE");
         liveCount++;
       } else if (indexFactor > 0 && inst.cls !== "crypto") {
-        quotes[inst.symbol] = buildQuote(inst, inst.ref * indexFactor, spy?.changePercent24h ?? 0, "MARKED");
+        const marked = buildQuote(inst, inst.ref * indexFactor, spy?.changePercent24h ?? 0, "MARKED");
+        quotes[inst.symbol] = buildQuote(inst, tapeMid(inst, marked.mid, now), marked.change24h, "MARKED");
         markedCount++;
       } else {
-        quotes[inst.symbol] = simQuote(inst, now);
+        const indicative = simQuote(inst, now);
+        quotes[inst.symbol] = buildQuote(inst, tapeMid(inst, indicative.mid, now), indicative.change24h, "INDICATIVE");
       }
     }
     return { quotes, liveCount, markedCount };

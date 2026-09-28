@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store/useStore";
 import { XCapitalLogoMark } from "@/components/brand/XCapitalLogo";
@@ -16,13 +16,17 @@ export default function AdminLoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [ready, setReady] = useState(false);
 
-  // If already logged in as admin, redirect
-  const isAdmin = isAdminUser(user);
-  if (isAdmin) {
-    router.push("/admin");
-    return null;
-  }
+  useEffect(() => {
+    const finish = () => setReady(true);
+    if (useStore.persist.hasHydrated()) finish();
+    return useStore.persist.onFinishHydration(finish);
+  }, []);
+
+  useEffect(() => {
+    if (ready && isAdminUser(user)) router.replace("/admin");
+  }, [ready, user, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,10 +58,18 @@ export default function AdminLoginPage() {
     }
   };
 
+  if (ready && isAdminUser(user)) {
+    return (
+      <div className="min-h-screen bg-[#08080c] text-white px-4 sm:px-6 py-16">
+        <p className="text-sm text-white/55">Opening the desk</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#08080c] flex flex-col">
       <SimulationBadge variant="banner" />
-      <div className="flex-1 flex items-center justify-center p-4">
+      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-10 sm:py-16">
       {/* Subtle grid background */}
       <div
         className="fixed inset-0 pointer-events-none"

@@ -41,7 +41,8 @@ export default function AdminPage() {
     idempotencyKey: "",
   });
 
-  const allowed = isAuthenticated && isAdminUser(user);
+  const [ready, setReady] = useState(false);
+  const allowed = ready && isAuthenticated && isAdminUser(user);
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -69,16 +70,19 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    const finish = () => setReady(true);
+    if (useStore.persist.hasHydrated()) finish();
+    return useStore.persist.onFinishHydration(finish);
+  }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    if (!isAuthenticated || !isAdminUser(user)) {
       router.replace("/admin/login");
       return;
     }
-    if (!isAdminUser(user)) {
-      router.replace("/dashboard");
-      return;
-    }
     void load();
-  }, [isAuthenticated, user, router, load]);
+  }, [ready, isAuthenticated, user, router, load]);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -168,11 +172,19 @@ export default function AdminPage() {
     }
   };
 
+  if (!ready) {
+    return (
+      <div className="min-h-screen bg-black text-white px-4 sm:px-6 py-16">
+        <p className="text-sm text-white/55">Opening the desk</p>
+      </div>
+    );
+  }
+
   if (!allowed) return null;
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <header className="border-b border-white/[0.06] px-5 h-14 flex items-center justify-between">
+      <header className="border-b border-white/[0.06] px-4 sm:px-6 lg:px-8 min-h-16 py-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <XCapitalLogoMark size={26} />
           <div>
@@ -197,7 +209,7 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-5 py-8 space-y-6">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
         <div className="grid sm:grid-cols-2 gap-3">
           <div className="pnl-card pnl-card-pos flex items-center gap-3">
             <Shield className="w-4 h-4 text-white/35" />
@@ -213,6 +225,23 @@ export default function AdminPage() {
             </p>
           </div>
         </div>
+
+        <section className="sim-glass p-4 sm:p-5">
+          <p className="font-black mb-1">Desk nodes</p>
+          <p className="text-sm text-white/50 mb-4">Accounts on this desk. Activate, confirm, and book from here even when the network list is quiet.</p>
+          {loadDesks().length === 0 ? (
+            <p className="text-sm text-white/40">No desk nodes on this browser yet.</p>
+          ) : (
+            <ul className="space-y-2">
+              {loadDesks().map((desk) => (
+                <li key={desk.id} className="rounded-xl border border-white/[0.12] bg-black/40 px-4 py-3">
+                  <p className="text-sm font-bold">{desk.firstName} {desk.lastName}</p>
+                  <p className="text-[12px] font-mono text-white/55 mt-1 break-all">{desk.email}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         {error && <p className="text-sm text-red-300">{error}</p>}
         {formMsg && <p className="text-sm text-white/60">{formMsg}</p>}

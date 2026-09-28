@@ -96,3 +96,10 @@ export function simQuote(inst: Instrument, now = Date.now()): Quote {
   const prev = simFeedPrice(inst, now - 24 * HOUR);
   return buildQuote(inst, mid, (mid / prev - 1) * 100, "INDICATIVE");
 }
+
+/** Short live drift for names without a last sale, so the tape is not frozen between prints. */
+export function tapeMid(inst: Instrument, mid: number, now: number): number {
+  const seed = hashString(inst.symbol);
+  const wave = Math.sin(now / 1400 + (seed % 1000) / 80) * inst.vol * 0.0032;
+  return mid * (1 + wave);
+}

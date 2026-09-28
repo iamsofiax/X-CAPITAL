@@ -68,7 +68,7 @@ export default function DashboardLayout({
         <MarketTicker />
         <Header title={title} subtitle={subtitle} />
         <SimSync />
-        <main className={cn("mx-auto px-4 md:px-6 py-6 md:py-8", wide ? "max-w-[1600px]" : "max-w-7xl")}>
+        <main className={cn("mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7 lg:py-8", wide ? "max-w-[1600px]" : "max-w-7xl")}>
           {requireGenesis ? <GenesisGate>{children}</GenesisGate> : children}
         </main>
       </div>

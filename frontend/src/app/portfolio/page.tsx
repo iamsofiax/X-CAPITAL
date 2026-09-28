@@ -8,7 +8,8 @@ import { useStore } from "@/store/useStore";
 import { listReceipts, type TradeReceipt as Slip } from "@/lib/yieldDesk";
 import { TradeReceipt } from "@/components/desk/TradeReceipt";
 import { VAULT_BY_ID, navAt } from "@/lib/sim/vaults";
-import { INSTRUMENT_BY_SYMBOL } from "@/lib/sim/instruments";
+import { INSTRUMENTS, INSTRUMENT_BY_SYMBOL } from "@/lib/sim/instruments";
+import { useSimQuotes } from "@/hooks/useSimQuotes";
 import { CATALOG_BY_SKU, incomePerMinute } from "@/lib/commerceDesk";
 import { LiveBook } from "@/components/desk/LiveBook";
 import { YieldWatch } from "@/components/desk/YieldWatch";
@@ -26,6 +27,7 @@ export default function BookPage() {
 
 function Book() {
   const { account, metrics, epoch } = useSim();
+  const { quotes, liveCount } = useSimQuotes();
   const { active } = useLiveYield();
   const userId = useStore((s) => s.user?.id);
   const [slips, setSlips] = useState<Slip[]>([]);
@@ -91,6 +93,40 @@ function Book() {
   return (
     <div className="space-y-5">
       <LiveBook />
+      <Panel code="Tape" title={`${INSTRUMENTS.length} listed names`} edge bodyClassName="p-0">
+        <p className="px-4 sm:px-5 pt-4 text-[12px] text-white/45">
+          {liveCount} printing from the market. The rest move with the index so the book does not sit still.
+        </p>
+        <div className="mt-3 max-h-[28rem] overflow-auto">
+          <table className="w-full min-w-[520px] text-left">
+            <thead className="sticky top-0 bg-[#121816]">
+              <tr className="sim-label text-[9px] border-b border-white/[0.05]">
+                <th className="font-normal px-4 sm:px-5 py-3">Name</th>
+                <th className="font-normal px-3 py-3 text-right">Last</th>
+                <th className="font-normal px-4 sm:px-5 py-3 text-right">Session</th>
+              </tr>
+            </thead>
+            <tbody className="sim-num text-[12px]">
+              {INSTRUMENTS.map((inst) => {
+                const q = quotes[inst.symbol];
+                const chg = q?.change24h ?? 0;
+                return (
+                  <tr key={inst.symbol} className="border-b border-white/[0.04]">
+                    <td className="px-4 sm:px-5 py-2.5">
+                      <span className="text-white font-semibold">{inst.symbol}</span>
+                      <span className="block text-[11px] text-white/40 font-sans">{inst.name}</span>
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-white">{q ? fmtUsdc(q.mid, { decimals: q.mid >= 100 ? 2 : 4 }) : "—"}</td>
+                    <td className={cn("px-4 sm:px-5 py-2.5 text-right", signClass(chg))}>
+                      {q ? `${chg >= 0 ? "+" : ""}${chg.toFixed(2)}%` : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
       <YieldWatch />
       <Panel code="Settlements" title="Receipts" edge>
         {slips.length === 0 ? (
@@ -116,7 +152,7 @@ function Book() {
       </Panel>
       <Panel code="Holdings" title="Portfolio" edge bodyClassName="p-0">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left">
+          <table className="w-full min-w-[36rem] text-left">
             <thead>
               <tr className="sim-label text-[9px] border-b border-white/[0.05]">
                 <th className="font-normal px-5 py-3">Holding</th>
