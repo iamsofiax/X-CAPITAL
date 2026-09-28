@@ -8,11 +8,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL("https://xcapital.investments"),
   title: {
-    default: "X-CAPITAL — Capital under mandate",
+    default: "X-CAPITAL — Public markets, private sleeves, one book",
     template: "%s | X-CAPITAL",
   },
   description:
-    "X-CAPITAL is the multi-rail capital desk: public markets, private sleeves, tokenized assets, and infrastructure. Isolated node ledgers. Accrual Core.",
+    "X-CAPITAL at xcapital.investments is the operator desk for public markets, private equity, tokenized assets, and infrastructure. Seven rails. One node. One book.",
   keywords: [
     "X-CAPITAL",
     "X Capital",
@@ -46,9 +46,9 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: "X-CAPITAL — Next-Generation Capital Deployment Platform",
+    title: "X-CAPITAL — Public markets, private sleeves, one book",
     description:
-      "Public markets. Private equity. Tokenized assets. Infrastructure. One interface, total control over your capital.",
+      "X-CAPITAL at xcapital.investments runs public markets, private equity, tokenized assets, and infrastructure on one isolated book.",
     url: "https://xcapital.investments",
     siteName: "X-CAPITAL",
     locale: "en_US",
@@ -64,9 +64,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "X-CAPITAL — Next-Generation Capital Deployment",
+    title: "X-CAPITAL — Public markets, private sleeves, one book",
     description:
-      "The interface where capital grows. Public markets, private equity, tokenization, infrastructure — one system.",
+      "X-CAPITAL at xcapital.investments runs public markets, private equity, tokenized assets, and infrastructure on one isolated book.",
     images: ["/og-image.png"],
     creator: "@xcapital",
   },

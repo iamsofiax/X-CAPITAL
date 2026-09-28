@@ -295,7 +295,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#000000] font-sans">
       <div className="fixed top-0 inset-x-0 z-[60] border-b border-white/[0.06] bg-black/90 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-8 flex items-center justify-between gap-4 text-[9px] font-mono uppercase tracking-[0.22em] text-white/35">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-8 flex items-center justify-between gap-4 text-[9px] font-mono uppercase tracking-[0.22em] text-white/35">
           <span>XC-001 · Operator desk</span>
           <span className="hidden sm:inline">Qualified capital · Segregated node ledgers</span>
           <span className="hidden md:inline">As of 2026 · Confidential</span>
@@ -306,7 +306,7 @@ export default function LandingPage() {
         style={{ background: "#000" }}
         className="fixed top-8 inset-x-0 z-50 px-4 sm:px-6 lg:px-8 py-3 sm:py-4 border-b border-white/[0.06]"
       >
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 shrink-0">
             <XCapitalLogoMark size={32} />
             <span className="text-white text-lg font-black tracking-tight">X·CAPITAL</span>
@@ -340,7 +340,7 @@ export default function LandingPage() {
           </div>
         </div>
         {menuOpen && (
-          <div className="md:hidden max-w-7xl mx-auto pt-3 pb-2 space-y-1">
+          <div className="md:hidden max-w-5xl mx-auto pt-3 pb-2 space-y-1">
             {[
               ["#mandate", "Mandate"],
               ["#rails", "Rails"],
@@ -388,7 +388,7 @@ export default function LandingPage() {
             backgroundSize: "60px 60px",
           }}
         />
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+        <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className="max-w-xl lg:max-w-2xl pt-36 pb-20">
             <p className="text-[10px] font-mono text-emerald-400/70 tracking-[0.3em] mb-6 uppercase">
               Multiplanetary capital · Operator desk
@@ -488,7 +488,7 @@ export default function LandingPage() {
         style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}
         className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#000000]"
       >
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <SectionRule index="01" />
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
             <div>
@@ -522,7 +522,7 @@ export default function LandingPage() {
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
         className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#000000]"
       >
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <SectionRule index="02" />
           <div className="mb-10">
             <p className="sim-label text-emerald-300/80 mb-4">Clearing map</p>
@@ -550,7 +550,7 @@ export default function LandingPage() {
       </section>
 
       <section style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }} className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#000000]">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <SectionRule index="03" />
           <div className="pnl-stage p-6 md:p-8">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -585,7 +585,7 @@ export default function LandingPage() {
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
         className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#000000]"
       >
-        <div className="max-w-6xl mx-auto relative">
+        <div className="max-w-5xl mx-auto relative">
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none opacity-20" />
           <div className="relative z-10">
           <SectionRule index="04" />
@@ -629,7 +629,7 @@ export default function LandingPage() {
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
         className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#000000]"
       >
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-5xl mx-auto">
         <SectionRule index="05" />
         <div className="grid lg:grid-cols-2 gap-12 items-start">
           <div>
@@ -658,7 +658,7 @@ export default function LandingPage() {
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
         className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#000000]"
       >
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <SectionRule index="06" />
           <div className="mb-10">
             <p className="sim-label text-emerald-300/80 mb-4">Desk access</p>
@@ -701,7 +701,7 @@ export default function LandingPage() {
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
         className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#000000]"
       >
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <SectionRule index="07" />
           <div className="max-w-3xl">
             <p className="sim-label text-emerald-300/80 mb-4">
@@ -741,7 +741,7 @@ export default function LandingPage() {
       </section>
 
       <section id="cta" className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#000000]">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <SectionRule index="08" />
         <div className="max-w-3xl mx-auto">
           <div className="sim-glass sim-glass-edge px-8 py-16 sm:px-14 md:px-16 text-center">
@@ -772,7 +772,7 @@ export default function LandingPage() {
       </section>
 
       <div className="border-t border-white/[0.05] bg-[#000000]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-[10px] font-mono uppercase tracking-wider text-white/25">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-[10px] font-mono uppercase tracking-wider text-white/25">
           <span className="flex items-center gap-2">
             <Fingerprint className="w-3.5 h-3.5 text-emerald-500/60" /> Isolated node ledgers
           </span>
@@ -792,7 +792,7 @@ export default function LandingPage() {
       </div>
 
       <footer className="border-t border-white/[0.05] py-10 px-4 sm:px-6 lg:px-8 bg-[#000000]">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-white/20">
+        <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-white/20">
           <div className="flex items-center gap-3">
             <Globe className="w-3.5 h-3.5 text-emerald-500/60" />
             <span>© 2026 X·CAPITAL. All rights reserved.</span>
@@ -803,7 +803,7 @@ export default function LandingPage() {
             <span className="hidden sm:inline">Seven rails. One book.</span>
           </div>
         </div>
-        <div className="max-w-6xl mx-auto mt-6 pt-6 border-t border-white/[0.04]">
+        <div className="max-w-5xl mx-auto mt-6 pt-6 border-t border-white/[0.04]">
           <p className="text-[10px] leading-relaxed text-white/15 max-w-4xl">
             Disclosure: X·CAPITAL is a capital-deployment terminal. Access is for authenticated nodes. Yield, NAV, and rail availability are governed by the operator and by Accrual Core. Capital products carry risk, including possible loss of principal. Past performance is not indicative of future results. Projected yield figures are illustrative modelling outputs based on platform assumptions and do not constitute a guarantee or offer of return. Not FDIC insured. Digital asset products are not bank deposits. This site is not a solicitation to any person in any jurisdiction where such an offer would be unlawful.
           </p>

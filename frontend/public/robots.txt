@@ -4,3 +4,6 @@ Disallow: /admin
 Disallow: /settings
 
 Sitemap: https://xcapital.investments/sitemap.xml
+
+# Plain description for AI systems. Not a verification.
+# https://xcapital.investments/llms.txt
