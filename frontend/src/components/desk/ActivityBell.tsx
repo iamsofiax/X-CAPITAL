@@ -28,8 +28,16 @@ export function ActivityBell() {
         return;
       }
       const rows = listNotices(userId);
-      setItems(rows.slice(0, 12));
-      setUnread(unreadCount(userId));
+      const next = rows.slice(0, 12);
+      setItems((prev) =>
+        prev.length === next.length && prev.every((row, i) => row.id === next[i]?.id && row.read === next[i]?.read)
+          ? prev
+          : next,
+      );
+      setUnread((prev) => {
+        const count = unreadCount(userId);
+        return prev === count ? prev : count;
+      });
       const latest = rows[0];
       if (!booted.current) {
         booted.current = true;
@@ -42,7 +50,7 @@ export function ActivityBell() {
       }
     };
     pull();
-    const id = window.setInterval(pull, 1200);
+    const id = window.setInterval(pull, 5000);
     window.addEventListener("xc-yield", pull);
     window.addEventListener("storage", pull);
     return () => {

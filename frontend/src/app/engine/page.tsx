@@ -149,10 +149,10 @@ function Conviction() {
                     return (
                       <tr key={l.id} className="border-b border-white/[0.03]">
                         <td className="px-5 py-2.5 text-white font-bold">{fmtNum(l.amount, 2)} XC</td>
-                        <td className="px-2 py-2.5 text-right text-violet-300">{fmtNum(w, 4)}</td>
+                        <td className="px-2 py-2.5 text-right text-white">{fmtNum(w, 4)}</td>
                         <td className="px-2 py-2.5 w-40">
                           <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
-                            <div className="h-full bg-violet-400/70" style={{ width: `${(1 - elapsed) * 100}%` }} />
+                            <div className="h-full bg-white/55" style={{ width: `${(1 - elapsed) * 100}%` }} />
                           </div>
                         </td>
                         <td className="px-2 py-2.5 text-right text-white/60">{new Date(l.endTs).toISOString().slice(0, 10)}</td>
@@ -174,7 +174,7 @@ function Conviction() {
       <div className="grid xl:grid-cols-[380px_1fr] gap-5">
         <Panel code={`Season ${season + 1}`} title="Standing">
           <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-emerald-400 to-indigo-400" style={{ width: `${seasonProgress * 100}%` }} />
+            <div className="h-full bg-white/60" style={{ width: `${seasonProgress * 100}%` }} />
           </div>
           <p className="sim-num text-[11px] text-white/40 mt-1.5">
             Epoch {epoch - bounds.start + 1} of {SEASON_EPOCHS} · ends {new Date(epochStart(bounds.end + 1)).toISOString().slice(0, 10)}

@@ -34,9 +34,16 @@ function Book() {
   const [openSlip, setOpenSlip] = useState<Slip | null>(null);
 
   useEffect(() => {
-    const pull = () => setSlips(userId ? listReceipts(userId).slice(0, 8) : []);
+    const pull = () => {
+      const next = userId ? listReceipts(userId).slice(0, 8) : [];
+      setSlips((prev) =>
+        prev.length === next.length && prev.every((row, i) => row.id === next[i]?.id)
+          ? prev
+          : next,
+      );
+    };
     pull();
-    const id = window.setInterval(pull, 1500);
+    const id = window.setInterval(pull, 5000);
     window.addEventListener("xc-yield", pull);
     return () => {
       window.clearInterval(id);

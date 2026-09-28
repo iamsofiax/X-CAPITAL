@@ -1,19 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { subscribeDeskClock } from "@/hooks/useLiveYield";
 import { blockHeight, currentEpoch, msUntilNextEpoch, seasonOf, EPOCH_MS } from "@/lib/sim/clock";
 import { regimeAt } from "@/lib/sim/vaults";
 import { fmtDuration } from "@/lib/sim/format";
 import { cn } from "@/lib/utils";
 
-function useNow(intervalMs = 1000): number {
+function useNow(): number {
   const [now, setNow] = useState(0);
-  useEffect(() => {
-    const tick = () => setNow(Date.now());
-    tick();
-    const id = setInterval(tick, intervalMs);
-    return () => clearInterval(id);
-  }, [intervalMs]);
+  useEffect(() => subscribeDeskClock(setNow), []);
   return now;
 }
 
@@ -28,7 +24,7 @@ export function RegimeChip({ epoch, className }: { epoch: number; className?: st
           : "Stress regime: correlations spike; hedges and trend strategies pay."
       }
     >
-      <span className={cn("w-1.5 h-1.5 rounded-full", regime === "calm" ? "bg-emerald-400" : "bg-amber-400 animate-pulse")} />
+      <span className={cn("w-1.5 h-1.5 rounded-full", regime === "calm" ? "bg-[#8aa396]" : "bg-amber-400")} />
       {regime === "calm" ? "Calm regime" : "Stress regime"}
     </span>
   );
@@ -44,7 +40,7 @@ export function EpochTicker({ className }: { className?: string }) {
       <span className="text-white font-bold">{now ? epoch.toLocaleString() : "—"}</span>
       <span className="w-px h-3 bg-white/10" />
       <span className="text-white/35">NEXT</span>
-      <span className="text-emerald-300 tabular-nums">{now ? fmtDuration(msUntilNextEpoch(now)) : "—:—"}</span>
+      <span className="text-white/80 tabular-nums">{now ? fmtDuration(msUntilNextEpoch(now)) : "—:—"}</span>
       <span className="w-px h-3 bg-white/10 hidden xl:block" />
       <span className="text-white/35 hidden xl:inline">BLOCK</span>
       <span className="text-white/70 tabular-nums hidden xl:inline">{now ? `#${blockHeight(now).toLocaleString()}` : "#—"}</span>
@@ -71,19 +67,13 @@ export function EpochClock({ className }: { className?: string }) {
             cy="44"
             r={r}
             fill="none"
-            stroke="url(#epoch-ring)"
+            stroke="rgba(231,239,233,0.72)"
             strokeWidth="5"
             strokeLinecap="round"
             strokeDasharray={c}
             strokeDashoffset={c * (1 - progress)}
             style={{ transition: "stroke-dashoffset 1s linear" }}
           />
-          <defs>
-            <linearGradient id="epoch-ring" x1="0" x2="1">
-              <stop offset="0%" stopColor="#34d399" />
-              <stop offset="100%" stopColor="#6366f1" />
-            </linearGradient>
-          </defs>
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="sim-label text-[8px]">Epoch</span>

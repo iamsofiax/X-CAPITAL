@@ -933,7 +933,7 @@ input[type="number"] {
   }
 }
 .live-dot {
-  animation: liveBreathe 1.5s ease-in-out infinite;
+  animation: none;
 }
 
 /* ══ END TRADING ANIMATIONS ═══════════════════════════════════════════════ */
@@ -1037,7 +1037,8 @@ input[type="number"] {
     linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
   background-size: 60px 60px;
-  animation: gridPulse 3s ease-in-out infinite;
+  animation: none;
+  opacity: 0.35;
   mask-image: radial-gradient(ellipse 60% 60% at 50% 50%, black, transparent);
   -webkit-mask-image: radial-gradient(
     ellipse 60% 60% at 50% 50%,
@@ -2035,7 +2036,7 @@ select.sim-input option {
   top: -40%;
   height: 40%;
   background: linear-gradient(180deg, transparent, rgba(16, 185, 129, 0.05), transparent);
-  animation: simScan 6s linear infinite;
+  animation: none;
   pointer-events: none;
 }
 @keyframes simScan {
@@ -2081,7 +2082,7 @@ select.sim-input option {
   font-size: 10px;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: rgba(110, 231, 183, 0.85);
+  color: rgba(231, 239, 233, 0.55);
 }
 .core-mast {
   display: grid;
@@ -2134,8 +2135,8 @@ select.sim-input option {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #34d399;
-  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.15);
+  background: #8aa396;
+  box-shadow: none;
 }
 .core-deck {
   display: grid;
@@ -2161,7 +2162,7 @@ select.sim-input option {
 .core-row span:first-child { color: rgba(255, 255, 255, 0.4); letter-spacing: 0.08em; }
 .core-row em {
   font-style: normal;
-  color: #6ee7b7;
+  color: rgba(231, 239, 233, 0.72);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   font-size: 10px;
@@ -2191,11 +2192,7 @@ select.sim-input option {
 }
 .core-plot::before,
 .core-plot::after {
-  content: "";
-  position: absolute;
-  background: rgba(255, 255, 255, 0.12);
-  pointer-events: none;
-  z-index: 3;
+  content: none;
 }
 .core-plot::before { left: 50%; top: 6%; bottom: 6%; width: 1px; }
 .core-plot::after { top: 50%; left: 6%; right: 6%; height: 1px; }
@@ -2225,7 +2222,7 @@ select.sim-input option {
   inset: 0;
   border-radius: 50%;
   background: conic-gradient(from 0deg, transparent 0 99.35%, rgba(110, 231, 183, 0.95) 99.7%, transparent 100%);
-  animation: coreSweep 18s linear infinite;
+  animation: none;
   pointer-events: none;
 }
 @keyframes coreSweep { to { transform: rotate(360deg); } }

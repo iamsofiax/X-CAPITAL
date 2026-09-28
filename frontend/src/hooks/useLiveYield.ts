@@ -8,6 +8,35 @@ import { accountNav } from "@/lib/sim/engine";
 import { liveAccrual, nodeActivated, operatedOf, pushNotice, readMandate, touchMandate, weeklyOf, type YieldMandate } from "@/lib/yieldDesk";
 import { FLEET_APR, YEAR_MS, incomePerMinute } from "@/lib/commerceDesk";
 
+const clockListeners = new Set<(t: number) => void>();
+let clockNow = 0;
+let clockTimer: number | null = null;
+
+function emitClock() {
+  if (typeof document !== "undefined" && document.hidden) return;
+  clockNow = Date.now();
+  clockListeners.forEach((fn) => fn(clockNow));
+}
+
+export function subscribeDeskClock(fn: (t: number) => void) {
+  clockListeners.add(fn);
+  if (clockTimer == null && typeof window !== "undefined") {
+    emitClock();
+    clockTimer = window.setInterval(emitClock, 1000);
+    document.addEventListener("visibilitychange", emitClock);
+  } else if (clockNow) {
+    fn(clockNow);
+  }
+  return () => {
+    clockListeners.delete(fn);
+    if (clockListeners.size === 0 && clockTimer != null) {
+      window.clearInterval(clockTimer);
+      clockTimer = null;
+      document.removeEventListener("visibilitychange", emitClock);
+    }
+  };
+}
+
 export function useLiveYield() {
   const userId = useStore((s) => s.user?.id ?? null);
   const { account, metrics } = useSim();
@@ -18,12 +47,7 @@ export function useLiveYield() {
   const postedKey = useRef("");
   const fleetKey = useRef("");
 
-  useEffect(() => {
-    const tick = () => setNow(Date.now());
-    tick();
-    const id = window.setInterval(tick, 250);
-    return () => window.clearInterval(id);
-  }, []);
+  useEffect(() => subscribeDeskClock(setNow), []);
 
   useEffect(() => {
     const pull = () => setMandate(userId ? readMandate(userId) : null);

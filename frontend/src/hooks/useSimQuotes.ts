@@ -2,11 +2,13 @@
 
 import { useMemo } from "react";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
-import { INSTRUMENTS, buildQuote, type Quote } from "@/lib/sim/instruments";
+import { FEATURED, INSTRUMENTS, buildQuote, type Quote } from "@/lib/sim/instruments";
 
-/** Last sale when a print exists. Names without a print stay on their reference mark. */
+const TAPE = FEATURED.map((inst) => inst.symbol);
+
+/** Last sale for the tape. The long book stays on its reference mark so the desk opens at once. */
 export function useSimQuotes(): { quotes: Record<string, Quote>; liveCount: number; markedCount: number } {
-  const { prices } = useMarketPrices({ refreshInterval: 20_000 });
+  const { prices } = useMarketPrices({ symbols: TAPE, refreshInterval: 30_000 });
 
   return useMemo(() => {
     const quotes: Record<string, Quote> = {};

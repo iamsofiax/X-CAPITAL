@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   Activity,
@@ -191,73 +191,6 @@ export default function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { health, online, loading } = useHealth();
   const { prices } = useMarketPrices({ symbols: TICKER, refreshInterval: 60_000 });
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    let raf = 0;
-    let t = 0;
-    const resize = () => {
-      const w = canvas.offsetWidth;
-      const h = canvas.offsetHeight;
-      if (w === 0 || h === 0) return;
-      canvas.width = w * devicePixelRatio;
-      canvas.height = h * devicePixelRatio;
-      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-    };
-    resize();
-    window.addEventListener("resize", resize);
-    const colors = [
-      "rgba(255,255,255,",
-      "rgba(245,158,11,",
-      "rgba(167,139,250,",
-      "rgba(52,211,153,",
-      "rgba(251,113,133,",
-      "rgba(129,140,248,",
-      "rgba(34,211,238,",
-    ];
-    const dots = Array.from({ length: 70 }, (_, i) => ({
-      x: (canvas.width / 7) * (i % 7) + canvas.width / 14 + (Math.random() - 0.5) * 40,
-      y: Math.random() * canvas.height,
-      vy: 0.2 + 0.4 * Math.random(),
-      rail: i % 7,
-      size: 1 + (i % 3) * 0.6,
-      pulse: Math.random() * Math.PI * 2,
-      alpha: 0.15 + 0.35 * Math.random(),
-    }));
-    const draw = () => {
-      if (document.hidden) {
-        raf = requestAnimationFrame(draw);
-        return;
-      }
-      t += 0.006;
-      const w = canvas.offsetWidth;
-      const h = canvas.offsetHeight;
-      ctx.clearRect(0, 0, w, h);
-      for (const dot of dots) {
-        const x = (w / 7) * dot.rail + w / 14 + 12 * Math.sin(0.3 * t + dot.pulse);
-        dot.y += dot.vy;
-        if (dot.y > h + 8) {
-          dot.y = -8;
-          dot.x = x;
-        }
-        const a = 0.25 * Math.sin(2 * t + dot.pulse) + 0.75;
-        ctx.beginPath();
-        ctx.arc(x, dot.y, dot.size, 0, 2 * Math.PI);
-        ctx.fillStyle = `${colors[dot.rail]}${(dot.alpha * a * 0.6).toFixed(3)})`;
-        ctx.fill();
-      }
-      raf = requestAnimationFrame(draw);
-    };
-    draw();
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("resize", resize);
-    };
-  }, []);
 
   const gateway =
     loading && !health ? "CHECKING" : online || health ? "LIVE" : "OFFLINE";
@@ -591,7 +524,6 @@ export default function LandingPage() {
         className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#000000]"
       >
         <div className="max-w-5xl mx-auto relative">
-          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none opacity-20" />
           <div className="relative z-10">
           <SectionRule index="04" />
           <div className="mb-10">
@@ -762,37 +694,35 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <SectionRule index="08" />
           <div className="max-w-3xl">
-            <p className="sim-label text-emerald-300/80 mb-4">
-              Super AGI Core · Live
+            <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-white/55 mb-4">
+              Accrual Core
             </p>
             <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">
-              Settlement map of the <span className="text-white/40">seven-rail desk.</span>
+              Clearing plate of the <span className="text-white/40">seven-rail desk.</span>
             </h2>
-            <p className="text-white/35 text-sm max-w-md mt-4 leading-relaxed">
-              Digital twin of the clearing fabric. Efficiency, liquidity, latency, and reserve integrity are instruments on the panel — the ledger remains on the server, scoped to the authenticated node.
+            <p className="text-white/55 text-sm max-w-lg mt-4 leading-relaxed">
+              Three stations. One settlement clock. Rails, epoch, and the next close, set in type the way a clearing house sets a tombstone.
             </p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8">
-            <div className="pnl-card pnl-card-pos">
-              <div className="text-[9px] font-mono text-white/25 tracking-wider">GATEWAY</div>
-              <div className={`text-lg font-black font-mono mt-1 ${gateway === "LIVE" ? "text-emerald-400" : "text-amber-400"}`}>
-                {gateway}
-              </div>
+            <div className="border border-white/12 bg-[#070b09] px-4 py-4">
+              <div className="text-[9px] font-mono text-white/50 tracking-wider">GATEWAY</div>
+              <div className="text-lg font-black font-mono mt-1 text-white">{gateway}</div>
             </div>
-            <div className="pnl-card pnl-card-pos">
-              <div className="text-[9px] font-mono text-white/25 tracking-wider">AVG SETTLE</div>
+            <div className="border border-white/12 bg-[#070b09] px-4 py-4">
+              <div className="text-[9px] font-mono text-white/50 tracking-wider">AVG SETTLE</div>
               <div className="text-lg font-black font-mono text-white mt-1">{latency}</div>
             </div>
-            <div className="pnl-card pnl-card-pos">
-              <div className="text-[9px] font-mono text-white/25 tracking-wider">UPTIME</div>
+            <div className="border border-white/12 bg-[#070b09] px-4 py-4">
+              <div className="text-[9px] font-mono text-white/50 tracking-wider">UPTIME</div>
               <div className="text-lg font-black font-mono text-white mt-1">{uptime}</div>
             </div>
-            <div className="pnl-card pnl-card-pos">
-              <div className="text-[9px] font-mono text-white/25 tracking-wider">RAILS ARMED</div>
-              <div className="text-lg font-black font-mono text-emerald-400 mt-1">7 / 7</div>
+            <div className="border border-white/12 bg-[#070b09] px-4 py-4">
+              <div className="text-[9px] font-mono text-white/50 tracking-wider">RAILS ARMED</div>
+              <div className="text-lg font-black font-mono text-white mt-1">7 / 7</div>
             </div>
           </div>
-          <div className="engine-bay pnl-stage mt-6 p-3 sm:p-6 md:p-8">
+          <div className="mt-6 border border-white/15 bg-[#070b09] p-4 sm:p-6 md:p-8">
             <CoreSimulation />
           </div>
         </div>

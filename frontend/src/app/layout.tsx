@@ -177,20 +177,6 @@ export default function RootLayout({
           <div className="xc-splash-content">
             {/* Animated grid lines */}
             <div className="xc-splash-grid" />
-            {/* Particle field */}
-            <div className="xc-splash-particles">
-              {Array.from({ length: 20 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="xc-splash-dot"
-                  style={{
-                    left: `${5 + ((i * 4.7) % 90)}%`,
-                    animationDelay: `${i * 0.15}s`,
-                    animationDuration: `${1.5 + (i % 3) * 0.5}s`,
-                  }}
-                />
-              ))}
-            </div>
             {/* Logo */}
             <div className="xc-splash-logo">
               <XCapitalSplashLogo />

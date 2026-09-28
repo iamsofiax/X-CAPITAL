@@ -30,25 +30,19 @@ export function ConvictionDial({
         <svg viewBox="0 0 148 148" className="w-full h-full -rotate-90" aria-hidden>
           <circle cx="74" cy="74" r={outerR} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
           <circle
-            cx="74" cy="74" r={outerR} fill="none" stroke="url(#dial-outer)" strokeWidth="8" strokeLinecap="round"
+            cx="74" cy="74" r={outerR} fill="none" stroke="rgba(231,239,233,0.72)" strokeWidth="8" strokeLinecap="butt"
             strokeDasharray={co} strokeDashoffset={co * (1 - outer)}
           />
-          <circle cx="74" cy="74" r={innerR} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="5" />
+          <circle cx="74" cy="74" r={innerR} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="5" />
           <circle
-            cx="74" cy="74" r={innerR} fill="none" stroke="#a78bfa" strokeOpacity="0.8" strokeWidth="5" strokeLinecap="round"
+            cx="74" cy="74" r={innerR} fill="none" stroke="rgba(231,239,233,0.38)" strokeWidth="5" strokeLinecap="butt"
             strokeDasharray={ci} strokeDashoffset={ci * (1 - inner)}
           />
-          <defs>
-            <linearGradient id="dial-outer" x1="0" x2="1">
-              <stop offset="0%" stopColor="#34d399" />
-              <stop offset="100%" stopColor="#6366f1" />
-            </linearGradient>
-          </defs>
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
           <span className="sim-label text-[8px]">Weight</span>
           <span className="sim-num text-white font-bold text-lg leading-tight">{fmtNum(weight, 2)}</span>
-          <span className="sim-num text-[10px] text-emerald-300">{fmtPct(apr, 2, false)} APR</span>
+          <span className="sim-num text-[10px] text-white/70">{fmtPct(apr, 2, false)} APR</span>
         </div>
       </div>
       <dl className="space-y-2.5 text-[12px] min-w-0">
@@ -62,7 +56,7 @@ export function ConvictionDial({
         </div>
         <div>
           <dt className="sim-label text-[8.5px]">Weight retained</dt>
-          <dd className="sim-num text-violet-300 font-bold">{fmtPct(inner, 1, false)}</dd>
+          <dd className="sim-num text-white font-bold">{fmtPct(inner, 1, false)}</dd>
         </div>
       </dl>
     </div>
