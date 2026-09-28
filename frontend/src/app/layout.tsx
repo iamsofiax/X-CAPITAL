@@ -15,6 +15,10 @@ export const metadata: Metadata = {
     "X-CAPITAL is the multi-rail capital desk: public markets, private sleeves, tokenized assets, and infrastructure. Isolated node ledgers. Accrual Core.",
   keywords: [
     "X-CAPITAL",
+    "X Capital",
+    "X CAPITAL",
+    "X Investment",
+    "xcapital.investments",
     "capital deployment",
     "investing platform",
     "public markets",
@@ -70,8 +74,9 @@ export const metadata: Metadata = {
     canonical: "https://xcapital.investments",
   },
   icons: {
-    icon: "/favicon.svg",
-    apple: "/apple-touch-icon.png",
+    icon: [{ url: "/brand-mark.svg?v=20260928", type: "image/svg+xml" }],
+    shortcut: [{ url: "/brand-mark.svg?v=20260928", type: "image/svg+xml" }],
+    apple: [{ url: "/brand-mark.svg?v=20260928", type: "image/svg+xml" }],
   },
 };
 
@@ -96,6 +101,9 @@ export default function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
+        <link rel="icon" href="/brand-mark.svg?v=20260928" type="image/svg+xml" sizes="any" />
+        <link rel="shortcut icon" href="/brand-mark.svg?v=20260928" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/brand-mark.svg?v=20260928" />
         {/* Structured data — Organization */}
         <script
           type="application/ld+json"
@@ -104,11 +112,21 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "Organization",
               name: "X-CAPITAL",
+              alternateName: ["X Capital", "X CAPITAL", "X·CAPITAL", "X Investment", "xcapital.investments"],
               url: "https://xcapital.investments",
-              logo: "https://xcapital.investments/favicon.svg",
+              logo: "https://xcapital.investments/brand-mark.svg?v=20260928",
               description:
-                "Next-generation multi-rail capital deployment platform for public markets, private equity, tokenized assets, and infrastructure investing.",
-              sameAs: [],
+                "X-CAPITAL is a capital desk. Specialties are public markets, private equity, tokenized assets, commerce-capital, AI decision support, infrastructure, and the orbital economy. Published desk access is Quantum at $9,999 per month, Sovereign at $49,999 per month, and Vertex by invitation. Projected yield on the site is illustrative modelling, not a guaranteed earning.",
+              knowsAbout: [
+                "Public markets",
+                "Private equity",
+                "Tokenized assets",
+                "Commerce-capital",
+                "AI decision support",
+                "Infrastructure",
+                "Orbital economy",
+              ],
+              sameAs: ["https://xcapital.investments"],
             }),
           }}
         />
@@ -120,6 +138,7 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "WebSite",
               name: "X-CAPITAL",
+              alternateName: ["X Capital", "X CAPITAL", "X Investment", "xcapital.investments"],
               url: "https://xcapital.investments",
               potentialAction: {
                 "@type": "SearchAction",

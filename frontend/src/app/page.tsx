@@ -482,13 +482,15 @@ export default function LandingPage() {
         </div>
       </div>
 
+      <div className="desk-system">
       <section
         id="mandate"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
-        className="py-24 px-4 sm:px-6 lg:px-8 bg-[#000000]"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}
+        className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#000000]"
       >
         <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+          <SectionRule index="01" />
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
             <div>
               <p className="sim-label text-emerald-300/80 mb-4">Operating mandate</p>
               <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">How the desk is run.</h2>
@@ -501,7 +503,7 @@ export default function LandingPage() {
             {MANDATES.map((item) => {
               const Icon = item.icon;
               return (
-                <div key={item.code} className="pnl-card pnl-card-pos hover-lift">
+                <div key={item.code} className="pnl-card pnl-card-pos h-full border-l-2 border-emerald-400/50">
                   <div className="flex items-center justify-between mb-5">
                     <span className="text-[10px] font-mono font-black text-emerald-400/60 tracking-[0.3em]">{item.code}</span>
                     <Icon className="w-4 h-4 text-white/30" />
@@ -518,15 +520,16 @@ export default function LandingPage() {
       <section
         id="engine"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
-        className="py-28 px-4 sm:px-6 lg:px-8 bg-[#000000]"
+        className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#000000]"
       >
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
+          <SectionRule index="02" />
+          <div className="mb-10">
             <p className="sim-label text-emerald-300/80 mb-4">Clearing map</p>
             <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">
               Asset to node. <span className="text-white/40">Node to book.</span>
             </h2>
-            <p className="text-white/35 text-sm max-w-lg mx-auto mt-4">
+            <p className="text-white/35 text-sm max-w-lg mt-4">
               Every position posts to the authenticated node. The engine routes across seven rails. Yield settles to the same ledger.
             </p>
           </div>
@@ -534,7 +537,7 @@ export default function LandingPage() {
             {STEPS.map((step) => (
               <div
                 key={step.step}
-                className="pnl-stage p-8 relative overflow-hidden hover-lift"
+                className="pnl-stage p-6 sm:p-8 h-full relative overflow-hidden border-l-2 border-emerald-400/40"
               >
                 <span className="text-[10px] font-mono font-black text-emerald-400/60 tracking-[0.3em]">{step.step}</span>
                 <h3 className="text-xl font-black text-white mt-4 mb-2 tracking-tight">{step.title}</h3>
@@ -546,8 +549,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }} className="py-20 px-4 sm:px-6 lg:px-8 bg-[#000000]">
+      <section style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }} className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#000000]">
         <div className="max-w-6xl mx-auto">
+          <SectionRule index="03" />
           <div className="pnl-stage p-6 md:p-8">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
               <div>
@@ -579,17 +583,19 @@ export default function LandingPage() {
       <section
         id="rails"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
-        className="py-28 px-4 sm:px-6 lg:px-8 bg-[#000000]"
+        className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#000000]"
       >
         <div className="max-w-6xl mx-auto relative">
-          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none opacity-40" />
-          <div className="text-center mb-16 relative z-10">
+          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none opacity-20" />
+          <div className="relative z-10">
+          <SectionRule index="04" />
+          <div className="mb-10">
             <p className="sim-label text-emerald-300/80 mb-4">Seven capital rails</p>
             <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">
               Seven venues. <span className="text-white/40">One book.</span>
             </h2>
           </div>
-          <div className="relative z-10 grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {RAILS.map((rail, i) => (
               <div
                 key={rail.id}
@@ -614,15 +620,18 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+          </div>
         </div>
       </section>
 
       <section
         id="custody"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
-        className="py-28 px-4 sm:px-6 lg:px-8 bg-[#000000]"
+        className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#000000]"
       >
-        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 items-start">
+        <div className="max-w-6xl mx-auto">
+        <SectionRule index="05" />
+        <div className="grid lg:grid-cols-2 gap-12 items-start">
           <div>
             <p className="sim-label text-emerald-300/80 mb-4">Custody architecture</p>
             <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">History stays with the node.</h2>
@@ -641,15 +650,17 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
+        </div>
       </section>
 
       <section
         id="tiers"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
-        className="py-28 px-4 sm:px-6 lg:px-8 bg-[#000000]"
+        className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#000000]"
       >
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
+          <SectionRule index="06" />
+          <div className="mb-10">
             <p className="sim-label text-emerald-300/80 mb-4">Desk access</p>
             <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">
               Three mandates. <span className="text-white/40">One ledger model.</span>
@@ -688,9 +699,10 @@ export default function LandingPage() {
       <section
         id="stream"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
-        className="py-28 px-4 sm:px-6 lg:px-8 bg-[#000000]"
+        className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#000000]"
       >
         <div className="max-w-6xl mx-auto">
+          <SectionRule index="07" />
           <div className="max-w-3xl">
             <p className="sim-label text-emerald-300/80 mb-4">
               Super AGI Core · Live
@@ -728,7 +740,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="cta" className="py-28 px-4 sm:px-6 lg:px-8 bg-[#000000]">
+      <section id="cta" className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#000000]">
+        <div className="max-w-6xl mx-auto">
+          <SectionRule index="08" />
         <div className="max-w-3xl mx-auto">
           <div className="sim-glass sim-glass-edge px-8 py-16 sm:px-14 md:px-16 text-center">
           <p className="sim-label !text-emerald-300 mb-6">Qualified access</p>
@@ -753,6 +767,7 @@ export default function LandingPage() {
             </Link>
           </div>
           </div>
+        </div>
         </div>
       </section>
 
@@ -794,6 +809,27 @@ export default function LandingPage() {
           </p>
         </div>
       </footer>
+      <style>{`
+        .desk-system .text-white\\/15,
+        .desk-system .text-white\\/20,
+        .desk-system .text-white\\/25,
+        .desk-system .text-white\\/30,
+        .desk-system .text-white\\/35,
+        .desk-system .text-white\\/40,
+        .desk-system .text-white\\/45 {
+          color: rgba(231, 239, 233, 0.84);
+        }
+      `}</style>
+      </div>
+    </div>
+  );
+}
+
+function SectionRule({ index }: { index: string }) {
+  return (
+    <div className="mb-8 flex items-center gap-4">
+      <span className="font-mono text-[11px] font-bold tracking-[0.32em] text-emerald-300">{index}</span>
+      <span className="h-px flex-1 bg-white/15" />
     </div>
   );
 }
