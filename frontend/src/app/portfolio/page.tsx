@@ -242,16 +242,16 @@ function BookTape({
             className="sim-input w-full text-[16px] sm:text-[13px]"
           />
         </label>
-        <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Active on every account">
+        <ul className="mt-3 grid grid-cols-1 min-[420px]:grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Active on every account">
           {ACTIVE_SLEEVES.map((sleeve) => {
             const quote = sleeve.symbol === "NVDA" || sleeve.symbol === "TSLA" ? quotes[sleeve.symbol] : undefined;
             return (
               <li key={sleeve.id} className="flex min-w-0 items-center gap-2 border border-white/12 bg-[#070b09] px-2 py-2">
-                {sleeve.symbol === "SPACEX" || sleeve.symbol === "XAI" ? (
-                  <PrivatePlate label={sleeve.symbol === "SPACEX" ? "SX" : "xAI"} />
-                ) : (
-                  <ListedMark symbol={sleeve.symbol} name={sleeve.name} cls="equity" />
-                )}
+                <ListedMark
+                  symbol={sleeve.symbol}
+                  name={sleeve.name}
+                  cls={sleeve.symbol === "SPACEX" || sleeve.symbol === "XAI" ? "private" : "equity"}
+                />
                 <div className="min-w-0">
                   <p className="truncate text-[12px] font-semibold text-white">{sleeve.name}</p>
                   <p className="truncate text-[10px] uppercase tracking-[0.12em] text-white/45">Active</p>
@@ -301,10 +301,7 @@ function TapeRow({
 }) {
   const change = quote?.change24h ?? 0;
   return (
-    <li
-      className="flex items-center gap-3 border-t border-white/10 px-3 py-2.5 sm:px-4"
-      style={{ contentVisibility: "auto", containIntrinsicSize: "3.5rem" }}
-    >
+    <li className="flex items-center gap-3 border-t border-white/10 px-3 py-2.5 sm:px-4">
       <ListedMark symbol={inst.symbol} name={inst.name} cls={inst.cls} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-semibold leading-tight text-white">{inst.symbol}</p>
@@ -316,20 +313,12 @@ function TapeRow({
         </p>
         <p className={cn("text-[11px] tabular-nums leading-tight", quote ? signClass(change) : "text-white/35")}>
           {quote ? `${change >= 0 ? "+" : ""}${change.toFixed(2)}%` : "—"}
-          <span className="ml-1 text-[9px] uppercase tracking-[0.12em] text-white/35">
-            {quote?.source === "LIVE" ? "Last" : "Ref"}
-          </span>
         </p>
+        {quote && (
+          <p className="text-[9px] uppercase tracking-[0.12em] text-white/35">{quote.source === "LIVE" ? "Last" : "Ref"}</p>
+        )}
       </div>
     </li>
-  );
-}
-
-function PrivatePlate({ label }: { label: string }) {
-  return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] bg-white text-[10px] font-black tracking-tight text-[#111816]">
-      {label}
-    </span>
   );
 }
 
@@ -338,21 +327,26 @@ function ListedMark({ symbol, name, cls }: { symbol: string; name: string; cls: 
   const [index, setIndex] = useState(0);
   const failed = index >= sources.length;
   const letters = (symbol.replace(/[^A-Za-z0-9]/g, "").slice(0, 3) || name.slice(0, 2)).toUpperCase();
+  const advance = () => setIndex((n) => (n >= sources.length ? n : n + 1));
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-white" title={name}>
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-white" title={name}>
       {failed ? (
         <span className="text-[9px] font-black tracking-tight text-[#111816]">{letters}</span>
       ) : (
         <img
+          key={sources[index]}
           src={sources[index]}
           alt=""
-          width={36}
-          height={36}
+          width={40}
+          height={40}
           loading="lazy"
           decoding="async"
           referrerPolicy="no-referrer"
-          className="h-7 w-7 object-contain"
-          onError={() => setIndex((n) => n + 1)}
+          className="h-8 w-8 object-contain"
+          onError={advance}
+          onLoad={(event) => {
+            if (event.currentTarget.naturalWidth > 0 && event.currentTarget.naturalWidth < 8) advance();
+          }}
         />
       )}
     </span>
@@ -360,6 +354,13 @@ function ListedMark({ symbol, name, cls }: { symbol: string; name: string; cls: 
 }
 
 function markSources(symbol: string, cls: string): string[] {
+  if (cls === "private") {
+    const domain = symbol === "SPACEX" ? "spacex.com" : "x.ai";
+    return [
+      `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
+      `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+    ];
+  }
   if (cls === "crypto") {
     const slug = symbol.toLowerCase();
     return [
@@ -369,9 +370,9 @@ function markSources(symbol: string, cls: string): string[] {
   }
   const dashed = symbol.replace(/\./g, "-");
   return [
-    `https://cdn.jsdelivr.net/gh/davidepalazzo/ticker-logos/ticker_icons/${symbol}.png`,
-    `https://cdn.jsdelivr.net/gh/davidepalazzo/ticker-logos/ticker_icons/${dashed}.png`,
     `https://assets.parqet.com/logos/symbol/${encodeURIComponent(symbol)}`,
+    `https://cdn.jsdelivr.net/gh/davidepalazzo/ticker-logos/ticker_icons/${encodeURIComponent(symbol)}.png`,
+    `https://cdn.jsdelivr.net/gh/davidepalazzo/ticker-logos/ticker_icons/${encodeURIComponent(dashed)}.png`,
     `https://financialmodelingprep.com/image-stock/${encodeURIComponent(dashed)}.png`,
   ];
 }
