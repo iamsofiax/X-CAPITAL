@@ -86,6 +86,33 @@ export function tradesPaused(mandate: YieldMandate | null | undefined) {
   return mandate?.tradesOpen === false;
 }
 
+export type NodeFace = "awaiting" | "funded" | "live" | "halted";
+
+export function nodeFace(
+  mandate: YieldMandate | null | undefined,
+  posted: number,
+  halted = false,
+): NodeFace {
+  if (halted || tradesPaused(mandate)) return "halted";
+  if (nodeActivated(mandate)) return "live";
+  if (posted > 0) return "funded";
+  return "awaiting";
+}
+
+export function nodeFaceTitle(face: NodeFace) {
+  if (face === "live") return "Node live";
+  if (face === "funded") return "Node funded";
+  if (face === "halted") return "Node halted";
+  return "Node open";
+}
+
+export function nodeFaceLine(face: NodeFace) {
+  if (face === "live") return "The book is marking in real time. Execution is open.";
+  if (face === "funded") return "Confirmed funds are on the node. Accrual and fills open when the desk takes this node live.";
+  if (face === "halted") return "Fills are closed. The book remains. The desk can reopen this node.";
+  return "Posted cash stays at zero until the desk books a confirmed amount.";
+}
+
 /** Arms or freezes fills for a node. Does not book cash. */
 export function setTradeGate(input: { userId: string; email: string; open: boolean }) {
   const now = Date.now();
@@ -109,10 +136,12 @@ export function setTradeGate(input: { userId: string; email: string; open: boole
   writeJson(MANDATES, rows);
   pushNotice(
     input.userId,
-    input.open ? "Trading started" : "Trading paused",
+    input.open ? "Trading opened" : "Trading halted",
     input.open
-      ? "The desk opened fills on this node. Orders still wait until the book is funded and the node is activated."
-      : "The desk paused fills on this node.",
+      ? nodeActivated(next)
+        ? "The desk took this node live. Fills and accrual are open."
+        : "The desk armed fills. They post once confirmed funds are on the node and the desk takes it live."
+      : "The desk halted fills on this node. The book remains.",
   );
   return next;
 }
@@ -142,6 +171,7 @@ export function setDailyGrowth(input: {
     weeklyPct: weekly,
     operatedPct: operated,
     activatedAt: live ? prev?.activatedAt ?? now : null,
+    tradesOpen: prev?.tradesOpen,
     principal,
     lastSettledAt: now,
     updatedAt: now,
@@ -151,10 +181,10 @@ export function setDailyGrowth(input: {
   writeJson(MANDATES, rows);
   pushNotice(
     input.userId,
-    operated > 0 && principal > 0 ? "Node activated" : "Yield path staged",
-    operated > 0 && principal > 0
-      ? `The desk operates ${operated}% of the book at ${pct}% a day and ${weekly.toFixed(2)}% this week. Gains are live.`
-      : `Path staged at ${pct}% a day. Gains stay off until funds are confirmed and the desk sets an operated percent.`,
+    live ? "Node live" : "Node staged",
+    live
+      ? `The desk took this node live. The book is marking at ${pct}% a day.`
+      : "The path is on file. Accrual stays quiet until confirmed funds are booked and the desk takes the node live.",
   );
   return next;
 }

@@ -6,10 +6,11 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Panel, Notice } from "@/components/sim/Panel";
 import { useSim } from "@/hooks/useSim";
 import { useStore } from "@/store/useStore";
-import { nodeActivated, pushNotice, readMandate, saveReceipt, tradesPaused, type TradeReceipt as Slip } from "@/lib/yieldDesk";
+import { nodeActivated, nodeFace, nodeFaceLine, nodeFaceTitle, pushNotice, readMandate, saveReceipt, tradesPaused, type TradeReceipt as Slip } from "@/lib/yieldDesk";
 import { TradeReceipt } from "@/components/desk/TradeReceipt";
 import { RaiseCash } from "@/components/desk/RaiseCash";
 import { useSimQuotes } from "@/hooks/useSimQuotes";
+import { ListedMark, markClass } from "@/components/desk/ListedMark";
 import { INSTRUMENTS, INSTRUMENT_BY_SYMBOL, type InstrumentClass } from "@/lib/sim/instruments";
 import { nodeTradeFill } from "@/lib/nodeTrade";
 import { fmtNum, fmtPct, fmtPrice, fmtUsdc, signClass } from "@/lib/sim/format";
@@ -31,7 +32,7 @@ export default function ExecutionPage() {
 }
 
 function Execution() {
-  const { account, actions } = useSim();
+  const { account, actions, metrics } = useSim();
   const userId = useStore((s) => s.user?.id);
   const { quotes, liveCount, markedCount } = useSimQuotes();
   const [cls, setCls] = useState<InstrumentClass | "all">("all");
@@ -94,11 +95,11 @@ function Execution() {
   const submit = () => {
     setMsg(null);
     if (paused || account.tradingHalted) {
-      setMsg({ tone: "error", text: "The desk paused trading on this node." });
+      setMsg({ tone: "error", text: "This node is halted. Fills stay closed until the desk reopens it." });
       return;
     }
     if (!liveNode) {
-      setMsg({ tone: "error", text: "Execution opens after the desk confirms funds and activates the node." });
+      setMsg({ tone: "error", text: "Execution opens when the desk takes this node live." });
       return;
     }
     const res = actions.trade(quote, side, side === "BUY" ? { notional: value } : { qty: value });
@@ -129,19 +130,18 @@ function Execution() {
   const positions = Object.entries(account.positions);
 
   const fill = nodeTradeFill(account);
+  const face = nodeFace(
+    userId ? readMandate(userId) : null,
+    metrics?.nav ?? account.cash,
+    paused || !!account.tradingHalted,
+  );
 
   return (
     <div className="space-y-5">
-      {(paused || account.tradingHalted) && (
+      {face !== "live" && (
         <section className="sim-glass p-4 md:p-5">
-          <p className="sim-label">Node</p>
-          <p className="mt-1 text-sm text-white/70">Trading is paused. Fills stay closed until the desk starts this node again.</p>
-        </section>
-      )}
-      {!liveNode && !paused && !account.tradingHalted && (
-        <section className="sim-glass p-4 md:p-5">
-          <p className="sim-label">Node</p>
-          <p className="mt-1 text-sm text-white/70">Execution is closed. It opens when the desk confirms the deposit and sets the operated percent for this node.</p>
+          <p className="sim-label">{nodeFaceTitle(face)}</p>
+          <p className="mt-1 text-sm text-white/70">{nodeFaceLine(face)}</p>
         </section>
       )}
       <section className="sim-glass p-4 md:p-5">
@@ -180,7 +180,7 @@ function Execution() {
               </button>
             ))}
             <input
-              className="sim-input ml-auto max-w-xs"
+              className="sim-input ml-auto max-w-xs text-[16px] sm:text-[13px]"
               placeholder="Search the book"
               value={q}
               onChange={(e) => { setQ(e.target.value); setPage(0); }}
@@ -189,8 +189,40 @@ function Execution() {
           <p className="px-5 pt-3 text-[11px] font-mono text-white/35">
             {list.length} names · {safePage * pageSize + 1}–{Math.min(list.length, safePage * pageSize + pageSize)}
           </p>
-          <div className="overflow-x-auto mt-3">
-            <table className="w-full min-w-[720px] text-left">
+          <div className="mt-3 md:hidden">
+            <ul>
+              {view.map((i) => {
+                const q = quotes[i.symbol];
+                if (!q) return null;
+                return (
+                  <li key={i.symbol}>
+                    <button
+                      type="button"
+                      onClick={() => setSymbol(i.symbol)}
+                      className={cn(
+                        "flex w-full items-center gap-3 border-t border-white/10 px-4 py-2.5 text-left",
+                        symbol === i.symbol ? "bg-white/[0.05]" : "",
+                      )}
+                    >
+                      <ListedMark symbol={i.symbol} name={i.name} cls={markClass(i.symbol, i.cls)} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[13px] font-semibold text-white">{i.symbol}</span>
+                        <span className="block truncate text-[11px] text-white/45">{i.name}</span>
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <span className="block text-[13px] tabular-nums text-white">{fmtPrice(q.mid)}</span>
+                        <span className={cn("block text-[11px] tabular-nums", signClass(q.change24h))}>
+                          {q.change24h >= 0 ? "+" : ""}{q.change24h.toFixed(2)}%
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+          <div className="mt-3 hidden overflow-x-auto md:block">
+            <table className="w-full text-left">
               <thead>
                 <tr className="sim-label text-[9px] border-b border-white/[0.05]">
                   <th className="font-normal px-5 py-2">Instrument</th>
@@ -220,8 +252,13 @@ function Execution() {
                       className={cn("border-b border-white/[0.03] cursor-pointer", symbol === i.symbol ? "bg-white/[0.05]" : "hover:bg-white/[0.02]")}
                     >
                       <td className="px-5 py-2.5">
-                        <span className="text-white font-bold">{i.symbol}</span>
-                        <span className="block text-[10px] text-white/35 font-sans">{i.name}</span>
+                        <span className="flex min-w-0 items-center gap-3">
+                          <ListedMark symbol={i.symbol} name={i.name} cls={markClass(i.symbol, i.cls)} />
+                          <span className="min-w-0">
+                            <span className="block text-white font-bold">{i.symbol}</span>
+                            <span className="block text-[10px] text-white/35 font-sans truncate">{i.name}</span>
+                          </span>
+                        </span>
                       </td>
                       <td className="px-2 py-2.5 text-right text-white font-semibold">{fmtPrice(q.mid)}</td>
                       <td className="px-2 py-2.5 text-right sim-neg">{fmtPrice(q.bid)}</td>
@@ -266,7 +303,12 @@ function Execution() {
                     const pnl = (mark - p.avgCost) * p.qty;
                     return (
                       <tr key={sym} onClick={() => { setSymbol(sym); setSide("SELL"); }} className="border-b border-white/[0.03] cursor-pointer hover:bg-white/[0.02]">
-                        <td className="px-5 py-2.5 text-white font-bold">{sym}</td>
+                        <td className="px-5 py-2.5">
+                          <span className="flex items-center gap-3">
+                            <ListedMark symbol={sym} name={INSTRUMENT_BY_SYMBOL[sym]?.name ?? sym} cls={markClass(sym, INSTRUMENT_BY_SYMBOL[sym]?.cls ?? "equity")} />
+                            <span className="text-white font-bold">{sym}</span>
+                          </span>
+                        </td>
                         <td className="px-2 py-2.5 text-right text-white/80">{fmtNum(p.qty, 6)}</td>
                         <td className="px-2 py-2.5 text-right text-white/60">{fmtPrice(p.avgCost)}</td>
                         <td className="px-2 py-2.5 text-right text-white/80">{fmtPrice(mark)}</td>
@@ -286,6 +328,13 @@ function Execution() {
 
       <div className="space-y-5">
         <Panel code={`Ticket · ${inst.sector}`} title={`${inst.symbol} · ${inst.name}`} edge className="xl:sticky xl:top-20">
+          <div className="mb-4 flex items-center gap-3">
+            <ListedMark symbol={inst.symbol} name={inst.name} cls={markClass(inst.symbol, inst.cls)} />
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-white truncate">{inst.name}</p>
+              <p className="text-[11px] text-white/45">{inst.symbol} · {inst.sector}</p>
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-2 mb-4">
             <button type="button" onClick={() => setSide("BUY")} className={cn("sim-btn", side === "BUY" ? "sim-btn-primary" : "sim-btn-ghost")}>
               <ArrowUpRight className="w-4 h-4" /> Buy

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Area, CartesianGrid, ComposedChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ListedMark, markClass } from "@/components/desk/ListedMark";
 import { useLiveYield } from "@/hooks/useLiveYield";
+import { nodeFace, nodeFaceLine } from "@/lib/yieldDesk";
 import { fmtPct, fmtUsdc } from "@/lib/sim/format";
 
 const SLEEVES = [
@@ -17,6 +18,7 @@ export function PnlBoard() {
   const { live, posted, fleetPending, rate, weekly, active, mandate, now } = useLiveYield();
 
   const funded = posted > 0 && (active || fleetPending > 0);
+  const face = nodeFace(mandate, posted);
   const principal = posted > 0 ? posted : 0;
   const daily = funded ? rate : 0;
   const net = live - posted;
@@ -25,8 +27,9 @@ export function PnlBoard() {
   const ret = principal > 0 ? net / principal : 0;
   const operated = mandate?.operatedPct ?? 0;
   const money = net !== 0 ? 4 : 2;
+  const waving = face === "live";
 
-  const points = useMemo(() => buildPath(net), [net]);
+  const points = useMemo(() => buildPath(net, now, waving), [net, now, waving]);
   const ranked = useMemo(() => {
     const mix = SLEEVES.reduce((sum, s) => sum + s.weight * s.edge, 0);
     return SLEEVES.map((s) => {
@@ -52,9 +55,9 @@ export function PnlBoard() {
           <h2 className="mt-1 text-xl md:text-2xl font-black tracking-tight text-white">Book result</h2>
         </div>
         <p className="text-[12px] text-white/45 max-w-sm sm:text-right">
-          {funded
-            ? `${operated}% operated · ${daily.toFixed(2)}% a day · ${weekly.toFixed(2)}% this week. Node ${fmtUsdc(live, { decimals: 4 })}.`
-            : "Starts at zero. The result moves with the node balance only after this account is funded and growth is on."}
+          {face === "live"
+            ? `${operated}% of the book in operation · ${daily.toFixed(2)}% a day · ${weekly.toFixed(2)}% this week. Node ${fmtUsdc(live, { decimals: 4 })}.`
+            : nodeFaceLine(face)}
         </p>
       </div>
 
@@ -73,7 +76,7 @@ export function PnlBoard() {
       <div className="grid lg:grid-cols-5 gap-3">
         <div className="pnl-stage lg:col-span-3 min-w-0">
           <div className="flex items-center justify-between gap-3 px-4 pt-4 md:px-5">
-            <p className="sim-label">Cumulative result</p>
+            <p className="sim-label">{waving ? "Cumulative result · live tape" : "Cumulative result"}</p>
             <p className="text-[11px] font-mono text-white/40">
               {now > 0 ? `Live ${new Date(now).toLocaleTimeString()}` : "Live"} · node {fmtUsdc(live, { decimals: money })}
             </p>
@@ -231,12 +234,21 @@ function Donut({ sleeves }: { sleeves: typeof SLEEVES }) {
   );
 }
 
-function buildPath(net: number) {
+function buildPath(net: number, now: number, wave: boolean) {
   const steps = 48;
-  const rows: { t: number; net: number; loss: number }[] = [{ t: 0, net: 0, loss: 0 }];
-  for (let i = 1; i < steps; i++) {
-    const value = net * (i / (steps - 1));
-    rows.push({ t: i, net: value, loss: Math.max(-value, 0) });
+  const rows: { t: number; net: number; loss: number }[] = [];
+  for (let i = 0; i < steps; i++) {
+    const t = i / (steps - 1);
+    const value = net * t;
+    if (!wave || i === 0) {
+      rows.push({ t: i, net: value, loss: Math.max(-value, 0) });
+      continue;
+    }
+    const phase = now / 14000 + i * 0.28;
+    const amp = Math.abs(net) * 0.08 * (1 - t);
+    const wiggle = Math.sin(phase) * amp + Math.sin(phase * 2.15 + 0.4) * amp * 0.38;
+    const y = i === steps - 1 ? net : value + wiggle;
+    rows.push({ t: i, net: y, loss: Math.max(-y, 0) });
   }
   return rows;
 }

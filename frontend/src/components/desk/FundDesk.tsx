@@ -13,7 +13,7 @@ const STEPS = [
   { n: "01", t: "Choose the asset", d: "Pick the coin you will send. Each one has its own network." },
   { n: "02", t: "Buy it if you need to", d: "Open a provider, purchase there, then come back. This desk never asks for that login." },
   { n: "03", t: "Send to the vault", d: "Scan the QR or copy the address. Send only on the network printed under it." },
-  { n: "04", t: "Paste the hash", d: "The credit posts only after an operator confirms the transfer." },
+  { n: "04", t: "Paste the hash", d: "The desk books the USD they confirm. Nothing posts before that." },
 ];
 
 export function FundDesk() {
@@ -47,7 +47,7 @@ export function FundDesk() {
           asset,
           txHash: hash,
         });
-        pushNotice(userId, "Deposit submitted", `${asset} is waiting for operator confirmation. The book stays at zero until then.`);
+        pushNotice(userId, "Instruction received", `${asset} is with the desk. The node stays at zero until they book the confirmed USD.`);
       }
       try {
         await walletAPI.claimDeposit(asset, hash);
@@ -55,7 +55,7 @@ export function FundDesk() {
         // The local queue is the record the operator confirms. The API may be offline.
       }
       setTxHash("");
-      setNote("Hash received. The book stays at 0 USD until an operator confirms this transfer.");
+      setNote("Instruction received. The desk will book the USD they confirm. The node stays at zero until then.");
     } catch (err) {
       setError(readErr(err, "That hash could not be recorded."));
     } finally {
@@ -69,7 +69,7 @@ export function FundDesk() {
         <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-emerald-300/80">Fund node</p>
         <h2 className="mt-2 text-2xl md:text-3xl font-black tracking-tight">Fund the node in four steps</h2>
         <p className="mt-2 max-w-2xl text-sm text-white/50 leading-relaxed">
-          Buy the coin at any desk you already use, send it to the vault below, and paste the hash. The address on the QR is the one that receives the transfer.
+          Buy the coin at any desk you already use, send it to the vault below, and paste the hash. Cash posts only after the desk books the amount they confirm.
         </p>
       </div>
 

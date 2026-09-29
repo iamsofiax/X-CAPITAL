@@ -54,6 +54,7 @@ export default function AdminPage() {
   const [tick, setTick] = useState(0);
   const [lane, setLane] = useState<"all" | "live" | "paused" | "closed">("all");
   const [focusId, setFocusId] = useState("");
+  const [desk, setDesk] = useState<"nodes" | "inbox" | "books" | "house">("nodes");
   const [resetForm, setResetForm] = useState({ email: "", password: "" });
   const [bookUsd, setBookUsd] = useState<Record<string, string>>({});
   const [note, setNote] = useState<Record<string, string>>({});
@@ -266,9 +267,9 @@ export default function AdminPage() {
       });
       ack(
         "activate",
-        principal > 0 && operated > 0
-          ? `Node activated. ${operated}% operated at ${pct}% a day and ${week}% a week.`
-          : `Path staged. Gains stay off until the book is funded and the operated percent is above zero.`,
+            principal > 0 && operated > 0
+          ? `Node live. ${operated}% in operation at ${pct}% a day.`
+          : `Staged. The user still sees a quiet node until funds are booked and this is taken live.`,
       );
     } catch (err) {
       ack("activate", err instanceof Error ? err.message : "Could not set daily growth.");
@@ -348,7 +349,16 @@ export default function AdminPage() {
       setTradeGate({ userId: id, email, open: true });
     }
     const live = nodeActivated(readMandate(id));
-    ack(id + ":start", live ? `Trading is live for ${email}.` : `Trading is armed for ${email}. Fills open once the book is funded and the node percent is above zero.`);
+    if (prev) {
+      pushNotice(
+        id,
+        live ? "Node live" : "Trading armed",
+        live
+          ? "The desk took this node live. Fills and accrual are open."
+          : "The desk armed fills. They post once confirmed funds are on the node and the desk takes it live.",
+      );
+    }
+    ack(id + ":start", live ? `Live for ${email}.` : `Armed for ${email}. Fills wait until the node is funded and taken live.`);
     setTick((n) => n + 1);
   };
 
@@ -371,7 +381,7 @@ export default function AdminPage() {
       return;
     }
     syncPrincipal(id);
-    pushNotice(id, "Funds booked", `${usd.toLocaleString()} USD is on the book.`);
+    pushNotice(id, "Node funded", `${usd.toLocaleString()} USD is booked to the node.`);
     setBookUsd((m) => ({ ...m, [id]: "" }));
     ack(id + ":book", `Booked ${usd.toLocaleString()} USD on ${email}.`);
     setTick((n) => n + 1);
@@ -446,7 +456,7 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+      <main className="max-w-3xl mx-auto px-4 sm:px-5 py-6 space-y-5">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="pnl-card pnl-card-pos">
             <p className="text-[10px] font-mono text-white/35">Registered</p>
@@ -466,6 +476,20 @@ export default function AdminPage() {
           </div>
         </div>
 
+        <div className="flex flex-wrap gap-2">
+          {([
+            ["nodes", "Nodes"],
+            ["inbox", pulse.waiting ? `Inbox (${pulse.waiting})` : "Inbox"],
+            ["books", "Books"],
+            ["house", "House"],
+          ] as const).map(([id, label]) => (
+            <button key={id} type="button" className={press("tab:" + id, desk === id ? "primary" : "ghost")} onClick={() => setDesk(id)}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {desk === "nodes" && (
         <section className="sim-glass p-4 sm:p-5">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-4">
             <div>
@@ -531,14 +555,16 @@ export default function AdminPage() {
             </ul>
           )}
         </section>
+        )}
 
         {error && <p className="text-sm text-red-300">{error}</p>}
         {formMsg && <p className="text-sm text-white/60">{formMsg}</p>}
 
+        {desk === "books" && (
         <section className="pnl-stage p-5 md:p-6">
           <p className="font-black mb-1">Daily and weekly yield</p>
           <p className="text-sm text-white/50 mb-3">
-            Set the day’s rate, the week’s target, and the percent of this user’s node the desk operates. Gains and execution stay closed until funds are confirmed and that percent is above zero.
+            Set the day’s rate, the week’s target, and the share of this node the desk operates. The user sees “node live” only after funds are booked and this is taken live.
           </p>
           <form onSubmit={applyGrowth} className="grid md:grid-cols-2 xl:grid-cols-[1fr_110px_110px_110px_auto] gap-3">
             <NodePicker
@@ -585,7 +611,10 @@ export default function AdminPage() {
             </ul>
           )}
         </section>
+        )}
 
+        {desk === "inbox" && (
+        <>
         <section className="sim-glass p-5">
           <p className="font-black mb-1">Confirm crypto deposits</p>
           <p className="text-sm text-white/50 mb-4">
@@ -625,7 +654,7 @@ export default function AdminPage() {
                       }
                       confirmDepositRecord(row.id, usd);
                       syncPrincipal(row.userId);
-                      pushNotice(row.userId, "Funds confirmed", `${row.asset} confirmed. ${usd.toLocaleString()} USD is on the book. Trades and gains start when this node is activated.`);
+                      pushNotice(row.userId, "Node funded", `${usd.toLocaleString()} USD from ${row.asset} is booked to the node. Accrual and fills open when the desk takes it live.`);
                       setError("");
                       ack(row.id + ":deposit", `Confirmed ${usd.toLocaleString()} USD for ${row.email}.`);
                     }}
@@ -694,7 +723,7 @@ export default function AdminPage() {
                           return;
                         }
                         setLinkStatus(row.id, "booked", usd);
-                        pushNotice(row.userId, "Plan booked", `${usd.toLocaleString()} USD from ${row.custodian} is on the book.`);
+                        pushNotice(row.userId, "Node funded", `${usd.toLocaleString()} USD from ${row.custodian} is booked to the node.`);
                         setError("");
                       }}
                     >
@@ -707,7 +736,10 @@ export default function AdminPage() {
             </ul>
           )}
         </section>
+        </>
+        )}
 
+        {desk === "books" && (
         <section className="sim-glass p-5">
           <p className="font-black mb-1">Post journal</p>
           <p className="text-sm text-white/50 mb-3">Select node opens every registered user. Pick one, then post the credit or debit.</p>
@@ -755,8 +787,9 @@ export default function AdminPage() {
             </ul>
           )}
         </section>
+        )}
 
-        {focus && (
+        {desk === "nodes" && focus && (
           <section className="sim-glass p-5">
             <p className="font-black mb-1">Watching {focus.name}</p>
             <p className="text-[12px] font-mono text-white/55 break-all">{focus.email || focus.id}</p>
@@ -782,6 +815,8 @@ export default function AdminPage() {
           </section>
         )}
 
+        {desk === "house" && (
+        <>
         <section className="sim-glass p-5">
           <p className="font-black mb-1">Activity</p>
           <p className="text-sm text-white/50 mb-3">Latest deposits, identity packets, links, and journal lines on this desk.</p>
@@ -867,6 +902,8 @@ export default function AdminPage() {
             </table>
           </div>
         </section>
+        </>
+        )}
       </main>
     </div>
   );

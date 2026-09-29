@@ -7,6 +7,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { LiveBook } from "@/components/desk/LiveBook";
 import { YieldWatch } from "@/components/desk/YieldWatch";
 import { useLiveYield } from "@/hooks/useLiveYield";
+import { nodeFace, nodeFaceLine, nodeFaceTitle, tradesPaused } from "@/lib/yieldDesk";
 import { CoinMark } from "@/components/desk/Marks";
 import { RAILS } from "@/lib/rails";
 import { walletAPI } from "@/lib/api";
@@ -112,20 +113,21 @@ export default function CommandCenterPage() {
 }
 
 function CompileStrip() {
-  const { active, rate, weekly, live, posted } = useLiveYield();
+  const { active, rate, weekly, live, posted, mandate } = useLiveYield();
   const compiled = Math.max(0, live - posted);
+  const face = nodeFace(mandate, posted, tradesPaused(mandate));
   return (
     <section className="sim-glass sim-glass-edge p-5 md:p-6">
-      <p className="sim-label text-emerald-300">Compile</p>
+      <p className="sim-label text-emerald-300">{nodeFaceTitle(face)}</p>
       <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black tracking-tight">
-            {active ? `${fmtUsdc(compiled, { decimals: 4 })} compiling this cycle` : `${fmtUsdc(0)} compiling · the book is at zero`}
+            {active ? `${fmtUsdc(compiled, { decimals: 4 })} marking this cycle` : face === "funded" ? "Funds on the node · marking closed" : `${fmtUsdc(0)} posted`}
           </h2>
           <p className="mt-2 max-w-2xl text-sm text-white/55 leading-relaxed">
             {active
-              ? `The operated book is running at ${rate}% a day, ${weekly.toFixed(2)}% a week. Leave it funded and each cycle stacks on the last.`
-              : "Fund the node, then wait for the operator to activate it. Until then the posted book stays at the confirmed cash."}
+              ? `The book is live at ${rate}% a day, ${weekly.toFixed(2)}% a week. Leave it funded and each cycle stacks on the last.`
+              : nodeFaceLine(face)}
           </p>
         </div>
         {active && <p className="text-3xl font-black tabular-nums text-emerald-300">{fmtUsdc(live)}</p>}

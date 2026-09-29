@@ -95,7 +95,7 @@ export function ActivityBell() {
           </button>
         </div>
         {items.length === 0 ? (
-          <p className="text-sm text-white/55 py-6">No activity yet. Confirmed deposits and book posts appear here.</p>
+          <p className="text-sm text-white/55 py-6">No activity yet. Booking, live, and halt notices appear here.</p>
         ) : (
           <ul className="space-y-2 max-h-[60vh] md:max-h-96 overflow-auto">
             {items.map((n) => (

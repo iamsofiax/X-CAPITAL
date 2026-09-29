@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Search, Settings, X } from "lucide-react";
 import { COMMAND_CENTER, RAILS } from "@/lib/rails";
-import { INSTRUMENTS } from "@/lib/sim/instruments";
+import { INSTRUMENTS, INSTRUMENT_BY_SYMBOL } from "@/lib/sim/instruments";
+import { ListedMark, markClass } from "@/components/desk/ListedMark";
 import { VAULTS } from "@/lib/sim/vaults";
 import { cn } from "@/lib/utils";
 
@@ -107,6 +108,14 @@ export default function SearchModal({ open, onClose }: { open: boolean; onClose:
                 )}
               >
                 <span className="sim-label text-[8px] w-20 shrink-0">{item.group}</span>
+                {item.group === "Instruments" && INSTRUMENT_BY_SYMBOL[item.label] && (
+                  <ListedMark
+                    symbol={item.label}
+                    name={INSTRUMENT_BY_SYMBOL[item.label].name}
+                    cls={markClass(item.label, INSTRUMENT_BY_SYMBOL[item.label].cls)}
+                    size="sm"
+                  />
+                )}
                 <span className="min-w-0 flex-1">
                   <span className="block text-[13px] font-bold text-white truncate">{item.label}</span>
                   <span className="block text-[11px] text-white/40 truncate">{item.description}</span>
