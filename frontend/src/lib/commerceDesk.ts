@@ -230,3 +230,44 @@ export const CATALOG: CatalogItem[] = RAW.map((item) => ({
 export const CATALOG_BY_SKU: Record<string, CatalogItem> = Object.fromEntries(
   CATALOG.map((item) => [item.sku, item]),
 );
+
+export const FLEET_SKU = "fleet";
+const CART_KEY = "xc_commerce_cart";
+
+export type CartLine = { sku: string; qty: number };
+
+export function loadCart(): CartLine[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(CART_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as CartLine[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((l) => l && typeof l.sku === "string" && l.qty > 0);
+  } catch {
+    return [];
+  }
+}
+
+export function saveCart(lines: CartLine[]) {
+  if (typeof window === "undefined") return;
+  const next = lines.filter((l) => l.qty > 0);
+  if (next.length === 0) localStorage.removeItem(CART_KEY);
+  else localStorage.setItem(CART_KEY, JSON.stringify(next));
+}
+
+export function lineTicket(sku: string, qty: number) {
+  const n = Math.max(1, Math.floor(qty));
+  if (sku === FLEET_SKU) return cabUnitPrice(n) * n;
+  const item = CATALOG_BY_SKU[sku];
+  return item ? item.price * n : 0;
+}
+
+export function cartTicket(lines: CartLine[]) {
+  return lines.reduce((sum, line) => sum + lineTicket(line.sku, line.qty), 0);
+}
+
+export function lineName(sku: string) {
+  if (sku === FLEET_SKU) return "Robotaxi fleet";
+  return CATALOG_BY_SKU[sku]?.name ?? sku;
+}

@@ -1,5 +1,5 @@
 import type { User } from "@/types";
-import { sessionKeys } from "@/lib/sessionScope";
+import { readPersistedAuth, sessionKeys } from "@/lib/sessionScope";
 
 const DESKS_KEY = "xc_local_desks";
 export const LOCAL_TOKEN_PREFIX = "xc-local.";
@@ -115,6 +115,23 @@ export function rememberRegistry(users: RegistryUser[]) {
     });
   }
   localStorage.setItem(REGISTRY_KEY, JSON.stringify([...map.values()]));
+}
+
+/** The id the investor book actually uses for this email in this browser. */
+export function resolveBookUserId(email: string, fallbackId = ""): string {
+  const mail = email.trim().toLowerCase();
+  if (typeof window !== "undefined") {
+    const persisted = readPersistedAuth("user");
+    const u = persisted?.user as { id?: string; email?: string } | null | undefined;
+    if (u?.email?.trim().toLowerCase() === mail && u.id) return u.id;
+  }
+  if (mail.includes("@")) {
+    const desk = findDesk(mail);
+    if (desk?.id) return desk.id;
+    const reg = loadRegistry().find((r) => r.email === mail);
+    if (reg?.id) return reg.id;
+  }
+  return fallbackId || mail;
 }
 
 export function newDeskId(): string {

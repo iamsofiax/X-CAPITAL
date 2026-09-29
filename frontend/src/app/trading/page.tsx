@@ -6,13 +6,13 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Panel, Notice } from "@/components/sim/Panel";
 import { useSim } from "@/hooks/useSim";
 import { useStore } from "@/store/useStore";
-import { nodeActivated, nodeFace, nodeFaceLine, nodeFaceTitle, pushNotice, readMandate, saveReceipt, tradesPaused, type TradeReceipt as Slip } from "@/lib/yieldDesk";
+import { nodeActivated, nodeFace, nodeFaceLine, nodeFaceTitle, pushNotice, readMandate, saveReceipt, tradesPaused, unlockFillOf, type TradeReceipt as Slip } from "@/lib/yieldDesk";
 import { TradeReceipt } from "@/components/desk/TradeReceipt";
 import { RaiseCash } from "@/components/desk/RaiseCash";
 import { useSimQuotes } from "@/hooks/useSimQuotes";
 import { ListedMark, markClass } from "@/components/desk/ListedMark";
 import { INSTRUMENTS, INSTRUMENT_BY_SYMBOL, type InstrumentClass } from "@/lib/sim/instruments";
-import { nodeTradeFill } from "@/lib/nodeTrade";
+import { nodeTradeFill, withdrawalsOpen } from "@/lib/nodeTrade";
 import { fmtNum, fmtPct, fmtPrice, fmtUsdc, signClass } from "@/lib/sim/format";
 import { cn } from "@/lib/utils";
 
@@ -130,8 +130,11 @@ function Execution() {
   const positions = Object.entries(account.positions);
 
   const fill = nodeTradeFill(account);
+  const mandate = userId ? readMandate(userId) : null;
+  const needPct = unlockFillOf(mandate);
+  const canWithdraw = withdrawalsOpen(account, mandate);
   const face = nodeFace(
-    userId ? readMandate(userId) : null,
+    mandate,
     metrics?.nav ?? account.cash,
     paused || !!account.tradingHalted,
   );
@@ -149,9 +152,9 @@ function Execution() {
           <div>
             <p className="sim-label">Node trade</p>
             <p className="mt-1 text-sm text-white/70">
-              {fill >= 0.999
-                ? "Filled 100%. Treasury can release a withdrawal."
-                : `${(fill * 100).toFixed(0)}% of the node is deployed. Withdrawals stay paused until this is 100%.`}
+              {canWithdraw
+                ? `Filled ${needPct}%. Treasury can release a withdrawal.`
+                : `${(fill * 100).toFixed(0)}% of the node is deployed. Withdrawals stay paused until this is ${needPct}%.`}
             </p>
           </div>
           <p className="text-2xl font-black tabular-nums">{(fill * 100).toFixed(0)}%</p>

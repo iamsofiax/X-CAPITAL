@@ -27,6 +27,7 @@ import {
   withdrawVault,
   type SettlementReport,
 } from "@/lib/sim/engine";
+import { pingDesk } from "@/lib/yieldDesk";
 
 export type SimResult = { ok: true } | { ok: false; error: string };
 
@@ -112,10 +113,21 @@ export const useSimStore = create<SimState>()(
         },
 
         claimGenesis: (userId) => run(userId, (a) => claimGenesis(a)),
-        confirmDeposit: (userId, usd, asset, txHash) =>
-          run(userId, (a) => creditConfirmedDeposit(a, usd, asset, txHash)),
-        debitCash: (userId, usd, memo) => run(userId, (a) => debitDeskCash(a, usd, memo)),
-        creditYield: (userId, amount, memo) => run(userId, (a) => creditYield(a, amount, memo)),
+        confirmDeposit: (userId, usd, asset, txHash) => {
+          const res = run(userId, (a) => creditConfirmedDeposit(a, usd, asset, txHash));
+          if (res.ok) pingDesk();
+          return res;
+        },
+        debitCash: (userId, usd, memo) => {
+          const res = run(userId, (a) => debitDeskCash(a, usd, memo));
+          if (res.ok) pingDesk();
+          return res;
+        },
+        creditYield: (userId, amount, memo) => {
+          const res = run(userId, (a) => creditYield(a, amount, memo));
+          if (res.ok) pingDesk();
+          return res;
+        },
         buyFleet: (userId, units) => run(userId, (a) => buyFleet(a, units)),
         buyCatalog: (userId, sku, units) => run(userId, (a) => buyCatalog(a, sku, units)),
         settleFleet: (userId) => {
@@ -126,7 +138,11 @@ export const useSimStore = create<SimState>()(
           set((s) => ({ accounts: { ...s.accounts, [userId]: next } }));
           return { ok: true };
         },
-        reset: (userId) => run(userId, (a) => resetAccount(a)),
+        reset: (userId) => {
+          const res = run(userId, (a) => resetAccount(a));
+          if (res.ok) pingDesk();
+          return res;
+        },
         deposit: (userId, vaultId, amount) => run(userId, (a) => depositVault(a, vaultId, amount)),
         withdraw: (userId, vaultId, amount) => run(userId, (a) => withdrawVault(a, vaultId, amount)),
         toggleCompound: (userId, vaultId, on) => {
@@ -150,6 +166,7 @@ export const useSimStore = create<SimState>()(
         setHalt: (userId, halted) => {
           const acc = get().ensure(userId);
           set((s) => ({ accounts: { ...s.accounts, [userId]: setTradingHalt(acc, halted) } }));
+          pingDesk();
         },
 
         checkIn: (userId) => {

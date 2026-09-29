@@ -6,8 +6,9 @@ import { LogOut, RefreshCw, Ban, Play, Pause } from "lucide-react";
 import { useStore } from "@/store/useStore";
 import { adminAPI } from "@/lib/api";
 import { isAdminUser, type AdminUserRow } from "@/lib/apiUser";
-import { findDesk, hashDeskSecret, loadDesks, loadRegistry, newDeskId, rememberRegistry, upsertDesk, type RegistryUser } from "@/lib/localDesk";
-import { confirmDepositRecord, latestKyc, listDeposits, listDeskJournal, listKyc, listLinks, listMandates, listNotices, nodeActivated, pushNotice, readMandate, saveDeskJournal, setDailyGrowth, setKycStatus, setLinkStatus, setTradeGate, touchMandate, tradesPaused, weeklyOf, type ExternalLinkRequest, type KycPacket, type PendingDeposit } from "@/lib/yieldDesk";
+import { findDesk, hashDeskSecret, loadDesks, loadRegistry, newDeskId, rememberRegistry, resolveBookUserId, upsertDesk, type RegistryUser } from "@/lib/localDesk";
+import { restoreRememberedTokens } from "@/lib/sessionScope";
+import { confirmDepositRecord, listDeliveries, listDeposits, listDeskJournal, listKyc, listLinks, listNotices, nodeActivated, pingDesk, pushNotice, readMandate, saveDeskJournal, setDailyGrowth, setDeliveryStatus, setKycStatus, setLinkStatus, setTradeGate, setUnlockFill, touchMandate, tradesPaused, unlockFillOf, weeklyFromDaily, weeklyOf, type DeliveryOrder, type ExternalLinkRequest, type KycPacket, type PendingDeposit } from "@/lib/yieldDesk";
 import { useSimStore } from "@/store/useSimStore";
 import { accountNav } from "@/lib/sim/engine";
 import { XCapitalLogoMark } from "@/components/brand/XCapitalLogo";
@@ -34,10 +35,11 @@ export default function AdminPage() {
   const [q, setQ] = useState("");
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "" });
   const [formMsg, setFormMsg] = useState("");
-  const [growth, setGrowth] = useState({ userId: "", dailyPct: "0.25", weeklyPct: "1.76", operatedPct: "40" });
+  const [growth, setGrowth] = useState({ dailyPct: "", weeklyPct: "", unlockFillPct: "100" });
   const [pending, setPending] = useState<PendingDeposit[]>([]);
   const [kycRows, setKycRows] = useState<KycPacket[]>([]);
   const [linkRows, setLinkRows] = useState<ExternalLinkRequest[]>([]);
+  const [deliveries, setDeliveries] = useState<DeliveryOrder[]>([]);
   const [linkUsd, setLinkUsd] = useState<Record<string, string>>({});
   const [usdById, setUsdById] = useState<Record<string, string>>({});
   const [adj, setAdj] = useState({
@@ -52,12 +54,14 @@ export default function AdminPage() {
   const [ready, setReady] = useState(false);
   const [hit, setHit] = useState("");
   const [tick, setTick] = useState(0);
-  const [lane, setLane] = useState<"all" | "live" | "paused" | "closed">("all");
   const [focusId, setFocusId] = useState("");
-  const [desk, setDesk] = useState<"nodes" | "inbox" | "books" | "house">("nodes");
+  const [desk, setDesk] = useState<"people" | "do" | "inbox">("people");
   const [resetForm, setResetForm] = useState({ email: "", password: "" });
-  const [bookUsd, setBookUsd] = useState<Record<string, string>>({});
-  const [note, setNote] = useState<Record<string, string>>({});
+  const [cashUsd, setCashUsd] = useState("");
+  const [note, setNote] = useState("");
+  const [focusPw, setFocusPw] = useState("");
+  const [resetArmed, setResetArmed] = useState("");
+  const [peopleFilter, setPeopleFilter] = useState<"all" | "live" | "halted" | "quiet">("all");
   const accounts = useSimStore((s) => s.accounts);
   const allowed = ready && isAuthenticated && isAdminUser(user);
 
@@ -69,7 +73,7 @@ export default function AdminPage() {
 
   const press = (id: string, tone: "primary" | "ghost" = "primary") =>
     cn(
-      "sim-btn active:scale-95 active:brightness-125",
+      "sim-btn min-h-12 justify-center active:scale-95 active:brightness-125",
       tone === "primary" ? "sim-btn-primary" : "sim-btn-ghost",
       hit === id && "ring-2 ring-emerald-300 shadow-[0_0_18px_rgba(52,211,153,0.45)]",
     );
@@ -93,14 +97,20 @@ export default function AdminPage() {
       setPending(listDeposits().filter((d) => d.status === "pending"));
       setKycRows(listKyc().filter((row) => row.status === "pending"));
       setLinkRows(listLinks().filter((row) => row.status === "pending"));
+      setDeliveries(listDeliveries().filter((row) => row.status === "open"));
     };
     pull();
     const bump = () => {
       pull();
+      void useSimStore.persist.rehydrate();
       setTick((n) => n + 1);
     };
     window.addEventListener("xc-yield", bump);
-    return () => window.removeEventListener("xc-yield", bump);
+    window.addEventListener("storage", bump);
+    return () => {
+      window.removeEventListener("xc-yield", bump);
+      window.removeEventListener("storage", bump);
+    };
   }, []);
 
   useEffect(() => {
@@ -113,7 +123,16 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!ready) return;
-    if (!isAuthenticated || !isAdminUser(user)) {
+    const snap = useStore.getState();
+    const restored = restoreRememberedTokens({
+      accessToken: snap.accessToken,
+      refreshToken: snap.refreshToken,
+    });
+    if (restored && snap.user && snap.accessToken && !snap.isAuthenticated) {
+      useStore.setState({ isAuthenticated: true });
+      return;
+    }
+    if (!snap.isAuthenticated || !isAdminUser(snap.user ?? user)) {
       router.replace("/admin/login");
       return;
     }
@@ -169,20 +188,21 @@ export default function AdminPage() {
     const byKey = new Map<string, NodeRef>();
     const put = (id: string, email: string, name: string, source: string) => {
       const mail = email.trim().toLowerCase();
-      const key = mail.includes("@") ? mail : id;
+      const resolved = resolveBookUserId(mail, id);
+      const key = mail.includes("@") ? mail : resolved;
       if (!key) return;
-      const prev = [...byKey.values()].find((n) => n.id === id || (mail.includes("@") && n.email === mail));
+      const prev = [...byKey.values()].find((n) => n.id === resolved || n.id === id || (mail.includes("@") && n.email === mail));
       const display = name.trim() || (mail.includes("@") ? mail.split("@")[0] : "Book");
       if (prev) {
         if (name.trim()) prev.name = name.trim();
-        if (id && (prev.source !== "Network" || source === "Network")) prev.id = id;
+        prev.id = resolved || prev.id;
         if (mail.includes("@")) prev.email = mail;
         if (source === "Network" || source === "Desk") prev.source = source;
         prev.label = prev.email ? `${prev.name} · ${prev.email}` : prev.name;
         return;
       }
       byKey.set(key, {
-        id: id || mail,
+        id: resolved || mail,
         email: mail.includes("@") ? mail : "",
         name: display,
         label: mail.includes("@") ? `${display} · ${mail}` : display,
@@ -202,22 +222,20 @@ export default function AdminPage() {
 
   const listed = useMemo(() => {
     const s = q.trim().toLowerCase();
-    if (!s) return nodes;
-    return nodes.filter((n) => `${n.name} ${n.email} ${n.source}`.toLowerCase().includes(s));
-  }, [nodes, q]);
-
-  const visibleNodes = useMemo(() => {
-    return listed.filter((n) => {
-      const book = accounts[n.id];
+    const searched = s
+      ? nodes.filter((n) => `${n.name} ${n.email} ${n.source}`.toLowerCase().includes(s))
+      : nodes;
+    if (peopleFilter === "all") return searched;
+    return searched.filter((n) => {
       const mandate = readMandate(n.id);
+      const book = accounts[n.id];
       const paused = tradesPaused(mandate) || !!book?.tradingHalted;
       const live = nodeActivated(mandate) && !paused;
-      if (lane === "live") return live;
-      if (lane === "paused") return paused;
-      if (lane === "closed") return !live && !paused;
-      return true;
+      if (peopleFilter === "live") return live;
+      if (peopleFilter === "halted") return paused;
+      return !live && !paused;
     });
-  }, [listed, lane, accounts, tick]);
+  }, [nodes, q, peopleFilter, accounts, tick]);
 
   const pulse = useMemo(() => {
     let live = 0;
@@ -229,8 +247,8 @@ export default function AdminPage() {
       if (nodeActivated(mandate) && !isPaused) live += 1;
       else if (isPaused) paused += 1;
     }
-    return { live, paused, waiting: pending.length + kycRows.length + linkRows.length };
-  }, [nodes, accounts, pending.length, kycRows.length, linkRows.length, tick]);
+    return { live, paused, waiting: pending.length + kycRows.length + linkRows.length + deliveries.length };
+  }, [nodes, accounts, pending.length, kycRows.length, linkRows.length, deliveries.length, tick]);
 
   const activity = useMemo(() => {
     const items: { id: string; at: number; text: string }[] = [];
@@ -238,41 +256,67 @@ export default function AdminPage() {
     for (const row of listDeposits()) items.push({ id: row.id, at: row.at, text: `Deposit ${row.status} · ${row.asset} · ${row.email}` });
     for (const row of listKyc()) items.push({ id: row.id, at: row.at, text: `Identity ${row.status} · ${row.email}` });
     for (const row of listLinks()) items.push({ id: row.id, at: row.at, text: `Link ${row.status} · ${row.kind} · ${row.email}` });
+    for (const row of listDeliveries()) items.push({ id: row.id, at: row.at, text: `Delivery ${row.status} · ${row.email}` });
     return items.sort((a, b) => b.at - a.at).slice(0, 12);
   }, [tick]);
 
   const focus = nodes.find((n) => n.id === focusId) ?? null;
 
+  const bookIdOf = (id: string, email: string) => resolveBookUserId(email, id);
+
+  const pickPerson = (node: NodeRef) => {
+    const id = bookIdOf(node.id, node.email);
+    setFocusId(id);
+    setAdj({ ...adj, userId: id });
+    const m = readMandate(id);
+    setGrowth({
+      dailyPct: m ? String(m.dailyPct) : "",
+      weeklyPct: m ? weeklyOf(m).toFixed(2) : "",
+      unlockFillPct: String(unlockFillOf(m)),
+    });
+    setCashUsd("");
+    setFocusPw("");
+    setResetArmed("");
+    setDesk("do");
+    ack(id + ":pick", `${node.email || node.name} is on the desk.`);
+  };
+
   const applyGrowth = (e: React.FormEvent) => {
     e.preventDefault();
-    setFormMsg("");
-    const node = nodes.find((n) => n.id === growth.userId);
-    const pct = Number(growth.dailyPct);
-    const week = Number(growth.weeklyPct);
-    const operated = Number(growth.operatedPct);
-    if (!node || Number.isNaN(pct) || Number.isNaN(week) || Number.isNaN(operated)) {
-      ack("activate", "Choose a registered user, the daily and weekly rates, and the operated percent.");
+    if (!focus) {
+      ack("activate", "Pick a person first.");
       return;
     }
-    const book = useSimStore.getState().accounts[growth.userId];
-    const principal = book?.genesisClaimedAt ? accountNav(book) : 0;
+    const id = bookIdOf(focus.id, focus.email);
+    const unlock = Number(growth.unlockFillPct);
+    const dailyRaw = growth.dailyPct.trim();
+    const weekRaw = growth.weeklyPct.trim();
+    const daily = dailyRaw === "" ? readMandate(id)?.dailyPct ?? 0 : Number(dailyRaw);
+    const weekly = weekRaw === "" ? weeklyFromDaily(daily) : Number(weekRaw);
+    if (Number.isNaN(unlock) || Number.isNaN(daily) || Number.isNaN(weekly)) {
+      ack("activate", "Enter the fill percent, and a daily or weekly rate if you want one.");
+      return;
+    }
+    const principal = navOf(id);
     try {
-      setDailyGrowth({
-        userId: growth.userId,
-        email: node.label,
-        dailyPct: pct,
-        weeklyPct: week,
-        operatedPct: operated,
-        principal,
-      });
+      if (dailyRaw === "" && weekRaw === "") {
+        setUnlockFill({ userId: id, email: focus.email || focus.name, unlockFillPct: unlock });
+      } else {
+        setDailyGrowth({
+          userId: id,
+          email: focus.email || focus.name,
+          dailyPct: daily,
+          weeklyPct: weekly,
+          unlockFillPct: unlock,
+          principal,
+        });
+      }
       ack(
         "activate",
-            principal > 0 && operated > 0
-          ? `Node live. ${operated}% in operation at ${pct}% a day.`
-          : `Staged. The user still sees a quiet node until funds are booked and this is taken live.`,
+        `Fill to withdraw is ${unlockFillOf({ unlockFillPct: unlock })}%.${dailyRaw || weekRaw ? ` Daily ${daily}% · week ${weekly}%.` : ""}`,
       );
     } catch (err) {
-      ack("activate", err instanceof Error ? err.message : "Could not set daily growth.");
+      ack("activate", err instanceof Error ? err.message : "Could not save.");
     }
   };
 
@@ -290,37 +334,38 @@ export default function AdminPage() {
       ack("journal", "Choose a node, an amount, and a reason.");
       return;
     }
+    const uid = bookIdOf(node.id, node.email);
     ack("journal", "Posting the entry");
     const cash = adj.asset === "USD" || adj.asset === "USDT";
     try {
-      await adminAPI.postJournal(adj.userId, {
+      await adminAPI.postJournal(uid, {
         asset: adj.asset,
         amount: adj.amount,
         direction: adj.direction,
         reason: adj.reason,
         idempotencyKey: adj.idempotencyKey || `admin-${adj.direction}-${Date.now()}`,
       });
-      saveDeskJournal({ userId: node.id, email: node.email, asset: adj.asset, amount, direction: adj.direction, reason: adj.reason, where: "network" });
+      saveDeskJournal({ userId: uid, email: node.email, asset: adj.asset, amount, direction: adj.direction, reason: adj.reason, where: "network" });
       ack("journal", `Journal posted for ${node.email}.`);
       setAdj({ ...adj, amount: "", reason: "", idempotencyKey: "" });
       await load();
     } catch {
       if (cash && adj.direction === "credit") {
-        const res = useSimStore.getState().confirmDeposit(node.id, amount, adj.asset, `journal-${Date.now()}`);
+        const res = useSimStore.getState().confirmDeposit(uid, amount, adj.asset, `journal-${Date.now()}`);
         if (!res.ok) {
           ack("journal", res.error);
           return;
         }
-        syncPrincipal(node.id);
+        syncPrincipal(uid);
       } else if (cash && adj.direction === "debit") {
-        const res = useSimStore.getState().debitCash(node.id, amount, adj.reason);
+        const res = useSimStore.getState().debitCash(uid, amount, adj.reason);
         if (!res.ok) {
           ack("journal", res.error);
           return;
         }
-        syncPrincipal(node.id);
+        syncPrincipal(uid);
       }
-      saveDeskJournal({ userId: node.id, email: node.email, asset: adj.asset, amount, direction: adj.direction, reason: adj.reason, where: "desk" });
+      saveDeskJournal({ userId: uid, email: node.email, asset: adj.asset, amount, direction: adj.direction, reason: adj.reason, where: "desk" });
       ack(
         "journal",
         cash
@@ -333,58 +378,140 @@ export default function AdminPage() {
   };
 
   const startTrade = (id: string, email: string) => {
-    useSimStore.getState().setHalt(id, false);
-    const book = useSimStore.getState().accounts[id];
+    const uid = bookIdOf(id, email);
+    useSimStore.getState().setHalt(uid, false);
+    const book = useSimStore.getState().accounts[uid];
     const nav = book?.genesisClaimedAt ? accountNav(book) : 0;
-    const prev = readMandate(id);
+    const prev = readMandate(uid);
+    const operated = (prev?.operatedPct ?? 0) > 0 ? prev!.operatedPct : 100;
     if (prev) {
-      const operated = prev.operatedPct ?? 0;
-      touchMandate(id, {
+      touchMandate(uid, {
         tradesOpen: true,
+        operatedPct: operated,
         email,
         principal: nav > 0 ? nav : prev.principal,
-        activatedAt: nav > 0 && operated > 0 ? prev.activatedAt ?? Date.now() : prev.activatedAt,
+        activatedAt: nav > 0 && operated > 0 ? prev.activatedAt ?? Date.now() : Date.now(),
       });
     } else {
-      setTradeGate({ userId: id, email, open: true });
+      setDailyGrowth({
+        userId: uid,
+        email,
+        dailyPct: 0,
+        operatedPct: 100,
+        unlockFillPct: Number(growth.unlockFillPct) || 100,
+        principal: nav,
+      });
+      setTradeGate({ userId: uid, email, open: true });
     }
-    const live = nodeActivated(readMandate(id));
-    if (prev) {
-      pushNotice(
-        id,
-        live ? "Node live" : "Trading armed",
-        live
-          ? "The desk took this node live. Fills and accrual are open."
-          : "The desk armed fills. They post once confirmed funds are on the node and the desk takes it live.",
-      );
-    }
-    ack(id + ":start", live ? `Live for ${email}.` : `Armed for ${email}. Fills wait until the node is funded and taken live.`);
+    const live = nodeActivated(readMandate(uid));
+    pushNotice(
+      uid,
+      live ? "Node live" : "Trading armed",
+      live
+        ? "The desk took this node live. Fills and accrual are open."
+        : "The desk armed fills. They post once confirmed funds are on the node and the desk takes it live.",
+    );
+    ack(uid + ":start", live ? `Live for ${email}.` : `Armed for ${email}. Fills wait until the node is funded and taken live.`);
     setTick((n) => n + 1);
   };
 
   const pauseTrade = (id: string, email: string) => {
-    useSimStore.getState().setHalt(id, true);
-    setTradeGate({ userId: id, email, open: false });
-    ack(id + ":pause", `Trading paused for ${email}.`);
+    const uid = bookIdOf(id, email);
+    useSimStore.getState().setHalt(uid, true);
+    setTradeGate({ userId: uid, email, open: false });
+    ack(uid + ":pause", `Trading paused for ${email}.`);
     setTick((n) => n + 1);
   };
 
   const bookCash = (id: string, email: string) => {
-    const usd = Number(bookUsd[id]);
+    const uid = bookIdOf(id, email);
+    const usd = Number(cashUsd);
     if (!(usd > 0)) {
-      ack(id + ":book", "Enter the USD amount to book.");
+      ack(uid + ":book", "Enter the USD amount to book.");
       return;
     }
-    const res = useSimStore.getState().confirmDeposit(id, usd, "USD", `desk-${Date.now()}`);
+    const res = useSimStore.getState().confirmDeposit(uid, usd, "USD", `desk-${Date.now()}`);
     if (!res.ok) {
-      ack(id + ":book", res.error);
+      ack(uid + ":book", res.error);
       return;
     }
-    syncPrincipal(id);
-    pushNotice(id, "Node funded", `${usd.toLocaleString()} USD is booked to the node.`);
-    setBookUsd((m) => ({ ...m, [id]: "" }));
-    ack(id + ":book", `Booked ${usd.toLocaleString()} USD on ${email}.`);
+    syncPrincipal(uid);
+    pushNotice(uid, "Node funded", `${usd.toLocaleString()} USD is booked to the node.`);
+    setCashUsd("");
+    ack(uid + ":book", `Booked ${usd.toLocaleString()} USD on ${email}.`);
+    saveDeskJournal({ userId: uid, email, asset: "USD", amount: usd, direction: "credit", reason: "Desk book", where: "desk" });
     setTick((n) => n + 1);
+  };
+
+  const takeCash = (id: string, email: string) => {
+    const uid = bookIdOf(id, email);
+    const usd = Number(cashUsd);
+    if (!(usd > 0)) {
+      ack(uid + ":debit", "Enter the USD amount to debit.");
+      return;
+    }
+    const res = useSimStore.getState().debitCash(uid, usd, `Desk debit ${usd} USD`);
+    if (!res.ok) {
+      ack(uid + ":debit", res.error);
+      return;
+    }
+    syncPrincipal(uid);
+    pushNotice(uid, "Cash debited", `${usd.toLocaleString()} USD was taken off the node.`);
+    setCashUsd("");
+    saveDeskJournal({ userId: uid, email, asset: "USD", amount: usd, direction: "debit", reason: "Desk debit", where: "desk" });
+    ack(uid + ":debit", `Debited ${usd.toLocaleString()} USD on ${email}.`);
+    setTick((n) => n + 1);
+  };
+
+  const resetBook = (id: string, email: string) => {
+    const uid = bookIdOf(id, email);
+    if (resetArmed !== uid) {
+      setResetArmed(uid);
+      ack(uid + ":reset", "Tap Reset book again. Cash and holdings on this node go to zero.");
+      return;
+    }
+    const res = useSimStore.getState().reset(uid);
+    setResetArmed("");
+    if (!res.ok) {
+      ack(uid + ":reset", res.error);
+      return;
+    }
+    pingDesk();
+    syncPrincipal(uid);
+    pushNotice(uid, "Book reset", "The desk reset this node. Posted cash is zero until they book again.");
+    ack(uid + ":reset", `Reset the book for ${email}.`);
+    setTick((n) => n + 1);
+  };
+
+  const resetFocusPassword = async () => {
+    if (!focus?.email) {
+      ack("reset", "Pick a person with an email first.");
+      return;
+    }
+    if (focusPw.length < 8) {
+      ack("reset", "Use at least 8 characters.");
+      return;
+    }
+    const desk = findDesk(focus.email);
+    if (!desk) {
+      ack("reset", "That email is not registered on this desk.");
+      return;
+    }
+    upsertDesk({ ...desk, passwordHash: await hashDeskSecret(focusPw) });
+    setFocusPw("");
+    ack("reset", `Password updated for ${desk.email} on this desk.`);
+  };
+
+  const sendNote = (id: string, email: string) => {
+    const uid = bookIdOf(id, email);
+    const body = note.trim();
+    if (body.length < 2) {
+      ack(uid + ":note", "Write the note first.");
+      return;
+    }
+    pushNotice(uid, "Desk note", body);
+    setNote("");
+    ack(uid + ":note", `Note sent to ${email}.`);
   };
 
   const resetDeskPassword = async (e: React.FormEvent) => {
@@ -403,17 +530,6 @@ export default function AdminPage() {
     ack("reset", `Password updated for ${desk.email} on this desk.`);
   };
 
-  const sendNote = (id: string, email: string) => {
-    const body = (note[id] ?? "").trim();
-    if (body.length < 2) {
-      ack(id + ":note", "Write the note first.");
-      return;
-    }
-    pushNotice(id, "Desk note", body);
-    setNote((m) => ({ ...m, [id]: "" }));
-    ack(id + ":note", `Note sent to ${email}.`);
-  };
-
   const navOf = (id: string) => {
     const book = accounts[id];
     return book?.genesisClaimedAt ? accountNav(book) : 0;
@@ -429,59 +545,42 @@ export default function AdminPage() {
 
   if (!allowed) return null;
 
+  const focusMandate = focus ? readMandate(focus.id) : null;
+  const focusBook = focus ? accounts[focus.id] : undefined;
+  const focusPaused = !!(focus && (tradesPaused(focusMandate) || focusBook?.tradingHalted));
+  const focusLive = !!(focus && nodeActivated(focusMandate) && !focusPaused);
+  const focusApi = focus ? rows.find((r) => r.id === focus.id || r.email.toLowerCase() === focus.email) : undefined;
+  const focusNotes = focus ? listNotices(focus.id).slice(0, 6) : [];
+  const focusJournal = focus ? listDeskJournal().filter((row) => row.userId === focus.id).slice(0, 6) : [];
+
   return (
     <div className="min-h-screen bg-black text-white">
-      <header className="border-b border-white/[0.06] px-4 sm:px-6 lg:px-8 min-h-16 py-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <header className="border-b border-white/[0.06] px-4 py-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <XCapitalLogoMark size={26} />
-          <div>
+          <div className="min-w-0">
             <p className="font-black text-sm tracking-tight">X-CAPITAL Admin</p>
-            <p className="text-[10px] font-mono uppercase tracking-widest text-white/35">Ground station</p>
+            <p className="text-[10px] font-mono uppercase tracking-widest text-white/35">Live desk</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button type="button" onClick={() => { ack("refresh", "Directory refreshed."); void load(); }} className={press("refresh", "ghost")}>
-            <RefreshCw className={cn("w-3.5 h-3.5", busy && "animate-spin")} /> Refresh
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              logout();
-              router.push("/admin/login");
-            }}
-            className="sim-btn sim-btn-ghost px-3 py-1.5 text-[12px]"
-          >
-            <LogOut className="w-3.5 h-3.5" /> Sign out
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            logout();
+            router.push("/admin/login");
+          }}
+          className={press("out", "ghost")}
+        >
+          <LogOut className="w-4 h-4" /> Sign out
+        </button>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-5 py-6 space-y-5">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="pnl-card pnl-card-pos">
-            <p className="text-[10px] font-mono text-white/35">Registered</p>
-            <p className="text-xl font-black">{nodes.length}</p>
-          </div>
-          <div className="pnl-card pnl-card-pos">
-            <p className="text-[10px] font-mono text-white/35">Trading live</p>
-            <p className="text-xl font-black">{pulse.live}</p>
-          </div>
-          <div className="pnl-card pnl-card-pos">
-            <p className="text-[10px] font-mono text-white/35">Paused</p>
-            <p className="text-xl font-black">{pulse.paused}</p>
-          </div>
-          <div className="pnl-card pnl-card-pos">
-            <p className="text-[10px] font-mono text-white/35">Waiting</p>
-            <p className="text-xl font-black">{pulse.waiting}</p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
+      <main className="max-w-md mx-auto px-4 py-5 space-y-4">
+        <div className="grid grid-cols-3 gap-2">
           {([
-            ["nodes", "Nodes"],
+            ["people", "People"],
+            ["do", "Do"],
             ["inbox", pulse.waiting ? `Inbox (${pulse.waiting})` : "Inbox"],
-            ["books", "Books"],
-            ["house", "House"],
           ] as const).map(([id, label]) => (
             <button key={id} type="button" className={press("tab:" + id, desk === id ? "primary" : "ghost")} onClick={() => setDesk(id)}>
               {label}
@@ -489,421 +588,382 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {desk === "nodes" && (
-        <section className="sim-glass p-4 sm:p-5">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-4">
-            <div>
-              <p className="font-black mb-1">Nodes</p>
-              <p className="text-sm text-white/50">Every registered user. Start or pause trading, book cash, and send a note from the row.</p>
-            </div>
-            <input className="sim-input sm:max-w-xs" placeholder="Search registered users" value={q} onChange={(e) => setQ(e.target.value)} />
-          </div>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {(["all", "live", "paused", "closed"] as const).map((key) => (
-              <button key={key} type="button" className={press("lane:" + key, lane === key ? "primary" : "ghost")} onClick={() => setLane(key)}>
-                {key}
-              </button>
-            ))}
-          </div>
-          {visibleNodes.length === 0 ? (
-            <p className="text-sm text-white/40">No registered users in this view. Create one below, or clear the search.</p>
-          ) : (
-            <ul className="space-y-3">
-              {visibleNodes.map((node) => {
-                const mandate = readMandate(node.id);
-                const book = accounts[node.id];
-                const nav = book?.genesisClaimedAt ? accountNav(book) : 0;
-                const paused = tradesPaused(mandate) || !!book?.tradingHalted;
-                const live = nodeActivated(mandate) && !paused;
-                return (
-                  <li key={node.id} className="rounded-xl border border-white/[0.12] bg-black/40 px-4 py-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold">{node.name}</p>
-                        <p className="text-[12px] font-mono text-white/55 mt-1 break-all">{node.email}</p>
-                        <p className="text-[12px] text-white/45 mt-2">
-                          Book {nav.toLocaleString(undefined, { maximumFractionDigits: 2 })} USD
-                          {mandate ? ` · ${mandate.operatedPct ?? 0}% operated · ${mandate.dailyPct}% day` : ""}
-                          {` · ${node.source}`}
-                          {latestKyc(node.id) ? ` · identity ${latestKyc(node.id)?.status}` : ""}
-                        </p>
-                      </div>
-                      <span className={cn("sim-chip", live ? "sim-chip-live" : paused ? "sim-chip-warn" : "")}>
-                        {live ? "Trading live" : paused ? "Trading paused" : "Trading closed"}
-                      </span>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button type="button" className={press(node.id + ":start")} onClick={() => startTrade(node.id, node.email)}>
-                        <Play className="w-3.5 h-3.5" /> Start trade
-                      </button>
-                      <button type="button" className={press(node.id + ":pause", "ghost")} onClick={() => pauseTrade(node.id, node.email)}>
-                        <Pause className="w-3.5 h-3.5" /> Pause trade
-                      </button>
-                      <button type="button" className={press(node.id + ":pick", "ghost")} onClick={() => { setFocusId(node.id); setGrowth({ ...growth, userId: node.id }); setAdj({ ...adj, userId: node.id }); ack(node.id + ":pick", `${node.email || node.name} is selected for yield and the journal.`); }}>
-                        Select node
-                      </button>
-                    </div>
-                    <div className="mt-3 flex flex-col sm:flex-row gap-2">
-                      <input className="sim-input sm:max-w-[160px]" inputMode="decimal" placeholder="USD to book" value={bookUsd[node.id] ?? ""} onChange={(e) => setBookUsd((m) => ({ ...m, [node.id]: e.target.value }))} />
-                      <button type="button" className={press(node.id + ":book")} onClick={() => bookCash(node.id, node.email)}>Book cash</button>
-                      <input className="sim-input" placeholder="Note to this node" value={note[node.id] ?? ""} onChange={(e) => setNote((m) => ({ ...m, [node.id]: e.target.value }))} />
-                      <button type="button" className={press(node.id + ":note", "ghost")} onClick={() => sendNote(node.id, node.email)}>Send note</button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-        )}
-
         {error && <p className="text-sm text-red-300">{error}</p>}
         {formMsg && <p className="text-sm text-white/60">{formMsg}</p>}
 
-        {desk === "books" && (
-        <section className="pnl-stage p-5 md:p-6">
-          <p className="font-black mb-1">Daily and weekly yield</p>
-          <p className="text-sm text-white/50 mb-3">
-            Set the day’s rate, the week’s target, and the share of this node the desk operates. The user sees “node live” only after funds are booked and this is taken live.
-          </p>
-          <form onSubmit={applyGrowth} className="grid md:grid-cols-2 xl:grid-cols-[1fr_110px_110px_110px_auto] gap-3">
-            <NodePicker
-              nodes={nodes}
-              value={growth.userId}
-              onPick={(id) => {
-                setFocusId(id);
-                setGrowth({ ...growth, userId: id });
-              }}
-            />
-            <input
-              className="sim-input"
-              inputMode="decimal"
-              placeholder="Daily %"
-              value={growth.dailyPct}
-              onChange={(e) => setGrowth({ ...growth, dailyPct: e.target.value })}
-              required
-            />
-            <input
-              className="sim-input"
-              inputMode="decimal"
-              placeholder="Weekly %"
-              value={growth.weeklyPct}
-              onChange={(e) => setGrowth({ ...growth, weeklyPct: e.target.value })}
-              required
-            />
-            <input
-              className="sim-input"
-              inputMode="decimal"
-              placeholder="Node %"
-              value={growth.operatedPct}
-              onChange={(e) => setGrowth({ ...growth, operatedPct: e.target.value })}
-              required
-            />
-            <button type="submit" className={press("activate")}>Activate node</button>
-          </form>
-          {listMandates().length > 0 && (
-            <ul className="mt-4 space-y-1 text-[12px] text-white/55">
-              {listMandates().map((m) => (
-                <li key={m.userId} className="font-mono">
-                  {m.email} · {m.operatedPct ?? 0}% operated · {m.dailyPct}% day · {weeklyOf(m).toFixed(2)}% week · base {m.principal.toLocaleString(undefined, { maximumFractionDigits: 2 })} USD
-                </li>
+        {desk === "people" && (
+          <section className="space-y-3">
+            <input className="sim-input min-h-12" placeholder="Search name or email" value={q} onChange={(e) => setQ(e.target.value)} />
+            <div className="grid grid-cols-4 gap-2">
+              {(["all", "live", "halted", "quiet"] as const).map((key) => (
+                <button key={key} type="button" className={press("filter:" + key, peopleFilter === key ? "primary" : "ghost")} onClick={() => setPeopleFilter(key)}>
+                  {key}
+                </button>
               ))}
-            </ul>
-          )}
-        </section>
-        )}
-
-        {desk === "inbox" && (
-        <>
-        <section className="sim-glass p-5">
-          <p className="font-black mb-1">Confirm crypto deposits</p>
-          <p className="text-sm text-white/50 mb-4">
-            Books stay at 0 USD until you confirm the transfer and enter the USD value to credit.
-          </p>
-          {pending.length === 0 ? (
-            <p className="text-sm text-white/40">No deposits waiting.</p>
-          ) : (
-            <ul className="space-y-3">
-              {pending.map((row) => (
-                <li key={row.id} className="rounded-xl border border-white/[0.12] bg-black/40 p-4 flex flex-col md:flex-row md:items-end gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-white">{row.email}</p>
-                    <p className="text-[12px] text-white/50 mt-1">{row.asset} · {new Date(row.at).toLocaleString()}</p>
-                    <p className="text-[11px] font-mono text-white/35 mt-1 break-all">{row.txHash}</p>
-                  </div>
-                  <input
-                    className="sim-input md:max-w-[160px]"
-                    inputMode="decimal"
-                    placeholder="USD value"
-                    value={usdById[row.id] ?? ""}
-                    onChange={(e) => setUsdById((m) => ({ ...m, [row.id]: e.target.value }))}
-                  />
-                  <button
-                    type="button"
-                    className={press(row.id + ":deposit")}
-                    onClick={() => {
-                      const usd = Number(usdById[row.id]);
-                      if (!(usd > 0)) {
-                        setError("Enter the USD value before confirming.");
-                        return;
-                      }
-                      const res = useSimStore.getState().confirmDeposit(row.userId, usd, row.asset, row.txHash);
-                      if (!res.ok) {
-                        setError(res.error);
-                        return;
-                      }
-                      confirmDepositRecord(row.id, usd);
-                      syncPrincipal(row.userId);
-                      pushNotice(row.userId, "Node funded", `${usd.toLocaleString()} USD from ${row.asset} is booked to the node. Accrual and fills open when the desk takes it live.`);
-                      setError("");
-                      ack(row.id + ":deposit", `Confirmed ${usd.toLocaleString()} USD for ${row.email}.`);
-                    }}
-                  >
-                    Confirm deposit
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="sim-glass p-5">
-          <p className="font-black mb-1">Identity packets</p>
-          <p className="text-sm text-white/50 mb-4">Approve or reject. This does not credit the book.</p>
-          {kycRows.length === 0 ? (
-            <p className="text-sm text-white/40">No identity packets waiting.</p>
-          ) : (
-            <ul className="space-y-3">
-              {kycRows.map((row) => (
-                <li key={row.id} className="rounded-xl border border-white/[0.12] bg-black/40 p-4">
-                  <p className="text-sm font-bold">{row.legalFirst} {row.legalLast} · {row.email}</p>
-                  <p className="text-[12px] text-white/55 mt-1">{row.address}, {row.city}, {row.region} {row.postal}, {row.country}</p>
-                  <p className="text-[12px] text-white/55 mt-1">Born {row.dob} · {row.nationality} · {row.occupation} · {row.phone}</p>
-                  <p className="text-[12px] text-white/55 mt-1">Funds: {row.sourceOfFunds}</p>
-                  <p className="text-[12px] font-mono text-white/70 mt-1">{row.docType} · {row.docNumber}</p>
-                  <div className="mt-3 flex gap-2">
-                    <button type="button" className={press(row.id + ":kyc-yes")} onClick={() => { setKycStatus(row.id, "approved"); pushNotice(row.userId, "Identity approved", "The operator confirmed the identity packet."); ack(row.id + ":kyc-yes", `Identity approved for ${row.email}.`); }}>Approve</button>
-                    <button type="button" className={press(row.id + ":kyc-no", "ghost")} onClick={() => { setKycStatus(row.id, "rejected"); pushNotice(row.userId, "Identity rejected", "The operator rejected the identity packet. Send a corrected one from Settings."); ack(row.id + ":kyc-no", `Identity rejected for ${row.email}.`); }}>Reject</button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="sim-glass p-5">
-          <p className="font-black mb-1">External account links</p>
-          <p className="text-sm text-white/50 mb-4">Confirm the link with no cash, or book the verified USD onto the node.</p>
-          {linkRows.length === 0 ? (
-            <p className="text-sm text-white/40">No link requests waiting.</p>
-          ) : (
-            <ul className="space-y-3">
-              {linkRows.map((row) => (
-                <li key={row.id} className="rounded-xl border border-white/[0.12] bg-black/40 p-4 flex flex-col gap-3">
-                  <div>
-                    <p className="text-sm font-bold">{row.email}</p>
-                    <p className="text-[12px] text-white/55 mt-1">{row.kind} · {row.custodian} · {row.planName}</p>
-                    <p className="text-[12px] text-white/55">{row.accountTitle} · ···{row.last4} · requested {row.requestedUsd.toLocaleString()} USD</p>
-                  </div>
-                  <div className="flex flex-col md:flex-row gap-2 md:items-center">
-                    <button type="button" className={press(row.id + ":link", "ghost")} onClick={() => { setLinkStatus(row.id, "linked"); pushNotice(row.userId, "Plan linked", `${row.kind} at ${row.custodian} is on file. No cash was booked.`); ack(row.id + ":link", `Link confirmed for ${row.email}.`); }}>Confirm link</button>
-                    <input className="sim-input md:max-w-[160px]" inputMode="decimal" placeholder="USD to book" value={linkUsd[row.id] ?? String(row.requestedUsd)} onChange={(e) => setLinkUsd((m) => ({ ...m, [row.id]: e.target.value }))} />
-                    <button
-                      type="button"
-                      className={press(row.id + ":booklink")}
-                      onClick={() => {
-                        const usd = Number(linkUsd[row.id] ?? row.requestedUsd);
-                        if (!(usd > 0)) {
-                          setError("Enter the USD amount to book.");
-                          return;
-                        }
-                        const res = useSimStore.getState().confirmDeposit(row.userId, usd, row.kind, `link-${row.id}`);
-                        if (!res.ok) {
-                          setError(res.error);
-                          return;
-                        }
-                        setLinkStatus(row.id, "booked", usd);
-                        pushNotice(row.userId, "Node funded", `${usd.toLocaleString()} USD from ${row.custodian} is booked to the node.`);
-                        setError("");
-                      }}
-                    >
-                      Book cash
-                    </button>
-                    <button type="button" className={press(row.id + ":rej", "ghost")} onClick={() => { setLinkStatus(row.id, "rejected"); pushNotice(row.userId, "Link rejected", `${row.kind} at ${row.custodian} was not accepted.`); ack(row.id + ":rej", `Link rejected for ${row.email}.`); }}>Reject</button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-        </>
-        )}
-
-        {desk === "books" && (
-        <section className="sim-glass p-5">
-          <p className="font-black mb-1">Post journal</p>
-          <p className="text-sm text-white/50 mb-3">Select node opens every registered user. Pick one, then post the credit or debit.</p>
-          <form onSubmit={postJournal} className="grid md:grid-cols-3 gap-3">
-            <NodePicker
-              nodes={nodes}
-              value={adj.userId}
-              onPick={(id) => {
-                setFocusId(id);
-                setAdj({ ...adj, userId: id });
-              }}
-            />
-            <select
-              className="sim-input"
-              value={adj.asset}
-              onChange={(e) => setAdj({ ...adj, asset: e.target.value })}
-            >
-              {["USDT", "BTC", "ETH", "SOL", "USD"].map((a) => (
-                <option key={a} value={a}>{a}</option>
-              ))}
-            </select>
-            <select
-              className="sim-input"
-              value={adj.direction}
-              onChange={(e) => setAdj({ ...adj, direction: e.target.value as "credit" | "debit" })}
-            >
-              <option value="credit">Credit (Dr profit pool / Cr user cash)</option>
-              <option value="debit">Debit (Dr user cash / Cr house)</option>
-            </select>
-            <input className="sim-input" placeholder="Amount" value={adj.amount} onChange={(e) => setAdj({ ...adj, amount: e.target.value })} required />
-            <input className="sim-input md:col-span-2" placeholder="Reason" value={adj.reason} onChange={(e) => setAdj({ ...adj, reason: e.target.value })} required minLength={3} />
-            <input
-              className="sim-input md:col-span-2"
-              placeholder="Idempotency key"
-              value={adj.idempotencyKey}
-              onChange={(e) => setAdj({ ...adj, idempotencyKey: e.target.value })}
-            />
-            <button type="submit" className={press("journal")}>Post entry</button>
-          </form>
-          {listDeskJournal().length > 0 && (
-            <ul className="mt-4 space-y-1 text-[12px] font-mono text-white/55">
-              {listDeskJournal().slice(0, 8).map((row) => (
-                <li key={row.id}>{row.direction} {row.amount} {row.asset} · {row.email} · {row.reason}</li>
-              ))}
-            </ul>
-          )}
-        </section>
-        )}
-
-        {desk === "nodes" && focus && (
-          <section className="sim-glass p-5">
-            <p className="font-black mb-1">Watching {focus.name}</p>
-            <p className="text-[12px] font-mono text-white/55 break-all">{focus.email || focus.id}</p>
-            <p className="text-sm text-white/50 mt-2">
-              Book {navOf(focus.id).toLocaleString(undefined, { maximumFractionDigits: 2 })} USD
-              {readMandate(focus.id) ? ` · ${readMandate(focus.id)?.operatedPct ?? 0}% operated` : " · no yield path yet"}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" className={press(focus.id + ":start")} onClick={() => startTrade(focus.id, focus.email || focus.name)}><Play className="w-3.5 h-3.5" /> Start trade</button>
-              <button type="button" className={press(focus.id + ":pause", "ghost")} onClick={() => pauseTrade(focus.id, focus.email || focus.name)}><Pause className="w-3.5 h-3.5" /> Pause trade</button>
             </div>
-            <ul className="mt-4 space-y-1 text-[12px] text-white/55">
-              {listNotices(focus.id).slice(0, 4).map((row) => (
-                <li key={row.id}>{row.title} — {row.body}</li>
-              ))}
-              {listDeskJournal().filter((row) => row.userId === focus.id).slice(0, 4).map((row) => (
-                <li key={row.id} className="font-mono">{row.direction} {row.amount} {row.asset} · {row.reason}</li>
-              ))}
-              {listNotices(focus.id).length === 0 && listDeskJournal().every((row) => row.userId !== focus.id) && (
-                <li>No notes or journal lines for this user yet.</li>
-              )}
-            </ul>
+            {listed.length === 0 ? (
+              <p className="text-sm text-white/40">No people on this desk yet.</p>
+            ) : (
+              <ul className="space-y-2">
+                {listed.map((node) => {
+                  const mandate = readMandate(node.id);
+                  const book = accounts[node.id];
+                  const paused = tradesPaused(mandate) || !!book?.tradingHalted;
+                  const live = nodeActivated(mandate) && !paused;
+                  const nav = navOf(node.id);
+                  return (
+                    <li key={node.id}>
+                      <button
+                        type="button"
+                        className={cn(
+                          "w-full text-left rounded-2xl border px-4 py-4 min-h-[72px]",
+                          focusId === node.id ? "border-emerald-300/50 bg-emerald-300/10" : "border-white/[0.12] bg-black/40",
+                        )}
+                        onClick={() => pickPerson(node)}
+                      >
+                        <p className="text-base font-bold">{node.name}</p>
+                        <p className="text-[12px] font-mono text-white/55 mt-1 break-all">{node.email}</p>
+                        <p className="text-[13px] text-white/70 mt-2">
+                          {nav.toLocaleString(undefined, { maximumFractionDigits: 2 })} USD
+                          {" · "}
+                          {live ? "Live" : paused ? "Halted" : "Quiet"}
+                          {mandate ? ` · fill ${unlockFillOf(mandate)}%` : ""}
+                        </p>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </section>
         )}
 
-        {desk === "house" && (
-        <>
-        <section className="sim-glass p-5">
-          <p className="font-black mb-1">Activity</p>
-          <p className="text-sm text-white/50 mb-3">Latest deposits, identity packets, links, and journal lines on this desk.</p>
-          {activity.length === 0 ? (
-            <p className="text-sm text-white/40">Nothing has moved yet.</p>
-          ) : (
-            <ul className="space-y-1 text-[12px] font-mono text-white/60">
-              {activity.map((row) => (
-                <li key={row.id}>{new Date(row.at).toLocaleString()} · {row.text}</li>
-              ))}
-            </ul>
-          )}
-        </section>
+        {desk === "do" && (
+          <section className="space-y-4">
+            {!focus ? (
+              <p className="text-sm text-white/50">Pick a person first.</p>
+            ) : (
+              <>
+                <div className="rounded-2xl border border-white/[0.12] bg-black/40 px-4 py-4">
+                  <p className="text-base font-bold">{focus.name}</p>
+                  <p className="text-[12px] font-mono text-white/55 mt-1 break-all">{focus.email}</p>
+                  <p className="text-[15px] mt-2">
+                    {navOf(focus.id).toLocaleString(undefined, { maximumFractionDigits: 2 })} USD
+                    {" · "}
+                    {focusLive ? "Live" : focusPaused ? "Halted" : "Quiet"}
+                  </p>
+                  <p className="text-[12px] text-white/50 mt-2">
+                    Cash {(focusBook?.cash ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    {focusBook?.fleet?.units ? ` · fleet ${focusBook.fleet.units}` : ""}
+                    {focusBook?.commerce?.length ? ` · atelier ${focusBook.commerce.reduce((n, h) => n + h.qty, 0)}` : ""}
+                  </p>
+                </div>
 
-        <section className="pnl-stage p-5 md:p-6">
-          <p className="font-black mb-3">Create operator</p>
-          <form onSubmit={create} className="grid md:grid-cols-5 gap-3">
-            <input className="sim-input" placeholder="First" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required />
-            <input className="sim-input" placeholder="Last" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required />
-            <input className="sim-input" type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
-            <input className="sim-input" type="password" placeholder="Password (8+)" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required minLength={8} />
-            <button type="submit" className={press("create")}>Create</button>
-          </form>
-          <form onSubmit={resetDeskPassword} className="grid md:grid-cols-3 gap-3 mt-4">
-            <input className="sim-input" type="email" placeholder="Registered email" value={resetForm.email} onChange={(e) => setResetForm({ ...resetForm, email: e.target.value })} required />
-            <input className="sim-input" type="password" placeholder="New password (8+)" value={resetForm.password} onChange={(e) => setResetForm({ ...resetForm, password: e.target.value })} required minLength={8} />
-            <button type="submit" className={press("reset", "ghost")}>Reset desk password</button>
-          </form>
-        </section>
+                <div className="space-y-2">
+                  <label className="sim-label">Cash (USD)</label>
+                  <input className="sim-input min-h-12" inputMode="decimal" placeholder="USD amount" value={cashUsd} onChange={(e) => setCashUsd(e.target.value)} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" className={press(focus.id + ":book")} onClick={() => bookCash(focus.id, focus.email)}>Book</button>
+                    <button type="button" className={press(focus.id + ":debit", "ghost")} onClick={() => takeCash(focus.id, focus.email)}>Debit</button>
+                  </div>
+                </div>
 
-        <section className="pnl-stage overflow-hidden">
-          <div className="px-5 py-4 border-b border-white/[0.05]">
-            <p className="font-black">Directory</p>
-            <p className="text-sm text-white/45 mt-1">Registered users on the network and on this desk. Search sits with the node list above.</p>
+                <form onSubmit={applyGrowth} className="space-y-2">
+                  <label className="sim-label">Node-trade fill to withdraw</label>
+                  <input className="sim-input min-h-12" inputMode="decimal" placeholder="100" value={growth.unlockFillPct} onChange={(e) => setGrowth({ ...growth, unlockFillPct: e.target.value })} />
+                  <label className="sim-label">Daily rate %</label>
+                  <input className="sim-input min-h-12" inputMode="decimal" placeholder="0.25" value={growth.dailyPct} onChange={(e) => setGrowth({ ...growth, dailyPct: e.target.value })} />
+                  <label className="sim-label">Weekly rate %</label>
+                  <input className="sim-input min-h-12" inputMode="decimal" placeholder="1.76" value={growth.weeklyPct} onChange={(e) => setGrowth({ ...growth, weeklyPct: e.target.value })} />
+                  <button type="submit" className={cn(press("activate"), "w-full")}>Save fill and rates</button>
+                </form>
+                {focusMandate && (
+                  <p className="text-[12px] text-white/45">
+                    Withdrawals open at {unlockFillOf(focusMandate)}% fill
+                    {focusMandate.dailyPct ? ` · ${focusMandate.dailyPct}% a day · ${weeklyOf(focusMandate).toFixed(2)}% week` : ""}
+                  </p>
+                )}
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" className={press(focus.id + ":start")} onClick={() => startTrade(focus.id, focus.email)}>
+                    <Play className="w-4 h-4" /> Start
+                  </button>
+                  <button type="button" className={press(focus.id + ":pause", "ghost")} onClick={() => pauseTrade(focus.id, focus.email)}>
+                    <Pause className="w-4 h-4" /> Halt
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  <input className="sim-input min-h-12" placeholder="Note to this person" value={note} onChange={(e) => setNote(e.target.value)} />
+                  <button type="button" className={cn(press(focus.id + ":note", "ghost"), "w-full")} onClick={() => sendNote(focus.id, focus.email)}>Send note</button>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="sim-label">Desk password</label>
+                  <input className="sim-input min-h-12" type="password" placeholder="New password (8+)" value={focusPw} onChange={(e) => setFocusPw(e.target.value)} />
+                  <button type="button" className={cn(press("reset"), "w-full")} onClick={() => void resetFocusPassword()}>Reset password</button>
+                </div>
+
+                {focusApi && focusApi.id !== user?.id && (
+                  <button
+                    type="button"
+                    className={cn(press(focusApi.id + ":active", focusApi.isActive ? "ghost" : "primary"), "w-full")}
+                    onClick={() => void toggle(focusApi)}
+                  >
+                    {focusApi.isActive ? <><Ban className="w-4 h-4" /> Disable account</> : "Enable account"}
+                  </button>
+                )}
+
+                <button type="button" className={cn(press(focus.id + ":reset", "ghost"), "w-full")} onClick={() => resetBook(focus.id, focus.email)}>
+                  {resetArmed === focus.id ? "Tap again to reset book" : "Reset book"}
+                </button>
+
+                <div>
+                  <p className="font-black mb-2">Tape</p>
+                  {focusNotes.length === 0 && focusJournal.length === 0 ? (
+                    <p className="text-sm text-white/40">No notes or journal lines yet.</p>
+                  ) : (
+                    <ul className="space-y-1 text-[12px] text-white/55">
+                      {focusNotes.map((row) => (
+                        <li key={row.id}>{row.title} — {row.body}</li>
+                      ))}
+                      {focusJournal.map((row) => (
+                        <li key={row.id} className="font-mono">{row.direction} {row.amount} {row.asset} · {row.reason}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </>
+            )}
+          </section>
+        )}
+
+        {desk === "inbox" && (
+          <div className="space-y-5">
+            <section>
+              <p className="font-black mb-1">Deposits</p>
+              <p className="text-sm text-white/50 mb-3">Books stay at 0 until you type the USD.</p>
+              {pending.length === 0 ? (
+                <p className="text-sm text-white/40">None waiting.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {pending.map((row) => (
+                    <li key={row.id} className="rounded-2xl border border-white/[0.12] bg-black/40 p-4 space-y-3">
+                      <p className="text-sm font-bold">{row.email}</p>
+                      <p className="text-[12px] text-white/50">{row.asset} · {new Date(row.at).toLocaleString()}</p>
+                      <p className="text-[11px] font-mono text-white/35 break-all">{row.txHash}</p>
+                      <input className="sim-input min-h-12" inputMode="decimal" placeholder="USD value" value={usdById[row.id] ?? ""} onChange={(e) => setUsdById((m) => ({ ...m, [row.id]: e.target.value }))} />
+                      <button
+                        type="button"
+                        className={cn(press(row.id + ":deposit"), "w-full")}
+                        onClick={() => {
+                          const usd = Number(usdById[row.id]);
+                          if (!(usd > 0)) {
+                            setError("Enter the USD value before confirming.");
+                            return;
+                          }
+                          const uid = resolveBookUserId(row.email, row.userId);
+                          const res = useSimStore.getState().confirmDeposit(uid, usd, row.asset, row.txHash);
+                          if (!res.ok) {
+                            setError(res.error);
+                            return;
+                          }
+                          confirmDepositRecord(row.id, usd);
+                          syncPrincipal(uid);
+                          pushNotice(uid, "Node funded", `${usd.toLocaleString()} USD from ${row.asset} is booked to the node.`);
+                          setError("");
+                          ack(row.id + ":deposit", `Confirmed ${usd.toLocaleString()} USD for ${row.email}.`);
+                        }}
+                      >
+                        Confirm deposit
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section>
+              <p className="font-black mb-1">Identity</p>
+              {kycRows.length === 0 ? (
+                <p className="text-sm text-white/40">None waiting.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {kycRows.map((row) => (
+                    <li key={row.id} className="rounded-2xl border border-white/[0.12] bg-black/40 p-4">
+                      <p className="text-sm font-bold">{row.legalFirst} {row.legalLast} · {row.email}</p>
+                      <p className="text-[12px] text-white/55 mt-1">{row.address}, {row.city}, {row.country}</p>
+                      <p className="text-[12px] text-white/55 mt-1">{row.phone} · {row.docType} {row.docNumber}</p>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <button type="button" className={press(row.id + ":kyc-yes")} onClick={() => { setKycStatus(row.id, "approved"); pushNotice(row.userId, "Identity approved", "The operator confirmed the identity packet."); ack(row.id + ":kyc-yes", `Identity approved for ${row.email}.`); }}>Approve</button>
+                        <button type="button" className={press(row.id + ":kyc-no", "ghost")} onClick={() => { setKycStatus(row.id, "rejected"); pushNotice(row.userId, "Identity rejected", "The operator rejected the identity packet."); ack(row.id + ":kyc-no", `Identity rejected for ${row.email}.`); }}>Reject</button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section>
+              <p className="font-black mb-1">Links</p>
+              {linkRows.length === 0 ? (
+                <p className="text-sm text-white/40">None waiting.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {linkRows.map((row) => (
+                    <li key={row.id} className="rounded-2xl border border-white/[0.12] bg-black/40 p-4 space-y-2">
+                      <p className="text-sm font-bold">{row.email}</p>
+                      <p className="text-[12px] text-white/55">{row.kind} · {row.custodian} · {row.requestedUsd.toLocaleString()} USD</p>
+                      <button type="button" className={cn(press(row.id + ":link", "ghost"), "w-full")} onClick={() => { setLinkStatus(row.id, "linked"); pushNotice(row.userId, "Plan linked", `${row.kind} at ${row.custodian} is on file. No cash was booked.`); ack(row.id + ":link", `Link confirmed for ${row.email}.`); }}>Confirm link</button>
+                      <input className="sim-input min-h-12" inputMode="decimal" placeholder="USD to book" value={linkUsd[row.id] ?? String(row.requestedUsd)} onChange={(e) => setLinkUsd((m) => ({ ...m, [row.id]: e.target.value }))} />
+                      <button
+                        type="button"
+                        className={cn(press(row.id + ":booklink"), "w-full")}
+                        onClick={() => {
+                          const usd = Number(linkUsd[row.id] ?? row.requestedUsd);
+                          if (!(usd > 0)) {
+                            setError("Enter the USD amount to book.");
+                            return;
+                          }
+                          const uid = resolveBookUserId(row.email, row.userId);
+                          const res = useSimStore.getState().confirmDeposit(uid, usd, row.kind, `link-${row.id}`);
+                          if (!res.ok) {
+                            setError(res.error);
+                            return;
+                          }
+                          setLinkStatus(row.id, "booked", usd);
+                          syncPrincipal(uid);
+                          pushNotice(uid, "Node funded", `${usd.toLocaleString()} USD from ${row.custodian} is booked to the node.`);
+                          setError("");
+                          ack(row.id + ":booklink", `Booked ${usd.toLocaleString()} USD.`);
+                        }}
+                      >
+                        Book cash
+                      </button>
+                      <button type="button" className={cn(press(row.id + ":rej", "ghost"), "w-full")} onClick={() => { setLinkStatus(row.id, "rejected"); pushNotice(row.userId, "Link rejected", `${row.kind} at ${row.custodian} was not accepted.`); ack(row.id + ":rej", `Link rejected for ${row.email}.`); }}>Reject</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section>
+              <p className="font-black mb-1">Deliveries</p>
+              <p className="text-sm text-white/50 mb-3">Confirm or dismiss. No extra workflow.</p>
+              {deliveries.length === 0 ? (
+                <p className="text-sm text-white/40">None open.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {deliveries.map((row) => (
+                    <li key={row.id} className="rounded-2xl border border-white/[0.12] bg-black/40 p-4 space-y-2">
+                      <p className="text-sm font-bold">{row.name} · {row.email}</p>
+                      <p className="text-[12px] text-white/55">{row.phone}</p>
+                      <p className="text-[12px] text-white/55">{row.address}, {row.city}, {row.country}</p>
+                      {row.notes ? <p className="text-[12px] text-white/45">{row.notes}</p> : null}
+                      <ul className="text-[12px] text-white/70">
+                        {row.items.map((item) => (
+                          <li key={item.sku}>{item.qty} × {item.name}</li>
+                        ))}
+                      </ul>
+                      <p className="text-sm font-bold">{row.total.toLocaleString(undefined, { maximumFractionDigits: 0 })} USD</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button type="button" className={press(row.id + ":ship")} onClick={() => { setDeliveryStatus(row.id, "confirmed"); ack(row.id + ":ship", `Delivery confirmed for ${row.email}.`); }}>Confirm</button>
+                        <button type="button" className={press(row.id + ":skip", "ghost")} onClick={() => { setDeliveryStatus(row.id, "dismissed"); ack(row.id + ":skip", `Delivery dismissed.`); }}>Dismiss</button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
           </div>
-          {listed.length === 0 && <p className="px-5 py-4 text-sm text-white/40">No registered users yet.</p>}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-[13px]">
-              <thead className="text-white/35 text-[10px] uppercase tracking-wider">
-                <tr>
-                  <th className="px-5 py-3 font-normal">Node</th>
-                  <th className="px-5 py-3 font-normal">Book</th>
-                  <th className="px-5 py-3 font-normal">Where</th>
-                  <th className="px-5 py-3 font-normal">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {listed.map((n) => {
-                  const api = rows.find((r) => r.id === n.id || r.email.toLowerCase() === n.email);
-                  const book = accounts[n.id];
-                  const nav = book?.genesisClaimedAt ? accountNav(book) : 0;
-                  return (
-                    <tr key={n.id} className="border-t border-white/[0.04]">
-                      <td className="px-5 py-3">
-                        <p className="font-semibold">{n.name}</p>
-                        <p className="font-mono text-[11px] text-white/40">{n.email || n.id}</p>
-                      </td>
-                      <td className="px-5 py-3 font-mono">
-                        {nav.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                        {api ? <span className="block text-[10px] text-white/35">USDT {api.balances?.USDT?.cash ?? "0"}</span> : null}
-                      </td>
-                      <td className="px-5 py-3 text-white/50">{n.source}</td>
-                      <td className="px-5 py-3">
+        )}
+
+        <details className="rounded-2xl border border-white/[0.08] bg-black/30 px-4 py-3">
+          <summary className="font-black min-h-12 flex items-center cursor-pointer">More</summary>
+          <div className="mt-4 space-y-6 pb-2">
+            <section>
+              <p className="font-black mb-2">Post journal</p>
+              <form onSubmit={postJournal} className="space-y-2">
+                <NodePicker
+                  nodes={nodes}
+                  value={adj.userId}
+                  onPick={(id) => setAdj({ ...adj, userId: id })}
+                />
+                <select className="sim-input min-h-12" value={adj.asset} onChange={(e) => setAdj({ ...adj, asset: e.target.value })}>
+                  {["USDT", "BTC", "ETH", "SOL", "USD"].map((a) => (
+                    <option key={a} value={a}>{a}</option>
+                  ))}
+                </select>
+                <select className="sim-input min-h-12" value={adj.direction} onChange={(e) => setAdj({ ...adj, direction: e.target.value as "credit" | "debit" })}>
+                  <option value="credit">Credit</option>
+                  <option value="debit">Debit</option>
+                </select>
+                <input className="sim-input min-h-12" placeholder="Amount" value={adj.amount} onChange={(e) => setAdj({ ...adj, amount: e.target.value })} required />
+                <input className="sim-input min-h-12" placeholder="Reason" value={adj.reason} onChange={(e) => setAdj({ ...adj, reason: e.target.value })} required minLength={3} />
+                <button type="submit" className={cn(press("journal"), "w-full")}>Post entry</button>
+              </form>
+            </section>
+
+            <section>
+              <p className="font-black mb-2">Create operator</p>
+              <form onSubmit={create} className="space-y-2">
+                <input className="sim-input min-h-12" placeholder="First" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required />
+                <input className="sim-input min-h-12" placeholder="Last" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required />
+                <input className="sim-input min-h-12" type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+                <input className="sim-input min-h-12" type="password" placeholder="Password (8+)" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required minLength={8} />
+                <button type="submit" className={cn(press("create"), "w-full")}>Create</button>
+              </form>
+              <form onSubmit={resetDeskPassword} className="space-y-2 mt-4">
+                <input className="sim-input min-h-12" type="email" placeholder="Registered email" value={resetForm.email} onChange={(e) => setResetForm({ ...resetForm, email: e.target.value })} required />
+                <input className="sim-input min-h-12" type="password" placeholder="New password (8+)" value={resetForm.password} onChange={(e) => setResetForm({ ...resetForm, password: e.target.value })} required minLength={8} />
+                <button type="submit" className={cn(press("reset", "ghost"), "w-full")}>Reset desk password</button>
+              </form>
+            </section>
+
+            <section>
+              <p className="font-black mb-2">Directory</p>
+              <button type="button" onClick={() => { ack("refresh", "Directory refreshed."); void load(); }} className={cn(press("refresh", "ghost"), "w-full mb-3")}>
+                <RefreshCw className={cn("w-3.5 h-3.5", busy && "animate-spin")} /> Refresh
+              </button>
+              {listed.length === 0 ? (
+                <p className="text-sm text-white/40">No registered users yet.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {listed.map((n) => {
+                    const api = rows.find((r) => r.id === n.id || r.email.toLowerCase() === n.email);
+                    return (
+                      <li key={n.id} className="rounded-xl border border-white/[0.08] px-3 py-3">
+                        <p className="text-sm font-semibold">{n.name}</p>
+                        <p className="font-mono text-[11px] text-white/40 break-all">{n.email || n.id}</p>
+                        <p className="text-[12px] text-white/50 mt-1">{navOf(n.id).toLocaleString(undefined, { maximumFractionDigits: 2 })} USD · {n.source}</p>
                         {api ? (
-                          <button
-                            type="button"
-                            disabled={api.id === user?.id}
-                            onClick={() => void toggle(api)}
-                            className={press(api.id + ":active", api.isActive ? "ghost" : "primary")}
-                          >
+                          <button type="button" disabled={api.id === user?.id} onClick={() => void toggle(api)} className={cn(press(api.id + ":active", api.isActive ? "ghost" : "primary"), "w-full mt-2")}>
                             {api.isActive ? <><Ban className="w-3 h-3" /> Disable</> : "Enable"}
                           </button>
                         ) : (
-                          <button type="button" className={press(n.id + ":pick", "ghost")} onClick={() => { setFocusId(n.id); setAdj({ ...adj, userId: n.id }); setGrowth({ ...growth, userId: n.id }); ack(n.id + ":pick", `${n.email || n.name} is selected.`); }}>
-                            Select
-                          </button>
+                          <button type="button" className={cn(press(n.id + ":pick", "ghost"), "w-full mt-2")} onClick={() => pickPerson(n)}>Select</button>
                         )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+
+            <section>
+              <p className="font-black mb-2">Activity</p>
+              {activity.length === 0 ? (
+                <p className="text-sm text-white/40">Nothing has moved yet.</p>
+              ) : (
+                <ul className="space-y-1 text-[12px] font-mono text-white/60">
+                  {activity.map((row) => (
+                    <li key={row.id}>{new Date(row.at).toLocaleString()} · {row.text}</li>
+                  ))}
+                </ul>
+              )}
+            </section>
           </div>
-        </section>
-        </>
-        )}
+        </details>
       </main>
     </div>
   );

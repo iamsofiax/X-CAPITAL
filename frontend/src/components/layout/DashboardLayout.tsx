@@ -8,6 +8,7 @@ import MarketTicker from "./MarketTicker";
 import { SimulationBadge } from "@/components/sim/SimulationBadge";
 import { GenesisGate } from "@/components/sim/GenesisGate";
 import { useStore } from "@/store/useStore";
+import { restoreRememberedTokens, sessionKeys } from "@/lib/sessionScope";
 import { useSimSync } from "@/hooks/useSimSync";
 import { useSimQuotes } from "@/hooks/useSimQuotes";
 import { useSim } from "@/hooks/useSim";
@@ -57,7 +58,18 @@ export default function DashboardLayout({
   }, []);
 
   useEffect(() => {
-    if (ready && !isAuthenticated) router.push("/auth/login");
+    if (!ready) return;
+    const snap = useStore.getState();
+    const restored = restoreRememberedTokens({
+      accessToken: snap.accessToken,
+      refreshToken: snap.refreshToken,
+    });
+    if (restored && snap.user && snap.accessToken && !snap.isAuthenticated) {
+      useStore.setState({ isAuthenticated: true });
+      return;
+    }
+    if (snap.isAuthenticated || isAuthenticated) return;
+    router.push(sessionKeys().login);
   }, [isAuthenticated, ready, router]);
 
   return (

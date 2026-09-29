@@ -4,8 +4,10 @@ export type YieldMandate = {
   dailyPct: number;
   /** Published week target. Accrual still runs on the daily rate, so the week print stays consistent with the day. */
   weeklyPct: number;
-  /** Share of the confirmed book the desk operates for this user. Gains stay off at 0. */
+  /** Share of the confirmed book the desk operates for this user. Gains stay off at 0. Internal accrual math. */
   operatedPct: number;
+  /** Percent of node-trade fill required before withdrawals open. Default 100. */
+  unlockFillPct?: number;
   activatedAt: number | null;
   /** False freezes fills. Missing means trading is allowed once the node is live. */
   tradesOpen?: boolean;
@@ -52,7 +54,18 @@ function readJson<T>(key: string, fallback: T): T {
 
 function writeJson(key: string, value: unknown) {
   localStorage.setItem(key, JSON.stringify(value));
+  pingDesk();
+}
+
+/** Same-tab yield listeners plus a storage ping so the other tab re-reads the book. */
+export function pingDesk() {
+  if (typeof window === "undefined") return;
   window.dispatchEvent(new Event("xc-yield"));
+  try {
+    localStorage.setItem("xc_sim_ping", String(Date.now()));
+  } catch {
+    /* ignore quota */
+  }
 }
 
 export function listMandates(): YieldMandate[] {
@@ -76,6 +89,12 @@ export function operatedOf(mandate: Pick<YieldMandate, "operatedPct">) {
   const n = mandate.operatedPct;
   if (typeof n !== "number" || Number.isNaN(n)) return 0;
   return Math.min(100, Math.max(0, n));
+}
+
+export function unlockFillOf(mandate?: Pick<YieldMandate, "unlockFillPct"> | null) {
+  const n = mandate?.unlockFillPct;
+  if (typeof n !== "number" || Number.isNaN(n)) return 100;
+  return Math.min(100, Math.max(1, Math.round(n)));
 }
 
 export function nodeActivated(mandate: YieldMandate | null | undefined) {
@@ -125,6 +144,7 @@ export function setTradeGate(input: { userId: string; email: string; open: boole
         dailyPct: 0,
         weeklyPct: 0,
         operatedPct: 0,
+        unlockFillPct: 100,
         activatedAt: null,
         tradesOpen: input.open,
         principal: 0,
@@ -152,16 +172,18 @@ export function setDailyGrowth(input: {
   dailyPct: number;
   weeklyPct?: number;
   operatedPct?: number;
+  unlockFillPct?: number;
   principal: number;
 }) {
   const pct = Math.round(input.dailyPct * 10000) / 10000;
   if (!(pct >= 0) || pct > 5) throw new Error("Daily growth must be between 0 and 5 percent.");
   const weekly = Math.round((input.weeklyPct ?? weeklyFromDaily(pct)) * 10000) / 10000;
   if (!(weekly >= 0) || weekly > 25) throw new Error("Weekly growth must be between 0 and 25 percent.");
-  const operated = Math.round((input.operatedPct ?? 0) * 100) / 100;
-  if (!(operated >= 0) || operated > 100) throw new Error("Operated percent must be between 0 and 100.");
   const now = Date.now();
   const prev = readMandate(input.userId);
+  const operated = Math.round((input.operatedPct ?? prev?.operatedPct ?? 0) * 100) / 100;
+  if (!(operated >= 0) || operated > 100) throw new Error("Operated percent must be between 0 and 100.");
+  const unlockFillPct = unlockFillOf({ unlockFillPct: input.unlockFillPct ?? prev?.unlockFillPct });
   const principal = input.principal > 0 ? input.principal : prev?.principal ?? 0;
   const live = operated > 0 && principal > 0;
   const next: YieldMandate = {
@@ -170,6 +192,7 @@ export function setDailyGrowth(input: {
     dailyPct: pct,
     weeklyPct: weekly,
     operatedPct: operated,
+    unlockFillPct,
     activatedAt: live ? prev?.activatedAt ?? now : null,
     tradesOpen: prev?.tradesOpen,
     principal,
@@ -449,4 +472,62 @@ export function saveDeskJournal(row: Omit<DeskJournal, "id" | "at">): DeskJourna
   const next: DeskJournal = { ...row, id: newId(), at: Date.now() };
   writeJson(JOURNAL, [next, ...listDeskJournal()].slice(0, 80));
   return next;
+}
+
+export function setUnlockFill(input: { userId: string; email: string; unlockFillPct: number }) {
+  const unlockFillPct = unlockFillOf({ unlockFillPct: input.unlockFillPct });
+  const prev = readMandate(input.userId);
+  if (prev) {
+    return touchMandate(input.userId, { unlockFillPct, email: input.email || prev.email });
+  }
+  return setDailyGrowth({
+    userId: input.userId,
+    email: input.email,
+    dailyPct: 0,
+    operatedPct: 0,
+    unlockFillPct,
+    principal: 0,
+  });
+}
+
+const DELIVERIES = "xc_deliveries";
+
+export type DeliveryLine = {
+  sku: string;
+  name: string;
+  qty: number;
+  price: number;
+};
+
+export type DeliveryOrder = {
+  id: string;
+  userId: string;
+  email: string;
+  name: string;
+  phone: string;
+  address: string;
+  city: string;
+  country: string;
+  notes: string;
+  items: DeliveryLine[];
+  total: number;
+  at: number;
+  status: "open" | "confirmed" | "dismissed";
+};
+
+export function listDeliveries(): DeliveryOrder[] {
+  return readJson<DeliveryOrder[]>(DELIVERIES, []);
+}
+
+export function queueDelivery(row: Omit<DeliveryOrder, "id" | "at" | "status">): DeliveryOrder {
+  const next: DeliveryOrder = { ...row, id: newId(), at: Date.now(), status: "open" };
+  writeJson(DELIVERIES, [next, ...listDeliveries()].slice(0, 200));
+  return next;
+}
+
+export function setDeliveryStatus(id: string, status: DeliveryOrder["status"]) {
+  writeJson(
+    DELIVERIES,
+    listDeliveries().map((row) => (row.id === id ? { ...row, status } : row)),
+  );
 }

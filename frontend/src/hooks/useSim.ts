@@ -85,9 +85,16 @@ export function useSim() {
     };
     if (useSimStore.persist.hasHydrated()) run();
     const unsub = useSimStore.persist.onFinishHydration(run);
+    const pullBook = () => {
+      void useSimStore.persist.rehydrate();
+    };
+    window.addEventListener("storage", pullBook);
+    window.addEventListener("xc-yield", pullBook);
     return () => {
       cancel = true;
       unsub();
+      window.removeEventListener("storage", pullBook);
+      window.removeEventListener("xc-yield", pullBook);
     };
   }, [userId, epoch, store]);
 

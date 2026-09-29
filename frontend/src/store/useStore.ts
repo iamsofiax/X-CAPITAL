@@ -1,9 +1,9 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { sessionKeys } from "@/lib/sessionScope";
+import { restoreRememberedTokens, sessionKeys, sessionOnlyExpired } from "@/lib/sessionScope";
 import type { User } from "@/types";
 import { authAPI } from "@/lib/api";
-import { hasApiToken, hasSessionToken, mapAuthLoginUser } from "@/lib/apiUser";
+import { hasApiToken, mapAuthLoginUser } from "@/lib/apiUser";
 import {
   browserDesk,
   deskToUser,
@@ -403,12 +403,16 @@ export const useStore = create<Store>()(
         }
         if (typeof window === "undefined" || !state) return;
         if (state.theme) document.documentElement.setAttribute("data-theme", state.theme);
-        const keys = sessionKeys();
-        const remembered = localStorage.getItem(keys.remember) === "1";
-        const sessionActive = sessionStorage.getItem(keys.session) === "1";
-        if (state.isAuthenticated && ((!remembered && !sessionActive) || !hasSessionToken())) {
+        const remembered = restoreRememberedTokens({
+          accessToken: state.accessToken,
+          refreshToken: state.refreshToken,
+        });
+        if (state.isAuthenticated && sessionOnlyExpired()) {
           useStore.setState({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
           return;
+        }
+        if (remembered && state.user && state.accessToken && !state.isAuthenticated) {
+          useStore.setState({ isAuthenticated: true });
         }
         if (state.isAuthenticated && !remembered) sessionStorage.setItem(sessionKeys().session, "1");
       },

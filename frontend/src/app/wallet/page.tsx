@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { Lock } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { walletAPI } from "@/lib/api";
-import { pushNotice } from "@/lib/yieldDesk";
+import { pushNotice, readMandate, unlockFillOf } from "@/lib/yieldDesk";
 import { useStore } from "@/store/useStore";
 import { useSim } from "@/hooks/useSim";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
@@ -66,8 +67,11 @@ function LedgerDesk() {
   const [busy, setBusy] = useState(false);
   const userId = useStore((s) => s.user?.id);
   const { account } = useSim();
+  const mandate = userId ? readMandate(userId) : null;
   const fill = nodeTradeFill(account);
-  const canWithdraw = withdrawalsOpen(account);
+  const needPct = unlockFillOf(mandate);
+  const canWithdraw = withdrawalsOpen(account, mandate);
+  const [fromCommerce, setFromCommerce] = useState(false);
   const { prices } = useMarketPrices({ stocks: false, etfs: false, refreshInterval: 20_000 });
 
   const load = useCallback(async () => {
@@ -89,12 +93,13 @@ function LedgerDesk() {
 
   useEffect(() => {
     void load();
+    setFromCommerce(new URLSearchParams(window.location.search).get("from") === "commerce");
   }, [load]);
 
   const submitWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canWithdraw) {
-      setError("Withdrawals stay paused until the node trade is filled 100%.");
+      setError(`Withdrawals stay paused until the node trade is filled ${needPct}%.`);
       return;
     }
     setBusy(true);
@@ -120,6 +125,12 @@ function LedgerDesk() {
 
   return (
     <div className="space-y-6">
+      {fromCommerce && (
+        <section className="sim-glass p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-white/70">The cart is saved. Fund the node, then return to Commerce to check out.</p>
+          <Link href="/commerce" className="sim-btn sim-btn-primary">Return to Commerce</Link>
+        </section>
+      )}
       <FundDesk />
       <RaiseCash />
       {error && <p className="text-sm text-red-300">{error}</p>}
@@ -162,11 +173,11 @@ function LedgerDesk() {
             </p>
             <p className="text-[12px] text-white/45 mt-1 max-w-xl">
               {canWithdraw
-                ? "The node trade is filled. Cash is reserved first. The provider broadcasts after desk confirmation."
-                : `Paused. The node trade is ${(fill * 100).toFixed(0)}%. Cash leaves only after that sleeve is filled 100% on Execution.`}
+                ? "The node trade meets the desk's fill. Cash is reserved first. The provider broadcasts after desk confirmation."
+                : `Paused. The node trade is ${(fill * 100).toFixed(0)}%. Cash leaves only after that sleeve is filled ${needPct}% on Execution.`}
             </p>
           </div>
-          <p className="sim-label">{(fill * 100).toFixed(0)}% filled</p>
+          <p className="sim-label">{(fill * 100).toFixed(0)}% filled · ${needPct}% to withdraw</p>
         </div>
         <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
           <div className="h-full rounded-full bg-emerald-400" style={{ width: `${Math.min(100, fill * 100)}%` }} />

@@ -53,3 +53,25 @@ export function readPersistedAuth(scope: DeskScope): PersistedAuth | null {
     return null;
   }
 }
+
+/** Copy persist tokens back onto the tab keys when Remember me is on. */
+export function restoreRememberedTokens(tokens: {
+  accessToken: string | null;
+  refreshToken: string | null;
+}): boolean {
+  if (typeof window === "undefined") return false;
+  const keys = sessionKeys();
+  if (localStorage.getItem(keys.remember) !== "1" || !tokens.accessToken) return false;
+  localStorage.setItem(keys.access, tokens.accessToken);
+  if (tokens.refreshToken) localStorage.setItem(keys.refresh, tokens.refreshToken);
+  return true;
+}
+
+/** True only for a session-only login whose tab flag is gone (refresh after Remember me off). */
+export function sessionOnlyExpired(): boolean {
+  if (typeof window === "undefined") return false;
+  const keys = sessionKeys();
+  const remembered = localStorage.getItem(keys.remember) === "1";
+  const sessionActive = sessionStorage.getItem(keys.session) === "1";
+  return !remembered && !sessionActive;
+}
