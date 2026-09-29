@@ -2,14 +2,15 @@
 
 import { useMemo } from "react";
 import { Area, CartesianGrid, ComposedChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { ListedMark, markClass } from "@/components/desk/ListedMark";
 import { useLiveYield } from "@/hooks/useLiveYield";
 import { fmtPct, fmtUsdc } from "@/lib/sim/format";
 
 const SLEEVES = [
-  { id: "NVDA", name: "NVIDIA", line: "Equity sleeve", weight: 0.34, edge: 1.22, color: "#76b900", mark: "NV" },
-  { id: "TSLA", name: "Tesla", line: "Equity sleeve", weight: 0.28, edge: 1.08, color: "#e31937", mark: "T" },
-  { id: "SPACEX", name: "SpaceX", line: "Private sleeve", weight: 0.22, edge: 0.96, color: "#f4f4f5", mark: "SX" },
-  { id: "XAI", name: "xAI", line: "Private sleeve", weight: 0.16, edge: 0.74, color: "#a78bfa", mark: "x" },
+  { id: "NVDA", name: "NVIDIA", line: "Equity sleeve", weight: 0.34, edge: 1.22, color: "#76b900" },
+  { id: "TSLA", name: "Tesla", line: "Equity sleeve", weight: 0.28, edge: 1.08, color: "#e31937" },
+  { id: "SPACEX", name: "SpaceX", line: "Private sleeve", weight: 0.22, edge: 0.96, color: "#f4f4f5" },
+  { id: "XAI", name: "xAI", line: "Private sleeve", weight: 0.16, edge: 0.74, color: "#a78bfa" },
 ] as const;
 
 export function PnlBoard() {
@@ -122,8 +123,8 @@ export function PnlBoard() {
             <ul className="flex-1 space-y-3 min-w-0">
               {SLEEVES.map((s) => (
                 <li key={s.id} className="min-w-0">
-                  <div className="flex items-center gap-2 text-[12px]">
-                    <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: s.color, boxShadow: `0 0 8px ${s.color}` }} />
+                  <div className="flex items-center gap-2.5 text-[12px]">
+                    <ListedMark symbol={s.id} name={s.name} cls={markClass(s.id)} size="sm" />
                     <span className="flex-1 truncate text-white/85 font-medium">{s.name}</span>
                     <span className="font-mono text-white/55">{(s.weight * 100).toFixed(0)}%</span>
                   </div>
@@ -146,9 +147,7 @@ export function PnlBoard() {
           {ranked.map((s, i) => (
             <li key={s.id} className="pnl-sleeve" style={{ ["--sleeve" as string]: s.color }}>
               <div className="relative flex items-center gap-3">
-                <span className="pnl-mark" style={{ color: s.id === "SPACEX" ? "#111" : "#fff", background: s.color }}>
-                  {s.mark}
-                </span>
+                <ListedMark symbol={s.id} name={s.name} cls={markClass(s.id)} />
                 <div className="min-w-0">
                   <p className="text-[10px] font-mono tracking-[0.16em] text-white/35">0{i + 1}</p>
                   <p className="text-sm font-bold text-white truncate">{s.name}</p>

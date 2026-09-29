@@ -11,6 +11,7 @@ import { VAULT_BY_ID, navAt } from "@/lib/sim/vaults";
 import { INSTRUMENTS, INSTRUMENT_BY_SYMBOL, type Instrument } from "@/lib/sim/instruments";
 import { useSimQuotes } from "@/hooks/useSimQuotes";
 import { CATALOG_BY_SKU, incomePerMinute } from "@/lib/commerceDesk";
+import { ListedMark, markClass } from "@/components/desk/ListedMark";
 import { LiveBook } from "@/components/desk/LiveBook";
 import { YieldWatch } from "@/components/desk/YieldWatch";
 import { useLiveYield } from "@/hooks/useLiveYield";
@@ -125,50 +126,53 @@ function Book() {
         {openSlip && <TradeReceipt slip={openSlip} onClose={() => setOpenSlip(null)} />}
       </Panel>
       <Panel code="Holdings" title="Portfolio" edge bodyClassName="p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[36rem] text-left">
-            <thead>
-              <tr className="sim-label text-[9px] border-b border-white/[0.05]">
-                <th className="font-normal px-5 py-3">Holding</th>
-                <th className="font-normal px-3 py-3">Sleeve</th>
-                <th className="font-normal px-3 py-3 text-right">Market value</th>
-                <th className="font-normal px-3 py-3 text-right">Cost</th>
-                <th className="font-normal px-3 py-3 text-right">Gain</th>
-                <th className="font-normal px-5 py-3 text-right">Weight</th>
-              </tr>
-            </thead>
-            <tbody className="sim-num text-[12px]">
-              {sleeves.map((s) => {
-                const pnl = s.value - s.cost;
-                const weight = (s.value / total) * 100;
-                return (
-                  <tr key={s.id} className="border-b border-white/[0.04]">
-                    <td className="px-5 py-3">
-                      <span className="text-white font-semibold">{s.label}</span>
-                      {s.id === "fleet" && account.fleet && (
-                        <span className="block text-[10px] text-emerald-300/80 font-sans">
-                          +{fmtUsdc(incomePerMinute(account.fleet.cost), { decimals: 4 })} USD / minute
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-3 text-white/45">{s.kind}</td>
-                    <td className="px-3 py-3 text-right text-white">{fmtUsdc(s.value)}</td>
-                    <td className="px-3 py-3 text-right text-white/55">{fmtUsdc(s.cost)}</td>
-                    <td className={cn("px-3 py-3 text-right", s.kind === "Cash" || s.kind === "Fleet" || s.kind === "Atelier" ? "text-white/40" : signClass(pnl))}>
-                      {s.kind === "Cash" || s.kind === "Fleet" || s.kind === "Atelier" ? "—" : `${pnl >= 0 ? "+" : ""}${fmtUsdc(pnl)}`}
-                    </td>
-                    <td className="px-5 py-3 text-right">
-                      <span className="text-white/70">{weight.toFixed(1)}%</span>
-                      <span className="mt-1 block h-1 rounded-full bg-white/[0.06] overflow-hidden">
-                        <span className="block h-full rounded-full" style={{ width: `${Math.min(100, weight)}%`, background: s.color }} />
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="hidden border-b border-white/[0.05] px-5 py-3 sim-label text-[9px] md:grid md:grid-cols-[minmax(0,1.6fr)_4.75rem_7rem_7rem_6.5rem_5.75rem] md:items-center md:gap-x-3">
+          <span>Holding</span>
+          <span>Sleeve</span>
+          <span className="text-right">Market value</span>
+          <span className="text-right">Cost</span>
+          <span className="text-right">Gain</span>
+          <span className="text-right">Weight</span>
         </div>
+        <ul className="sim-num text-[12px]">
+          {sleeves.map((s) => {
+            const pnl = s.value - s.cost;
+            const weight = (s.value / total) * 100;
+            const flat = s.kind === "Cash" || s.kind === "Fleet" || s.kind === "Atelier";
+            const gain = flat ? "—" : `${pnl >= 0 ? "+" : ""}${fmtUsdc(pnl)}`;
+            return (
+              <li
+                key={s.id}
+                className="flex items-center gap-3 border-b border-white/[0.04] px-4 py-3.5 md:grid md:grid-cols-[minmax(0,1.6fr)_4.75rem_7rem_7rem_6.5rem_5.75rem] md:gap-x-3 md:px-5"
+              >
+                <span className="flex min-w-0 flex-1 items-center gap-3">
+                  <HoldingMark id={s.id} kind={s.kind} label={s.label} />
+                  <span className="min-w-0">
+                    <span className="block truncate text-white font-semibold">{s.label}</span>
+                    <span className="block truncate text-[11px] font-sans text-white/40 md:hidden">{s.kind}</span>
+                    {s.id === "fleet" && account.fleet && (
+                      <span className="block text-[10px] font-sans text-emerald-300/80">
+                        +{fmtUsdc(incomePerMinute(account.fleet.cost), { decimals: 4 })} USD / minute
+                      </span>
+                    )}
+                  </span>
+                </span>
+                <span className="hidden text-white/45 md:block">{s.kind}</span>
+                <span className="hidden text-right text-white md:block">{fmtUsdc(s.value)}</span>
+                <span className="hidden text-right text-white/55 md:block">{fmtUsdc(s.cost)}</span>
+                <span className={cn("hidden text-right md:block", flat ? "text-white/40" : signClass(pnl))}>{gain}</span>
+                <span className="shrink-0 text-right">
+                  <span className="block text-white md:hidden">{fmtUsdc(s.value)}</span>
+                  <span className={cn("block text-[11px] md:hidden", flat ? "text-white/40" : signClass(pnl))}>{gain}</span>
+                  <span className="text-white/70">{weight.toFixed(1)}%</span>
+                  <span className="mt-1 block h-1 overflow-hidden rounded-full bg-white/[0.06]">
+                    <span className="block h-full rounded-full" style={{ width: `${Math.min(100, weight)}%`, background: s.color }} />
+                  </span>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
       </Panel>
     </div>
   );
@@ -292,6 +296,19 @@ function BookTape({
   );
 }
 
+function HoldingMark({ id, kind, label }: { id: string; kind: string; label: string }) {
+  if (kind === "Spot") {
+    const inst = INSTRUMENT_BY_SYMBOL[id];
+    return <ListedMark symbol={id} name={inst?.name ?? label} cls={markClass(id, inst?.cls ?? "equity")} />;
+  }
+  const letters = (kind === "Cash" ? "USD" : kind.slice(0, 3)).toUpperCase();
+  return (
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] bg-white text-[9px] font-black tracking-tight text-[#111816]" title={label}>
+      {letters}
+    </span>
+  );
+}
+
 function TapeRow({
   inst,
   quote,
@@ -322,57 +339,3 @@ function TapeRow({
   );
 }
 
-function ListedMark({ symbol, name, cls }: { symbol: string; name: string; cls: string }) {
-  const sources = useMemo(() => markSources(symbol, cls), [symbol, cls]);
-  const [index, setIndex] = useState(0);
-  const failed = index >= sources.length;
-  const letters = (symbol.replace(/[^A-Za-z0-9]/g, "").slice(0, 3) || name.slice(0, 2)).toUpperCase();
-  const advance = () => setIndex((n) => (n >= sources.length ? n : n + 1));
-  return (
-    <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-white" title={name}>
-      {failed ? (
-        <span className="text-[9px] font-black tracking-tight text-[#111816]">{letters}</span>
-      ) : (
-        <img
-          key={sources[index]}
-          src={sources[index]}
-          alt=""
-          width={40}
-          height={40}
-          loading="lazy"
-          decoding="async"
-          referrerPolicy="no-referrer"
-          className="h-8 w-8 object-contain"
-          onError={advance}
-          onLoad={(event) => {
-            if (event.currentTarget.naturalWidth > 0 && event.currentTarget.naturalWidth < 8) advance();
-          }}
-        />
-      )}
-    </span>
-  );
-}
-
-function markSources(symbol: string, cls: string): string[] {
-  if (cls === "private") {
-    const domain = symbol === "SPACEX" ? "spacex.com" : "x.ai";
-    return [
-      `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
-      `https://icons.duckduckgo.com/ip3/${domain}.ico`,
-    ];
-  }
-  if (cls === "crypto") {
-    const slug = symbol.toLowerCase();
-    return [
-      `https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@0.18.1/svg/color/${slug}.svg`,
-      `https://cdn.jsdelivr.net/gh/davidepalazzo/ticker-logos/crypto_icons/${symbol}.png`,
-    ];
-  }
-  const dashed = symbol.replace(/\./g, "-");
-  return [
-    `https://assets.parqet.com/logos/symbol/${encodeURIComponent(symbol)}`,
-    `https://cdn.jsdelivr.net/gh/davidepalazzo/ticker-logos/ticker_icons/${encodeURIComponent(symbol)}.png`,
-    `https://cdn.jsdelivr.net/gh/davidepalazzo/ticker-logos/ticker_icons/${encodeURIComponent(dashed)}.png`,
-    `https://financialmodelingprep.com/image-stock/${encodeURIComponent(dashed)}.png`,
-  ];
-}

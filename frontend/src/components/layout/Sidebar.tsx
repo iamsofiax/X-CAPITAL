@@ -39,11 +39,11 @@ export default function Sidebar() {
         className={cn(
           "fixed top-0 bottom-0 left-0 z-50 flex flex-col",
           "bg-[#030405]/95 backdrop-blur-md border-r border-white/[0.05]",
-          "w-[min(88vw,340px)] transition-transform duration-150",
+          "w-[min(92vw,420px)] overflow-y-auto overscroll-contain transition-transform duration-150",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex items-center justify-between px-4 pt-6 pb-5 border-b border-white/[0.05]">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/[0.05] bg-[#030405]/95 px-5 pb-6 pt-7 backdrop-blur-md">
           <Link href="/dashboard" className="flex items-center gap-3" onClick={close}>
             <XCapitalLogoMark size={36} />
             <div className="min-w-0">
@@ -57,7 +57,7 @@ export default function Sidebar() {
         </div>
 
         {account && claimed && metrics && (
-          <div className="px-3 py-3 border-b border-white/[0.04]">
+          <div className="px-5 py-5 border-b border-white/[0.04]">
             <p className="sim-label text-[8.5px] mb-1">Book NAV</p>
             <p className="sim-num text-lg font-bold text-white leading-none">{fmtUsdc(metrics.nav)}</p>
             <p className="sim-num text-[10px] text-white/40 mt-1">USD · {fmtUsdc(metrics.sxc, { decimals: 2 })} XC</p>
@@ -65,7 +65,7 @@ export default function Sidebar() {
           </div>
         )}
 
-        <nav className="flex-1 py-3 px-3 space-y-1 overflow-y-auto">
+        <nav className="px-4 py-6 space-y-3">
           {items.map(({ href, label, icon: Icon, accent, gated }) => {
             const active = pathname === href || pathname.startsWith(href + "/");
             const locked = gated && !claimed;
@@ -76,7 +76,7 @@ export default function Sidebar() {
                 onClick={close}
                 title={locked ? "Open the book in Treasury. Cash stays at zero until a deposit is confirmed." : label}
                 className={cn(
-                  "group relative flex items-center gap-4 px-3 py-3.5 rounded-xl transition-colors duration-75",
+                  "group relative flex items-center gap-4 px-4 py-4 rounded-2xl transition-colors duration-75",
                   "justify-start",
                   active ? "bg-white/[0.07] text-white" : "text-white/50 hover:text-white hover:bg-white/[0.04]",
                 )}
@@ -86,12 +86,12 @@ export default function Sidebar() {
                   <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-full" style={{ background: accent }} />
                 )}
                 <span
-                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03]"
+                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03]"
                   style={active ? { color: accent, borderColor: `${accent}55` } : undefined}
                 >
                   <Icon className="w-4 h-4" strokeWidth={active ? 2.2 : 1.8} />
                 </span>
-                <span className={cn("flex-1 text-[13.5px] tracking-tight", active ? "font-bold" : "font-semibold")}>
+                <span className={cn("flex-1 text-[15px] leading-snug tracking-tight", active ? "font-bold" : "font-semibold")}>
                   {label}
                 </span>
                 {locked && <Lock className="w-3 h-3 text-amber-400/60 shrink-0" />}
@@ -100,7 +100,7 @@ export default function Sidebar() {
           })}
         </nav>
 
-        <div className="px-3 py-3 border-t border-white/[0.04]">
+        <div className="px-5 py-4 border-t border-white/[0.04]">
           <div className="flex items-center gap-2 text-[10px] text-white/35">
             <ShieldCheck className={cn("w-3.5 h-3.5", metrics?.reserves.ok === false ? "text-red-400" : "text-emerald-400/70")} />
             <span className="sim-num">
@@ -110,30 +110,30 @@ export default function Sidebar() {
         </div>
 
         {user && (
-          <div className="border-t border-white/[0.05] p-3 space-y-1">
+          <div className="space-y-3 border-t border-white/[0.05] px-4 pb-8 pt-5">
             {isAdminUser(user) && (
-              <Link href="/admin" onClick={close} className="flex items-center gap-3 px-3 py-3.5 rounded-xl text-white/40 hover:text-white hover:bg-white/[0.04] text-[15px]">
-                <Users className="w-4 h-4 shrink-0" />
+              <Link href="/admin" onClick={close} className="flex items-center gap-4 px-4 py-4 rounded-2xl text-white/40 hover:text-white hover:bg-white/[0.04] text-[15px] leading-snug">
+                <Users className="w-5 h-5 shrink-0" />
                 <span>Ground station</span>
               </Link>
             )}
-            <Link href="/settings" onClick={close} className="flex items-center gap-3 px-3 py-3.5 rounded-xl text-white/40 hover:text-white hover:bg-white/[0.04] text-[15px]">
-              <Settings className="w-4 h-4 shrink-0" />
+            <Link href="/settings" onClick={close} className="flex items-center gap-4 px-4 py-4 rounded-2xl text-white/40 hover:text-white hover:bg-white/[0.04] text-[15px] leading-snug">
+              <Settings className="w-5 h-5 shrink-0" />
               <span>Settings</span>
             </Link>
-            <Link href="/settings/kyc" onClick={close} className="flex items-center gap-3 px-3 py-3.5 rounded-xl text-white/40 hover:text-white hover:bg-white/[0.04] text-[15px]">
-              <ShieldCheck className="w-4 h-4 shrink-0" />
+            <Link href="/settings/kyc" onClick={close} className="flex items-center gap-4 px-4 py-4 rounded-2xl text-white/40 hover:text-white hover:bg-white/[0.04] text-[15px] leading-snug">
+              <ShieldCheck className="w-5 h-5 shrink-0" />
               <span>Identity</span>
             </Link>
-            <Link href="/settings/links" onClick={close} className="flex items-center gap-3 px-3 py-3.5 rounded-xl text-white/40 hover:text-white hover:bg-white/[0.04] text-[15px]">
-              <ShieldCheck className="w-4 h-4 shrink-0" />
+            <Link href="/settings/links" onClick={close} className="flex items-center gap-4 px-4 py-4 rounded-2xl text-white/40 hover:text-white hover:bg-white/[0.04] text-[15px] leading-snug">
+              <ShieldCheck className="w-5 h-5 shrink-0" />
               <span>Link a plan</span>
             </Link>
             <button
               onClick={() => { logout(); close(); router.push("/auth/login"); }}
-              className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl text-white/40 hover:text-red-300 hover:bg-red-950/20 text-[15px]"
+              className="w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-white/40 hover:text-red-300 hover:bg-red-950/20 text-[15px] leading-snug"
             >
-              <LogOut className="w-4 h-4 shrink-0" />
+              <LogOut className="w-5 h-5 shrink-0" />
               <span>Sign out</span>
             </button>
           </div>
