@@ -11,12 +11,10 @@ import {
   Mail,
   Phone,
   Shield,
-  Bell,
   Moon,
   Sun,
   Eye,
   EyeOff,
-  ChevronRight,
   Check,
   Lock,
 } from "lucide-react";

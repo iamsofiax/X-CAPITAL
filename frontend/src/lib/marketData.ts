@@ -201,18 +201,28 @@ const BINANCE_PAIRS: Record<string, string> = {
   TRX: "TRXUSDT",
 };
 
+type BinanceTicker = {
+  symbol: string;
+  lastPrice: string;
+  priceChange: string;
+  priceChangePercent: string;
+  highPrice: string;
+  lowPrice: string;
+  quoteVolume: string;
+};
+
 /** Last sale on Binance. The vision host allows a browser to read the print. */
 export async function fetchBinancePrices(): Promise<Record<string, MarketPrice>> {
   const now = Date.now();
   const symbols = Object.values(BINANCE_PAIRS);
   const path = `/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(symbols))}`;
   const hosts = ["https://data-api.binance.vision", "https://api.binance.com"];
-  let data: { symbol: string; lastPrice: string; priceChange: string; priceChangePercent: string; highPrice: string; lowPrice: string; quoteVolume: string }[] | null = null;
+  let data: BinanceTicker[] | null = null;
   for (const host of hosts) {
     try {
       const res = await fetch(`${host}${path}`, { signal: AbortSignal.timeout(8000) });
       if (!res.ok) continue;
-      data = (await res.json()) as NonNullable<typeof data>;
+      data = (await res.json()) as BinanceTicker[];
       break;
     } catch {
       data = null;
