@@ -84,9 +84,10 @@ export default function AdminPage() {
     try {
       const { data } = await adminAPI.listUsers();
       setRows((data.data ?? []) as Row[]);
-    } catch {
-      setRows([]);
-      setError("");
+    } catch (cause) {
+      const message =
+        cause instanceof Error ? cause.message : "Unexpected error";
+      setError(`Could not refresh the user directory: ${message}`);
     } finally {
       setBusy(false);
     }
@@ -138,6 +139,12 @@ export default function AdminPage() {
     }
     void load();
   }, [ready, isAuthenticated, user, router, load]);
+
+  useEffect(() => {
+    if (!allowed) return;
+    const refreshId = window.setInterval(() => void load(), 30_000);
+    return () => window.clearInterval(refreshId);
+  }, [allowed, load]);
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();

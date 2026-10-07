@@ -377,9 +377,18 @@ export const useStore = create<Store>()(
     {
       name: "xcapital-store",
       storage: createJSONStorage(() => ({
-        getItem: () => localStorage.getItem(sessionKeys().store),
-        setItem: (_name, value) => localStorage.setItem(sessionKeys().store, value),
-        removeItem: () => localStorage.removeItem(sessionKeys().store),
+        getItem: () =>
+          typeof window === "undefined" ? null : localStorage.getItem(sessionKeys().store),
+        setItem: (_name, value) => {
+          if (typeof window !== "undefined") {
+            localStorage.setItem(sessionKeys().store, value);
+          }
+        },
+        removeItem: () => {
+          if (typeof window !== "undefined") {
+            localStorage.removeItem(sessionKeys().store);
+          }
+        },
       })),
       version: 6,
       migrate: () => ({

@@ -136,7 +136,7 @@ export const ONRAMPS: Onramp[] = [
     name: "Simplex",
     note: "Card, instant",
     kind: "instant",
-    href: (a) => `https://buy.simplex.com/`,
+    href: () => `https://buy.simplex.com/`,
   },
   {
     id: "coinbase",
