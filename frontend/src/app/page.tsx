@@ -80,6 +80,15 @@ const RAILS = [
 
 const TICKER = ["BTC", "ETH", "TSLA", "NVDA", "SPY", "AAPL", "GLD"];
 
+const CAPITAL_SCENARIO_MULTIPLE = 2.8;
+const CAPITAL_SCENARIOS = [500, 2_000, 5_000, 10_000, 20_000, 50_000, 100_000].map(
+  (startingCapital) => ({
+    startingCapital,
+    modeledValue: Math.round(startingCapital * CAPITAL_SCENARIO_MULTIPLE),
+    modeledIncrease: Math.round(startingCapital * (CAPITAL_SCENARIO_MULTIPLE - 1)),
+  }),
+);
+
 const TIERS = [
   {
     name: "QUANTUM",
@@ -654,32 +663,44 @@ export default function LandingPage() {
                 <span>Seven rails · First wave</span>
               </div>
               <div className="mt-5 h-px bg-emerald-300/70" />
-              <p className="mt-8 font-mono text-[11px] uppercase tracking-[0.22em] text-white/70">Capitalization nodes</p>
+              <p className="mt-8 font-mono text-[11px] uppercase tracking-[0.22em] text-white/70">Illustrative capital scenarios</p>
               <h2 className="mt-3 max-w-2xl text-3xl font-black tracking-tight text-white sm:text-5xl sm:leading-[1.02]">
-                What a funded node is built to show.
+                Explore different starting amounts.
               </h2>
               <p className="mt-5 max-w-xl text-sm leading-relaxed text-white/80">
-                Through our advanced 7 rails capitalization nodes, first-wave projections currently indicate:
+                Each example uses the same 2.8× illustrative model as the existing $10,000 scenario. Figures are scaled consistently for comparison.
               </p>
-              <div className="mt-8 border-y border-white/15">
-                {[
-                  ["10k", "~28k"],
-                  ["20k", "~55k"],
-                  ["50k", "~140k"],
-                  ["100k", "~310k"],
-                ].map(([from, to]) => (
-                  <div key={from} className="grid grid-cols-[1fr_auto_1fr] items-baseline gap-4 border-b border-white/10 py-4 last:border-b-0 sm:gap-8">
-                    <span className="font-mono text-sm tracking-wide text-white/55 sm:text-base">${from}</span>
-                    <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-emerald-300/80">to</span>
-                    <span className="text-right text-2xl font-black tabular-nums text-white sm:text-4xl">{to}</span>
-                  </div>
-                ))}
+              <div className="mt-8 overflow-x-auto border-y border-white/15">
+                <table className="w-full table-fixed text-left">
+                  <thead>
+                    <tr className="border-b border-white/10 font-mono text-[10px] uppercase tracking-[0.16em] text-white/45">
+                      <th scope="col" className="w-[28%] py-4 pr-2 font-medium sm:pr-4">Starting amount</th>
+                      <th scope="col" className="w-[38%] py-4 px-2 text-right font-medium sm:px-4">Modeled value</th>
+                      <th scope="col" className="w-[34%] py-4 pl-2 text-right font-medium sm:pl-4">Increase*</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {CAPITAL_SCENARIOS.map(({ startingCapital, modeledValue, modeledIncrease }) => (
+                      <tr key={startingCapital} className="border-b border-white/10 last:border-b-0">
+                        <th scope="row" className="py-4 pr-2 font-mono text-xs font-medium text-white/70 sm:pr-4 sm:text-base">
+                          {formatCurrency(startingCapital).replace(/\.00$/, "")}
+                        </th>
+                        <td className="py-4 px-2 text-right text-base font-black tabular-nums text-white sm:px-4 sm:text-2xl">
+                          {formatCurrency(modeledValue).replace(/\.00$/, "")}
+                        </td>
+                        <td className="py-4 pl-2 text-right font-mono text-[11px] tabular-nums text-emerald-300/90 sm:pl-4 sm:text-base">
+                          +{formatCurrency(modeledIncrease).replace(/\.00$/, "")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
               <p className="mt-8 max-w-2xl text-sm leading-relaxed text-white/75">
-                Daily and weekly growth remains consistently upward, as one would naturally expect from a system of this calibre.
+                *Modeled increase is the illustrative modeled value minus the starting amount. No payout, return, or timeframe is promised or implied.
               </p>
-              <p className="mt-5 font-mono text-[10px] uppercase tracking-[0.16em] text-white/45">
-                Illustrative model. Not a guaranteed earning. Principal can be lost.
+              <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.16em] text-white/45">
+                Illustrative scenario only—not a payout quote or guarantee. Actual investment results vary; principal can be lost.
               </p>
             </div>
           </div>
